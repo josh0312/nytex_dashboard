@@ -37,10 +37,11 @@ class SeasonService:
             async with self._get_session_context() as session:
                 # Use SQLAlchemy ORM query builders
                 today = date.today()
+                yesterday = today - timedelta(days=1)
                 date_series = select(
                     func.generate_series(
                         cast(season['start_date'], Date),
-                        func.least(cast(season['end_date'], Date), cast(today, Date)),
+                        func.least(cast(season['end_date'], Date), cast(yesterday, Date)),
                         text("interval '1 day'")
                     ).label('order_date')
                 ).alias('date_series')

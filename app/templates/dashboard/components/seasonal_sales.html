@@ -1,19 +1,21 @@
 <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 flex flex-col">
-    <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-            <i data-lucide="bar-chart-2" class="w-5 h-5 text-green-600 dark:text-green-300"></i>
+    <div class="flex items-center justify-between mb-2">
+        <i data-lucide="bar-chart-2" class="w-5 h-5 text-green-600 dark:text-green-300"></i>
+        <div class="text-center flex-grow">
             <h3 class="text-sm font-medium">{{ current_season.name if current_season else 'Season' }} Sales</h3>
+            {% if current_season %}
+                <div class="text-xs text-gray-600 dark:text-gray-300">
+                    {{ current_season.name }}
+                    <span class="text-gray-500 dark:text-gray-400">
+                        ({{ current_season.start_date.strftime('%b %d') }} - {{ current_season.end_date.strftime('%b %d') }})
+                    </span>
+                </div>
+            {% endif %}
         </div>
+        <div class="w-5"></div>
     </div>
     
     {% if current_season %}
-        <div class="mt-2 text-xs text-gray-600 dark:text-gray-300">
-            {{ current_season.name }}
-            <span class="text-gray-500 dark:text-gray-400">
-                ({{ current_season.start_date.strftime('%b %d') }} - {{ current_season.end_date.strftime('%b %d') }})
-            </span>
-        </div>
-        
         {% if sales_data and dates and amounts and transactions %}
             <div class="mt-4 h-48">
                 <canvas id="seasonalSalesChart"></canvas>
@@ -25,6 +27,8 @@
                 }
                 
                 const ctx = document.getElementById('seasonalSalesChart').getContext('2d');
+                console.log('Labels:', {{ dates|tojson|safe }});
+                console.log('Amounts:', {{ amounts|tojson|safe }});
                 window.seasonalChart = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -74,6 +78,12 @@
                             x: {
                                 grid: {
                                     display: false
+                                },
+                                ticks: {
+                                    callback: function(value, index, ticks) {
+                                        const labels = {{ dates|tojson|safe }};
+                                        return labels[index].split(' ')[1];
+                                    }
                                 }
                             }
                         }
