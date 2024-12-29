@@ -1,26 +1,59 @@
-<div class="overflow-x-auto">
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-        <thead class="bg-gray-50 dark:bg-gray-800">
-            <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Orders</th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sales</th>
-            </tr>
-        </thead>
-        <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-            {% for location in location_sales %}
-            <tr>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ location.name }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                        {{ location.status }}
-                    </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ location.orders }}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${{ "%.2f"|format(location.sales) }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="space-y-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Location Sales</h3>
+    </div>
+    
+    <!-- Table -->
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead>
+                <tr class="bg-gray-50 dark:bg-gray-800">
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
+                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sales</th>
+                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Orders</th>
+                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Weather</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for location in location_sales %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {{ location.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
+                        ${{ "{:,.2f}".format(location.sales) }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
+                        {{ location.orders }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-500 dark:text-gray-400">
+                        {% if location.weather %}
+                            <div class="relative inline-block group">
+                                <div class="flex items-center justify-center gap-2">
+                                    <img src="http://openweathermap.org/img/w/{{ location.weather.icon }}.png" 
+                                         alt="{{ location.weather.description }}"
+                                         class="w-8 h-8">
+                                    <span>{{ location.weather.temp }}°F</span>
+                                </div>
+                                
+                                <!-- Tooltip -->
+                                <div class="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                    <div>{{ location.weather.description }}</div>
+                                    <div>High: {{ location.weather.temp_max }}°F</div>
+                                    <div>Low: {{ location.weather.temp_min }}°F</div>
+                                    <div>Humidity: {{ location.weather.humidity }}%</div>
+                                    <!-- Arrow -->
+                                    <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                                </div>
+                            </div>
+                        {% else %}
+                            --
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div> 
