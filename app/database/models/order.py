@@ -2,8 +2,7 @@ from sqlalchemy import Column, String, DateTime, JSON, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.types import TypeDecorator
 from datetime import datetime, timezone
-
-from .base import Base
+from app.database import Base
 
 class TimestampTZ(TypeDecorator):
     """Timezone-aware timestamp type."""
@@ -40,8 +39,8 @@ class Order(Base):
     return_amounts = Column(JSON)
     order_metadata = Column(JSON)
 
-    # Relationships
-    location = relationship("Location", back_populates="orders")
+    # Use string references for relationships
+    location = relationship("Location", back_populates="orders", lazy="joined")
     tenders = relationship("Tender", back_populates="order", cascade="all, delete-orphan")
     line_items = relationship("OrderLineItem", back_populates="order", cascade="all, delete-orphan")
     fulfillments = relationship("OrderFulfillment", back_populates="order", cascade="all, delete-orphan")

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from .base import Base
+from app.database import Base
 from datetime import datetime
 
 class Location(Base):
@@ -25,6 +25,6 @@ class Location(Base):
     orders = relationship("Order", back_populates="location")
     tenders = relationship("Tender", back_populates="location")
     payments = relationship("Payment", back_populates="location")
-    transactions = relationship("SquareTransaction", back_populates="location")
+    sales = relationship("SquareSale", back_populates="location")
     catalog_availability = relationship("CatalogLocationAvailability", back_populates="location")
     catalog_inventory = relationship("CatalogInventory", back_populates="location") 

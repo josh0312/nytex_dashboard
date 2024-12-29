@@ -1,8 +1,9 @@
 from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey, JSON, BigInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
-from .base import Base
+from app.database import Base
 from datetime import datetime
+from app.database.models.location import Location
 
 class CatalogCategory(Base):
     __tablename__ = "catalog_categories"

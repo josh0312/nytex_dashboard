@@ -1,8 +1,25 @@
 from sqlalchemy import Column, String, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
+from sqlalchemy.types import TypeDecorator
+from datetime import datetime, timezone
+from app.database import Base
 
-from .base import Base
-from .order import TimestampTZ
+class TimestampTZ(TypeDecorator):
+    """Timezone-aware timestamp type."""
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            if value.tzinfo is not None:
+                value = value.astimezone(timezone.utc)
+            return value.replace(tzinfo=None)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
 
 class Payment(Base):
     __tablename__ = "payments"
@@ -42,9 +59,9 @@ class Payment(Base):
     version_token = Column(String)
     refund_ids = Column(JSON)
 
-    # Relationships
-    location = relationship("Location", back_populates="payments")
-    order = relationship("Order", back_populates="payments")
+    # Use string references for relationships
+    location = relationship("Location", back_populates="payments", lazy="joined")
+    order = relationship("Order", back_populates="payments", lazy="joined")
 
     def __repr__(self):
         return f"<Payment {self.id}>" 

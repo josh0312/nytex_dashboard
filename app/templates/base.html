@@ -14,7 +14,7 @@
     <title>{% block title %}NyTex Fireworks{% endblock %}</title>
     
     <!-- Compiled Tailwind CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/dist/styles.css') }}">
+    <link rel="stylesheet" href="/static/css/dist/styles.css">
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -95,11 +95,11 @@
                 <div class="flex">
                     <div class="flex-shrink-0 flex items-center">
                         <!-- Logo placeholder - replace src with your actual logo -->
-                        <img class="h-16 w-auto" src="{{ url_for('static', filename='img/brand/logo.png') }}" alt="NyTex Fireworks">
+                        <img class="h-16 w-auto" src="/static/img/brand/logo.png" alt="NyTex Fireworks">
                     </div>
                     <!-- Primary Navigation -->
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8 items-center">
-                        <a href="{{ url_for('dashboard.index') }}" 
+                        <a href="/" 
                            class="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                             Business Dashboard
                         </a>
@@ -173,7 +173,7 @@
         <!-- Mobile menu -->
         <div x-show="mobileMenuOpen" class="sm:hidden">
             <div class="pt-2 pb-3 space-y-1">
-                <a href="{{ url_for('dashboard.index') }}" class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-800 dark:hover:text-white">Business Dashboard</a>
+                <a href="/" class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-800 dark:hover:text-white">Business Dashboard</a>
                 <div x-data="{ open: false }">
                     <button @click="open = !open" class="w-full text-left block pl-3 pr-4 py-2 border-l-4 text-base font-medium border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-800 dark:hover:text-white">
                         Locations
@@ -206,7 +206,7 @@
     <footer class="bg-white dark:bg-gray-800 shadow-lg">
         <div class="w-full mx-auto h-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
             <div class="flex items-center space-x-4">
-                <img class="h-8 w-auto" src="{{ url_for('static', filename='img/brand/logo.png') }}" alt="NyTex Fireworks">
+                <img class="h-8 w-auto" src="/static/img/brand/logo.png" alt="NyTex Fireworks">
                 <p class="text-sm text-gray-500 dark:text-gray-400">
                     Providing quality fireworks and exceptional service since 2020
                 </p>

@@ -1,7 +1,6 @@
 from sqlalchemy import Column, String, Integer, JSON, ForeignKey, UniqueConstraint, BigInteger
 from sqlalchemy.orm import relationship
-
-from .base import Base
+from app.database import Base
 
 class OrderLineItem(Base):
     __tablename__ = "order_line_items"
@@ -28,8 +27,8 @@ class OrderLineItem(Base):
     modifiers = Column(JSON)
     pricing_blocklists = Column(JSON)
 
-    # Relationships
-    order = relationship("Order", back_populates="line_items")
+    # Use string reference for relationship
+    order = relationship("Order", back_populates="line_items", lazy="joined")
 
     def __repr__(self):
         return f"<OrderLineItem {self.uid} {self.name}>" 

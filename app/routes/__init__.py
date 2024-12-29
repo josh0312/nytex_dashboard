@@ -1,3 +1,3 @@
-from app.routes.dashboard import dashboard as dashboard_bp
+from app.routes.dashboard import router as dashboard_router
 
-__all__ = ['dashboard_bp'] 
+__all__ = ['dashboard_router'] 

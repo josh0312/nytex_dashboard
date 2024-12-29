@@ -1,7 +1,6 @@
 from sqlalchemy import Column, String, DateTime, JSON, Integer, ForeignKey
 from sqlalchemy.orm import relationship
-
-from .base import Base
+from app.database import Base
 
 class OrderFulfillment(Base):
     __tablename__ = "order_fulfillments"
@@ -17,8 +16,8 @@ class OrderFulfillment(Base):
     shipment_details = Column(JSON)
     delivery_details = Column(JSON)
 
-    # Relationships
-    order = relationship("Order", back_populates="fulfillments")
+    # Use string reference for relationship
+    order = relationship("Order", back_populates="fulfillments", lazy="joined")
 
     def __repr__(self):
         return f"<OrderFulfillment {self.id}>" 

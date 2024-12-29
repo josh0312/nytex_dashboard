@@ -1,33 +1,55 @@
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import sessionmaker, declarative_base
 from contextlib import asynccontextmanager
 from app.config import Config
-from app.logger import logger
 
-# Create base model class
-class Base(DeclarativeBase):
-    pass
+Base = declarative_base()
 
-# Create SQLAlchemy instance
-db = SQLAlchemy(model_class=Base)
+def init_models():
+    """Initialize all models in the correct order to handle dependencies."""
+    # Import base models first (no dependencies)
+    from app.database.models.operating_season import OperatingSeason
+    from app.database.models.location import Location
+    
+    # Import order-related models in dependency order
+    from app.database.models.order_line_item import OrderLineItem
+    from app.database.models.order_fulfillment import OrderFulfillment
+    from app.database.models.order_return import OrderReturn
+    from app.database.models.order_refund import OrderRefund
+    from app.database.models.order import Order
+    
+    # Import payment-related models
+    from app.database.models.tender import Tender
+    from app.database.models.payment import Payment
+    from app.database.models.square_sale import SquareSale
+    
+    # Import catalog models
+    from app.database.models.catalog import (
+        CatalogCategory,
+        CatalogItem,
+        CatalogVariation,
+        CatalogVendorInfo,
+        CatalogLocationAvailability,
+        CatalogInventory
+    )
 
-# Create async engine and session factory
-logger.info(f"Creating database engine with URL: {Config.SQLALCHEMY_DATABASE_URI}")
-engine = create_async_engine(Config.SQLALCHEMY_DATABASE_URI)
-async_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+engine = create_async_engine(
+    Config.SQLALCHEMY_DATABASE_URI,
+    echo=Config.DEBUG,
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800
+)
+
+async_session = sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 @asynccontextmanager
-async def get_session():
-    """Async context manager for database sessions"""
-    logger.debug("Opening database session")
-    async with async_session_factory() as session:
+async def get_session() -> AsyncSession:
+    async with async_session() as session:
         try:
             yield session
-            await session.commit()
-        except Exception as e:
-            await session.rollback()
-            raise
         finally:
             await session.close()
-            logger.debug("Closed database session")

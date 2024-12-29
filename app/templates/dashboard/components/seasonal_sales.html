@@ -14,7 +14,7 @@
             </span>
         </div>
         
-        {% if sales_data %}
+        {% if sales_data and dates and amounts and transactions %}
             <div class="mt-4 h-48">
                 <canvas id="seasonalSalesChart"></canvas>
             </div>
@@ -79,9 +79,6 @@
                         }
                     }
                 });
-                
-                console.log('Dates:', {{ dates|tojson|safe }});
-                console.log('Amounts:', {{ amounts|tojson|safe }});
             </script>
         {% else %}
             <div class="flex-1 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">

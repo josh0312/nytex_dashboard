@@ -1,7 +1,6 @@
 from sqlalchemy import Column, String, DateTime, JSON, Integer, ForeignKey
 from sqlalchemy.orm import relationship
-
-from .base import Base
+from app.database import Base
 
 class OrderRefund(Base):
     __tablename__ = "order_refunds"
@@ -11,14 +10,11 @@ class OrderRefund(Base):
     status = Column(String)
     amount_money = Column(JSON)
     processing_fee = Column(JSON)
-    payment_id = Column(String, index=True)
-    created_at = Column(DateTime)
-    updated_at = Column(DateTime)
     reason = Column(String)
-    refund_metadata = Column(JSON)
+    payment_id = Column(String, index=True)
 
-    # Relationships
-    order = relationship("Order", back_populates="refunds")
+    # Use string reference for relationship
+    order = relationship("Order", back_populates="refunds", lazy="joined")
 
     def __repr__(self):
         return f"<OrderRefund {self.id}>" 
