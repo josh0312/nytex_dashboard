@@ -1,0 +1,14 @@
+{
+  "name": "nytex-dashboard",
+  "version": "1.0.0",
+  "description": "NyTex Fireworks Dashboard",
+  "scripts": {
+    "build:css": "tailwindcss -i ./app/static/css/src/main.css -o ./app/static/css/dist/styles.css --minify",
+    "watch:css": "tailwindcss -i ./app/static/css/src/main.css -o ./app/static/css/dist/styles.css --watch"
+  },
+  "dependencies": {
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.4.0"
+  }
+}

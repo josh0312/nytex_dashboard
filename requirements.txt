@@ -1,0 +1,13 @@
+flask[async]==3.0.2
+flask-sqlalchemy==3.1.1
+flask-migrate==4.0.5
+flask-wtf==1.2.1
+asyncpg==0.29.0
+python-dotenv==1.0.1
+alembic==1.13.1
+aiohttp==3.9.3
+SQLAlchemy[asyncio]==2.0.36
+pytest==8.0.0
+pytest-asyncio==0.23.5
+hypercorn==0.17.3
+squareup==39.1.0.20241218
