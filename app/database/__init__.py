@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from contextlib import asynccontextmanager
 from app.config import Config
+from typing import AsyncGenerator
 
 Base = declarative_base()
 
@@ -47,7 +48,7 @@ async_session = sessionmaker(
 )
 
 @asynccontextmanager
-async def get_session() -> AsyncSession:
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         try:
             yield session
