@@ -1,89 +1,47 @@
+<!-- DEBUG: Metrics template v4 -->
 <!-- Metrics container -->
 <div>
      
     <!-- Top row metrics -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <!-- Total Sales -->
-        <div class="p-4 bg-indigo-100 dark:bg-indigo-900/20 rounded-lg shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Sales</p>
-                    <p class="text-2xl font-semibold text-indigo-600 dark:text-indigo-300">
-                        ${{ "{:,.2f}".format(total_sales) if total_sales is not none else "0.00" }}
-                    </p>
-                </div>
-                <div class="p-3 bg-indigo-200 dark:bg-indigo-800 rounded-full">
-                    <i data-lucide="dollar-sign" class="w-6 h-6 text-indigo-600 dark:text-indigo-300"></i>
+        <div :class="darkMode ? 'bg-indigo-800/40' : 'bg-indigo-100'" class="rounded-lg shadow-sm">
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <div class="p-3 bg-indigo-200 dark:bg-indigo-800 rounded-full">
+                        <i data-lucide="dollar-sign" class="w-6 h-6 text-indigo-600 dark:text-indigo-300"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Sales</p>
+                        <p class="text-2xl font-semibold text-indigo-600 dark:text-indigo-300">${{ "%.2f"|format(total_sales) }}</p>
+                    </div>
+                    <div class="w-6"></div>
                 </div>
             </div>
         </div>
 
         <!-- Total Orders -->
-        <div class="p-4 bg-amber-100 dark:bg-amber-900/20 rounded-lg shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Orders</p>
-                    <p class="text-2xl font-semibold text-amber-600 dark:text-amber-300">
-                        {{ total_orders }}
-                    </p>
-                </div>
-                <div class="p-3 bg-amber-200 dark:bg-amber-800 rounded-full">
-                    <i data-lucide="shopping-cart" class="w-6 h-6 text-amber-600 dark:text-amber-300"></i>
-                </div>
-            </div>
-        </div>
+        {% include 'dashboard/components/total_orders.html' %}
 
         <!-- Seasonal Sales -->
         {% include 'dashboard/components/seasonal_sales.html' %}
 
         <!-- Low Stock Items -->
-        <div class="p-4 bg-purple-100 dark:bg-purple-900/20 rounded-lg shadow-sm">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Low Stock Items</p>
-                    <p class="text-2xl font-semibold text-purple-600 dark:text-purple-300">
-                        {{ low_stock_items }}
-                    </p>
-                </div>
-                <div class="p-3 bg-purple-200 dark:bg-purple-800 rounded-full">
-                    <i data-lucide="package" class="w-6 h-6 text-purple-600 dark:text-purple-300"></i>
-                </div>
-            </div>
-        </div>
+        {% include 'dashboard/components/low_stock.html' %}
     </div>
 
     <!-- Location sales table -->
-    <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Sales</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Orders</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                </tr>
-            </thead>
-            <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                {% for location in location_sales %}
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {{ location.name }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        ${{ "{:,.2f}".format(location.sales) }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {{ location.orders }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                            {{ location.status }}
-                        </span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mt-4"
+         hx-get="/metrics/locations"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <!-- Loading state -->
+        <div class="animate-pulse">
+            <div class="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+            {% for i in range(3) %}
+            <div class="h-12 bg-gray-100 dark:bg-gray-900 rounded mb-2"></div>
+            {% endfor %}
+        </div>
     </div>
 
     <script>
