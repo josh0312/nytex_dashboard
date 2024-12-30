@@ -1,0 +1,151 @@
+<!-- Annual Sales Comparison Component -->
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Annual Sales Comparison</h3>
+    </div>
+
+    <!-- Chart container -->
+    <div class="h-64">
+        <canvas id="yearlyComparisonChart"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function() {
+            // Destroy existing chart if it exists
+            const existingChart = Chart.getChart('yearlyComparisonChart');
+            if (existingChart) {
+                existingChart.destroy();
+            }
+
+            const canvas = document.getElementById('yearlyComparisonChart');
+            if (!canvas) {
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return;
+            }
+
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            const textColor = isDarkMode ? '#D1D5DB' : '#374151';
+            const gridColor = isDarkMode ? '#4B5563' : '#E5E7EB';
+            
+            const seasonTotals = {{ season_totals|tojson|safe if season_totals else '[]' }};
+            
+            if (!seasonTotals || seasonTotals.length === 0) {
+                const container = canvas.parentElement;
+                container.innerHTML = `
+                    <div class="flex items-center justify-center h-full">
+                        <p class="text-gray-500 dark:text-gray-400">No sales data available</p>
+                    </div>
+                `;
+            } else {
+                // Process data for the chart
+                const seasons = new Set();
+                const years = new Set();
+                const dataByYearAndSeason = {};
+
+                // First pass: collect all unique seasons and years
+                seasonTotals.forEach(yearData => {
+                    const year = yearData.year;
+                    years.add(year);
+                    yearData.seasons.forEach(season => {
+                        seasons.add(season.name);
+                        if (!dataByYearAndSeason[year]) {
+                            dataByYearAndSeason[year] = {};
+                        }
+                        dataByYearAndSeason[year][season.name] = season.total_amount;
+                    });
+                });
+
+                // Convert sets to sorted arrays
+                const sortedSeasons = Array.from(seasons);
+                const sortedYears = Array.from(years).sort();
+
+                // Create datasets (one for each year)
+                const datasets = sortedYears.map(year => {
+                    const yearColor = getColorForYear(year, isDarkMode);
+                    return {
+                        label: year.toString(),
+                        data: sortedSeasons.map(season => dataByYearAndSeason[year]?.[season] || 0),
+                        backgroundColor: yearColor.background,
+                        borderColor: yearColor.border,
+                        borderWidth: 1,
+                        borderRadius: 4
+                    };
+                });
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedSeasons,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    color: textColor,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle'
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': $' + context.raw.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        });
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'logarithmic',
+                                beginAtZero: false,
+                                grid: {
+                                    color: gridColor
+                                },
+                                ticks: {
+                                    color: textColor,
+                                    callback: function(value) {
+                                        if (value === 0) return '$0';
+                                        return '$' + value.toLocaleString();
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: textColor
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+
+        // Helper function to generate colors for each year
+        function getColorForYear(year, isDarkMode) {
+            const colors = [
+                { background: isDarkMode ? 'rgba(59, 130, 246, 0.7)' : 'rgba(59, 130, 246, 0.2)', border: '#3B82F6' }, // Blue
+                { background: isDarkMode ? 'rgba(16, 185, 129, 0.7)' : 'rgba(16, 185, 129, 0.2)', border: '#10B981' }, // Green
+                { background: isDarkMode ? 'rgba(245, 158, 11, 0.7)' : 'rgba(245, 158, 11, 0.2)', border: '#F59E0B' }, // Yellow
+                { background: isDarkMode ? 'rgba(239, 68, 68, 0.7)' : 'rgba(239, 68, 68, 0.2)', border: '#EF4444' }, // Red
+                { background: isDarkMode ? 'rgba(139, 92, 246, 0.7)' : 'rgba(139, 92, 246, 0.2)', border: '#8B5CF6' }  // Purple
+            ];
+            const index = (year - 2020) % colors.length;
+            return colors[index];
+        }
+    </script>
+</div> 

@@ -1,4 +1,4 @@
-from sqlalchemy import select, func, cast, Integer, text, Date, JSON, and_
+from sqlalchemy import select, func, cast, Integer, text, Date, JSON, and_, extract
 from sqlalchemy.sql import column
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, date
@@ -6,6 +6,7 @@ from app.logger import logger
 from app.database.models.order import Order
 from app.utils.timezone import CENTRAL_TZ
 from contextlib import asynccontextmanager
+from app.database.models.operating_season import OperatingSeason
 
 class SeasonService:
     def __init__(self, session: AsyncSession):
@@ -56,11 +57,10 @@ class SeasonService:
                     Integer
                 )
 
-                # Convert timestamp to Central timezone for date comparison
-                # First convert the stored timestamp to UTC, then to Central
+                # Convert timestamps to Central timezone for comparison
                 order_date_expr = func.timezone(
                     'America/Chicago',
-                    func.timezone('UTC', Order.created_at)
+                    Order.created_at
                 )
 
                 # Build the query using only the columns we need
@@ -147,3 +147,137 @@ class SeasonService:
         path = f"M{points[0]} " + " ".join(f"L{point}" for point in points[1:])
         logger.info(f"Generated sparkline path: {path}")
         return path 
+
+    async def get_yearly_season_totals(self):
+        """Get order totals for each season grouped by year, from 2020 to current year."""
+        try:
+            async with self._get_session_context() as session:
+                current_year = datetime.now().year
+                
+                # Extract amount from total_money JSON
+                amount_expr = cast(
+                    func.json_extract_path_text(
+                        Order.total_money,
+                        'amount'
+                    ),
+                    Integer
+                )
+                
+                # Convert timestamps to Central timezone for comparison
+                order_date_expr = cast(
+                    text("(orders.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago')"),
+                    Date
+                )
+                
+                # Query to get seasons and their order totals
+                stmt = (
+                    select(
+                        extract('year', OperatingSeason.start_date).label('year'),
+                        OperatingSeason.name,
+                        OperatingSeason.start_date,
+                        OperatingSeason.end_date,
+                        func.count(Order.id).label('order_count'),
+                        func.coalesce(func.sum(amount_expr), 0).label('total_amount')
+                    )
+                    .select_from(OperatingSeason)
+                    .outerjoin(
+                        Order,
+                        and_(
+                            order_date_expr >= OperatingSeason.start_date,
+                            order_date_expr <= OperatingSeason.end_date,
+                            Order.state != 'CANCELED'
+                        )
+                    )
+                    .where(
+                        and_(
+                            extract('year', OperatingSeason.start_date) >= 2020,
+                            extract('year', OperatingSeason.start_date) <= current_year
+                        )
+                    )
+                    .group_by(
+                        extract('year', OperatingSeason.start_date),
+                        OperatingSeason.name,
+                        OperatingSeason.start_date,
+                        OperatingSeason.end_date
+                    )
+                    .order_by(
+                        extract('year', OperatingSeason.start_date).desc(),
+                        OperatingSeason.start_date
+                    )
+                )
+
+                # Log the SQL query with actual values
+                compiled_query = stmt.compile(compile_kwargs={"literal_binds": True})
+                logger.info(f"Generated SQL Query:\n{str(compiled_query)}")
+
+                result = await session.execute(stmt)
+                seasons = result.all()
+                
+                # Log raw results before processing
+                logger.info("Raw results from database:")
+                for season in seasons:
+                    logger.info(
+                        f"Year: {season.year}, Name: {season.name}, "
+                        f"Date Range: {season.start_date} to {season.end_date}, "
+                        f"Orders: {season.order_count}, "
+                        f"Amount: ${float(season.total_amount)/100:.2f}"
+                    )
+                
+                # For debugging July 4th season specifically
+                july_4th_stmt = (
+                    select(
+                        func.sum(amount_expr).label('total_amount')
+                    )
+                    .select_from(Order)
+                    .where(
+                        and_(
+                            text("(orders.created_at AT TIME ZONE 'UTC')::date >= :start_date"),
+                            text("(orders.created_at AT TIME ZONE 'UTC')::date <= :end_date"),
+                            Order.state != 'CANCELED'
+                        )
+                    )
+                )
+
+                # Log the exact SQL with values
+                debug_compiled = july_4th_stmt.compile(
+                    compile_kwargs={"literal_binds": True}
+                )
+                logger.info(f"\nJuly 4th Debug SQL Query:\n{str(debug_compiled)}")
+
+                july_4th_result = await session.execute(
+                    july_4th_stmt,
+                    {
+                        'start_date': datetime(2024, 6, 24).date(),
+                        'end_date': datetime(2024, 7, 4).date()
+                    }
+                )
+                july_4th_total = july_4th_result.scalar()
+                logger.info(f"\nJuly 4th total amount from direct query: ${float(july_4th_total)/100:.2f}")
+                
+                # Group results by year
+                years_dict = {}
+                for season in seasons:
+                    year = int(season.year)
+                    if year not in years_dict:
+                        years_dict[year] = []
+                    
+                    years_dict[year].append({
+                        'name': season.name,
+                        'start_date': season.start_date.strftime('%Y-%m-%d'),
+                        'end_date': season.end_date.strftime('%Y-%m-%d'),
+                        'order_count': season.order_count,
+                        'total_amount': float(season.total_amount) / 100  # Convert cents to dollars
+                    })
+                
+                # Convert to list and sort by year descending
+                return [
+                    {
+                        'year': year,
+                        'seasons': seasons_list
+                    }
+                    for year, seasons_list in sorted(years_dict.items(), reverse=True)
+                ]
+
+        except Exception as e:
+            logger.error(f"Error fetching yearly season totals: {str(e)}", exc_info=True)
+            return None 

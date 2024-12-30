@@ -9,6 +9,7 @@ from ..models.order import Order
 from ..logger import logger
 from ..routes.dashboard import get_cached_seasonal_sales
 from fastapi.templating import Jinja2Templates
+from ..services.season_service import SeasonService
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -76,4 +77,36 @@ async def test_seasonal_sales(request: Request):
             "request": request,
             "title": "Seasonal Sales",
             "message": "Unable to load seasonal sales"
+        }) 
+
+@router.get('/test/yearly_season_totals')
+async def test_yearly_season_totals():
+    """Test endpoint to view yearly season totals"""
+    try:
+        async with get_session() as session:
+            season_service = SeasonService(session)
+            totals = await season_service.get_yearly_season_totals()
+            return JSONResponse(content={"season_totals": totals})
+    except Exception as e:
+        logger.error(f"Error fetching yearly season totals: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e)) 
+
+@router.get("/metrics/annual_sales_comparison")
+async def get_annual_sales_comparison(request: Request):
+    """Get annual sales comparison data for the chart"""
+    try:
+        async with get_session() as session:
+            season_service = SeasonService(session)
+            totals = await season_service.get_yearly_season_totals()
+            
+            return templates.TemplateResponse("dashboard/components/annual_sales_comparison.html", {
+                "request": request,
+                "season_totals": totals
+            })
+    except Exception as e:
+        logger.error(f"Error fetching annual sales comparison: {str(e)}", exc_info=True)
+        return templates.TemplateResponse("dashboard/components/error.html", {
+            "request": request,
+            "title": "Annual Sales Comparison",
+            "message": "Unable to load annual sales comparison"
         }) 
