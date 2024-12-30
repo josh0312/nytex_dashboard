@@ -24,3 +24,6 @@ htmlcov/
 *.swo
 app/static/css/src/
 app/static/css/dist/
+
+# SQLite database files
+*.db
