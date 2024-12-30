@@ -174,12 +174,13 @@ async def get_total_sales(request: Request):
         logger.info("Getting today's sales...")
         metrics = await square_service.get_todays_sales()
         total_sales = metrics.get('total_sales', 0) if metrics else 0
-        logger.info(f"Total sales: ${total_sales}")
+        formatted_sales = "{:,.2f}".format(float(total_sales))
+        logger.info(f"Total sales value: {formatted_sales}")
         logger.info("Rendering total sales template...")
         
         return templates.TemplateResponse("dashboard/components/total_sales.html", {
             "request": request,
-            "total_sales": total_sales
+            "total_sales": formatted_sales
         })
     except Exception as e:
         logger.error(f"Error fetching total sales: {str(e)}", exc_info=True)
