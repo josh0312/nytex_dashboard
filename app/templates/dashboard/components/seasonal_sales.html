@@ -1,103 +1,113 @@
-<div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 flex flex-col">
-    <div class="flex items-center justify-between mb-2">
-        <i data-lucide="bar-chart-2" class="w-5 h-5 text-green-600 dark:text-green-300"></i>
-        <div class="text-center flex-grow">
-            <h3 class="text-sm font-medium">{{ current_season.name if current_season else 'Season' }} Sales</h3>
-            {% if current_season %}
-                <div class="text-xs text-gray-600 dark:text-gray-300">
-                    {{ current_season.name }}
-                    <span class="text-gray-500 dark:text-gray-400">
-                        ({{ current_season.start_date.strftime('%b %d') }} - {{ current_season.end_date.strftime('%b %d') }})
-                    </span>
-                </div>
-            {% endif %}
-        </div>
-        <div class="w-5"></div>
-    </div>
-    
-    {% if current_season %}
-        {% if sales_data and dates and amounts and transactions %}
-            <div class="mt-4 h-48">
-                <canvas id="seasonalSalesChart"></canvas>
+<div class="bg-green-100 dark:bg-green-800/40 rounded-lg shadow-sm">
+    <div class="p-4">
+        <div class="flex items-start">
+            <div class="p-3 bg-green-200 dark:bg-green-800 rounded-full">
+                <i data-lucide="bar-chart-2" class="w-6 h-6 text-green-600 dark:text-green-300"></i>
             </div>
-            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <script>
-                if (window.seasonalChart) {
-                    window.seasonalChart.destroy();
-                }
-                
-                const ctx = document.getElementById('seasonalSalesChart').getContext('2d');
-                console.log('Labels:', {{ dates|tojson|safe }});
-                console.log('Amounts:', {{ amounts|tojson|safe }});
-                window.seasonalChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: {{ dates|tojson|safe }},
-                        datasets: [{
-                            label: 'Daily Sales',
-                            data: {{ amounts|tojson|safe }},
-                            backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                            borderColor: 'rgb(34, 197, 94)',
-                            borderWidth: 1,
-                            barThickness: 'flex',
-                            maxBarThickness: 10
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        const sales = new Intl.NumberFormat('en-US', {
-                                            style: 'currency',
-                                            currency: 'USD'
-                                        }).format(context.raw);
-                                        const transactions = {{ transactions|tojson|safe }}[context.dataIndex];
-                                        return [
-                                            `Sales: ${sales}`,
-                                            `Orders: ${transactions}`
-                                        ];
-                                    }
-                                }
-                            },
-                            legend: {
-                                display: false
-                            }
+            <div class="flex flex-col items-center flex-grow">
+                <h3 class="text-sm font-medium text-gray-900 dark:text-white">{{ current_season.name if current_season else 'Season' }} Sales</h3>
+                {% if current_season %}
+                    <div class="text-xs text-gray-600 dark:text-gray-300">
+                        <span class="text-gray-500 dark:text-gray-400">
+                            ({{ current_season.start_date.strftime('%b %d') }} - {{ current_season.end_date.strftime('%b %d') }})
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+            <div class="w-6"></div>
+        </div>
+        
+        {% if current_season %}
+            {% if sales_data and dates and amounts and transactions %}
+                <div class="mt-6 h-48">
+                    <canvas id="seasonalSalesChart"></canvas>
+                </div>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                <script>
+                    if (window.seasonalChart) {
+                        window.seasonalChart.destroy();
+                    }
+                    
+                    const ctx = document.getElementById('seasonalSalesChart').getContext('2d');
+                    window.seasonalChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: {{ dates|tojson|safe }},
+                            datasets: [{
+                                label: 'Daily Sales',
+                                data: {{ amounts|tojson|safe }},
+                                backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                                borderColor: 'rgb(34, 197, 94)',
+                                borderWidth: 1,
+                                barThickness: 'flex',
+                                maxBarThickness: 12,
+                                borderRadius: 4
+                            }]
                         },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function(value) {
-                                        return '$' + value.toLocaleString();
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                tooltip: {
+                                    padding: 12,
+                                    callbacks: {
+                                        label: function(context) {
+                                            const sales = new Intl.NumberFormat('en-US', {
+                                                style: 'currency',
+                                                currency: 'USD'
+                                            }).format(context.raw);
+                                            const transactions = {{ transactions|tojson|safe }}[context.dataIndex];
+                                            return [
+                                                `Sales: ${sales}`,
+                                                `Orders: ${transactions}`
+                                            ];
+                                        }
                                     }
+                                },
+                                legend: {
+                                    display: false
                                 }
                             },
-                            x: {
-                                grid: {
-                                    display: false
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: {
+                                        color: 'rgba(0, 0, 0, 0.05)',
+                                        drawBorder: false
+                                    },
+                                    ticks: {
+                                        padding: 8,
+                                        callback: function(value) {
+                                            return '$' + value.toLocaleString();
+                                        }
+                                    }
                                 },
-                                ticks: {
-                                    callback: function(value, index, ticks) {
-                                        const labels = {{ dates|tojson|safe }};
-                                        return labels[index].split(' ')[1];
+                                x: {
+                                    grid: {
+                                        display: false,
+                                        drawBorder: false
+                                    },
+                                    ticks: {
+                                        padding: 8,
+                                        callback: function(value, index, ticks) {
+                                            const labels = {{ dates|tojson|safe }};
+                                            return labels[index].split(' ')[1];
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                });
-            </script>
+                    });
+                </script>
+            {% else %}
+                <div class="mt-6 flex items-center justify-center h-48 text-sm text-gray-500 dark:text-gray-400">
+                    No sales data available
+                </div>
+            {% endif %}
         {% else %}
-            <div class="flex-1 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-                No sales data available
+            <div class="mt-6 flex items-center justify-center h-48 text-sm text-gray-500 dark:text-gray-400">
+                No active season
             </div>
         {% endif %}
-    {% else %}
-        <div class="flex-1 flex items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            No active season
-        </div>
-    {% endif %}
+    </div>
 </div> 

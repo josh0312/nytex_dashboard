@@ -5,7 +5,8 @@
         if (localStorage.getItem('darkMode') === null) {
             localStorage.setItem('darkMode', false);
         }
-        $watch('darkMode', val => localStorage.setItem('darkMode', val))
+        $watch('darkMode', val => localStorage.setItem('darkMode', val));
+        Alpine.store('darkMode', darkMode);
       "
       :class="{ 'dark': darkMode }">
 <head>
