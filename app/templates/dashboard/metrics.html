@@ -1,8 +1,4 @@
 <!-- DEBUG: Metrics template v4 -->
-<!-- Dark mode test -->
-<div class="bg-white dark:bg-gray-800 p-4 mb-4">
-    <p class="text-gray-900 dark:text-white">Dark Mode Test</p>
-</div>
 
 <!-- Metrics container -->
 <!-- Top row metrics -->
@@ -16,7 +12,7 @@
                 </div>
                 <div>
                     <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Sales</p>
-                    <p class="text-2xl font-semibold text-indigo-600 dark:text-indigo-300">${{ "%.2f"|format(total_sales) }}</p>
+                    <p class="text-2xl font-semibold text-indigo-600 dark:text-indigo-300">${{ "{:,.2f}".format(total_sales) }}</p>
                 </div>
                 <div class="w-6"></div>
             </div>
