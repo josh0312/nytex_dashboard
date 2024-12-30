@@ -30,17 +30,25 @@
         {% include 'dashboard/components/low_stock.html' %}
     </div>
 
-    <!-- Location sales table -->
-    <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4 mt-4"
-         hx-get="/metrics/locations"
-         hx-trigger="load"
-         hx-swap="innerHTML">
-        <!-- Loading state -->
-        <div class="animate-pulse">
-            <div class="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
-            {% for i in range(3) %}
-            <div class="h-12 bg-gray-100 dark:bg-gray-900 rounded mb-2"></div>
-            {% endfor %}
+    <!-- Bottom section with two columns -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Location sales table -->
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4"
+             hx-get="/metrics/locations"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <!-- Loading state -->
+            <div class="animate-pulse">
+                <div class="h-8 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+                {% for i in range(3) %}
+                <div class="h-12 bg-gray-100 dark:bg-gray-900 rounded mb-2"></div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Right half placeholder -->
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+            <!-- Content for right half will go here -->
         </div>
     </div>
 

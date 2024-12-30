@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 from app.services.square_service import SquareService
+from app.services.weather_service import WeatherService
 from app.services.current_season import get_current_season
 from app.services.season_service import SeasonService
 from app.database import get_session
@@ -85,6 +86,15 @@ async def get_metrics(request: Request):
         total_sales = metrics.get('total_sales', 0) if metrics else 0
         total_orders = metrics.get('total_orders', 0) if metrics else 0
         
+        # Get location sales
+        location_sales = []
+        for location_id, location in metrics.get('locations', {}).items():
+            location_sales.append({
+                'name': location['name'],
+                'sales': location['sales'],
+                'orders': location['orders']
+            })
+        
         # Unpack sales data for template
         dates = []
         amounts = []
@@ -103,7 +113,8 @@ async def get_metrics(request: Request):
             "total_orders": total_orders,
             "dates": dates,
             "amounts": amounts,
-            "transactions": transactions
+            "transactions": transactions,
+            "location_sales": location_sales
         })
     except Exception as e:
         logger.error(f"Error loading metrics: {str(e)}", exc_info=True)
@@ -118,14 +129,27 @@ async def get_locations(request: Request):
     """Get location sales table"""
     try:
         square_service = SquareService()
+        weather_service = WeatherService()
         metrics = await square_service.get_todays_sales()
         location_sales = []
+        
         for location_id, location in metrics.get('locations', {}).items():
+            # Get weather if postal code is available
+            weather = None
+            postal_code = location.get('postal_code')
+            logger.info(f"Location {location['name']} has postal code: {postal_code}")
+            
+            if postal_code:
+                weather = await weather_service.get_weather_by_zip(postal_code)
+                logger.info(f"Got weather for {location['name']}: {weather}")
+            else:
+                logger.warning(f"No postal code for location: {location['name']}")
+            
             location_sales.append({
                 'name': location['name'],
                 'sales': location['sales'],
                 'orders': location['orders'],
-                'status': 'Open'
+                'weather': weather
             })
             
         return templates.TemplateResponse("dashboard/components/locations.html", {
@@ -138,4 +162,29 @@ async def get_locations(request: Request):
             "request": request,
             "title": "Location Sales",
             "message": "Unable to load location sales"
+        })
+
+@router.get("/metrics/total_sales")
+async def get_total_sales(request: Request):
+    """Get total sales component"""
+    try:
+        logger.info("=== Starting total sales component fetch ===")
+        logger.info("Creating Square service...")
+        square_service = SquareService()
+        logger.info("Getting today's sales...")
+        metrics = await square_service.get_todays_sales()
+        total_sales = metrics.get('total_sales', 0) if metrics else 0
+        logger.info(f"Total sales: ${total_sales}")
+        logger.info("Rendering total sales template...")
+        
+        return templates.TemplateResponse("dashboard/components/total_sales.html", {
+            "request": request,
+            "total_sales": total_sales
+        })
+    except Exception as e:
+        logger.error(f"Error fetching total sales: {str(e)}", exc_info=True)
+        return templates.TemplateResponse("dashboard/components/error.html", {
+            "request": request,
+            "title": "Total Sales",
+            "message": "Unable to load total sales"
         }) 

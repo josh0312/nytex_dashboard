@@ -27,6 +27,12 @@ class SquareService:
                 # Filter for active locations
                 active_locations = [loc for loc in locations if loc.get('status') == 'ACTIVE']
                 logger.info(f"Found {len(active_locations)} active locations")
+                
+                # Log location details
+                for loc in active_locations:
+                    logger.info(f"Location: {loc.get('name')}")
+                    logger.info(f"Address: {loc.get('address', {})}")
+                    
                 return active_locations
             else:
                 logger.error(f"Error fetching locations: {result.errors}")
@@ -95,7 +101,7 @@ class SquareService:
                                 order for order in orders 
                                 if order.get('location_id') == loc.get('id')
                             ]),
-                            'postal_code': loc.get('address', {}).get('postal_code')
+                            'postal_code': loc.get('address', {}).get('postal_code', '').split('-')[0]
                         }
                         for loc in active_locations
                     }

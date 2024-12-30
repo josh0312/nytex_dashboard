@@ -16,3 +16,11 @@ logs/
 node_modules/
 dist/
 .pytest_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+*.swp
+*.swo
+app/static/css/src/
+app/static/css/dist/

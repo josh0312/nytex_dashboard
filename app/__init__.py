@@ -1,26 +1,22 @@
-from flask import Flask
-from flask_cors import CORS
-from app.database import db
-from app.config import Config
-from app.logger import logger
-from contextlib import contextmanager
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from app.database import init_models
 
 def create_app():
-    app = Flask(__name__)
-    app.config.from_object(Config)
+    app = FastAPI()
     
-    # Initialize extensions
-    CORS(app)
-    db.init_app(app)
+    # Initialize models
+    init_models()
     
-    # Register blueprints
-    from app.routes.dashboard import dashboard as dashboard_bp
-    app.register_blueprint(dashboard_bp)
+    # Mount static files
+    app.mount("/static", StaticFiles(directory="app/static"), name="static")
+    
+    # Set up templates
+    templates = Jinja2Templates(directory="app/templates")
+    
+    # Register routes
+    from app.routes import dashboard_router
+    app.include_router(dashboard_router)
     
     return app
-
-@contextmanager
-def app_context():
-    app = create_app()
-    with app.app_context():
-        yield
