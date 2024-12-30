@@ -19,7 +19,8 @@ def create_app():
         templates.env.filters[name] = func
     
     # Register routes
-    from app.routes import dashboard_router
+    from app.routes import dashboard_router, metrics_router
     app.include_router(dashboard_router)
+    app.include_router(metrics_router)
     
     return app
