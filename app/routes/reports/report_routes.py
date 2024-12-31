@@ -39,21 +39,46 @@ async def export_report(query_name: str):
         raise HTTPException(status_code=500, detail=f"Failed to export report: {str(e)}") 
 
 @router.get("/inventory/missing-sku", response_class=HTMLResponse)
-async def missing_sku_report(request: Request):
+async def missing_sku_report(
+    request: Request,
+    sort: str = None,
+    direction: str = "asc"
+):
     """Render the Missing SKU Report page."""
     try:
         # Use QueryExecutor to run the query
         executor = QueryExecutor()
         df = await executor.execute_query_to_df("missing_sku_inventory")
         
+        # Apply sorting if requested
+        if sort and sort in df.columns:
+            ascending = direction.lower() == "asc"
+            df = df.sort_values(by=sort, ascending=ascending)
+        
         # Convert DataFrame to list of dicts
         items = df.to_dict('records')
         
+        # Common template variables
+        template_vars = {
+            "request": request,
+            "items": items,
+            "sort": sort,
+            "direction": direction
+        }
+        
+        # If this is an HTMX request, return only the table
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "reports/inventory/missing_sku_table.html",
+                template_vars
+            )
+        
+        # Otherwise return the full page
         return templates.TemplateResponse(
             "reports/inventory/missing_sku.html",
             {
-                "request": request,
-                "items": items,
+                **template_vars,
+                "report_title": "Missing SKU Report",
                 "total_items": len(items),
                 "locations": sorted(set(item["location"] for item in items)),
                 "categories": sorted(set(item["category_name"] for item in items if item["category_name"])),

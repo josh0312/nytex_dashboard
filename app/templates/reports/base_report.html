@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{{ report_title }} - NyTex Fireworks{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <!-- Report Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ report_title }}</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+                {% block report_description %}{% endblock %}
+            </p>
+        </div>
+        <div class="flex gap-2">
+            {% block report_actions %}
+            <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <i data-lucide="download" class="h-4 w-4 inline-block mr-1"></i>
+                Export
+            </button>
+            {% endblock %}
+        </div>
+    </div>
+
+    <!-- Optional Filters -->
+    {% block filters %}{% endblock %}
+
+    <!-- Data Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto" id="table-container">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        {% block table_headers %}{% endblock %}
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {% block table_rows %}{% endblock %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Report Scripts -->
+{% block report_scripts %}
+<script>
+    lucide.createIcons();
+
+    // Handle column header clicks for sorting
+    document.querySelectorAll('[data-sort]').forEach(header => {
+        header.addEventListener('click', () => {
+            const column = header.dataset.sort;
+            const direction = header.dataset.direction || 'asc';
+            
+            // Remove sort indicators from all headers
+            document.querySelectorAll('[data-sort]').forEach(h => {
+                h.querySelector('.sort-indicator')?.remove();
+            });
+            
+            // Add sort indicator to clicked header
+            const indicator = document.createElement('i');
+            indicator.setAttribute('data-lucide', direction === 'asc' ? 'chevron-up' : 'chevron-down');
+            indicator.classList.add('sort-indicator', 'inline-block', 'ml-1', 'w-4', 'h-4');
+            header.appendChild(indicator);
+            lucide.createIcons();
+            
+            // Toggle direction for next click
+            header.dataset.direction = direction === 'asc' ? 'desc' : 'asc';
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %} 
