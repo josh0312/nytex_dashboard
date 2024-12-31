@@ -217,3 +217,84 @@ Each report includes:
 - Follows project's established CSS framework
 - Uses consistent component templates
 - Implements proper error handling and loading states 
+
+## Table Patterns
+1. **Base Structure**
+   ```html
+   <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+       <div class="overflow-x-auto" id="table-container">
+           <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+               <!-- Table content -->
+           </table>
+       </div>
+   </div>
+   ```
+
+2. **Sortable Headers**
+   ```html
+   <th class="px-6 py-3 text-left text-xs font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+       data-sort="column_name"
+       hx-get="/reports/path"
+       hx-target="#table-container"
+       hx-push-url="true"
+       hx-swap="innerHTML"
+   >
+       <div class="flex items-center space-x-1">
+           <span>Column Title</span>
+           <span class="flex-none">
+               <!-- Sort indicator -->
+           </span>
+       </div>
+   </th>
+   ```
+
+3. **URL State Management**
+   - Sort state preserved in URL parameters
+   - Format: `?sort=column&direction=asc|desc`
+   - Enables bookmarkable and shareable sorted views
+   - Supports browser back/forward navigation
+
+4. **HTMX Integration**
+   - `hx-push-url="true"`: Updates browser URL
+   - `hx-target="#table-container"`: Targets table wrapper
+   - `hx-swap="innerHTML"`: Replaces entire table
+   - `hx-trigger="click"`: Triggers on header click
+
+5. **Template Structure**
+   ```
+   reports/
+   ├── base_report.html           # Base template with common structure
+   └── inventory/
+       ├── missing_sku.html       # Full page template
+       └── missing_sku_table.html # Partial template for HTMX updates
+   ```
+
+6. **Route Handling**
+   ```python
+   @router.get("/report-path")
+   async def report_handler(
+       request: Request,
+       sort: str = None,
+       direction: str = "asc"
+   ):
+       # Handle both full page and HTMX requests
+       if request.headers.get("HX-Request"):
+           return partial_template
+       return full_template
+   ```
+
+## Best Practices
+1. **URL State**
+   - Always use `hx-push-url` for sortable columns
+   - Include sort state in template context
+   - Handle both initial load and HTMX requests
+
+2. **Templates**
+   - Use base template for common structure
+   - Create separate partial templates for HTMX updates
+   - Keep sorting logic in route handlers
+
+3. **Performance**
+   - Use partial templates for updates
+   - Minimize DOM updates with targeted swaps
+   - Handle sorting on the server side 
