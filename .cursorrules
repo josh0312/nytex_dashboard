@@ -10,14 +10,91 @@ const htmxBestPractices = [
   "Utilize hx-indicator for loading indicators",
 ];
 
-// Folder structure
-const folderStructure = `
-src/
-  templates/
-  static/
-    css/
-    js/
-  app.py
+// FastAPI best practices
+const fastAPIBestPractices = [
+  "Use async/await for database operations",
+  "Implement proper type hints",
+  "Use Pydantic models for request/response validation",
+  "Organize routes using APIRouter with tags",
+  "Use dependency injection for shared logic",
+  "Implement proper error handling with HTTPException",
+  "Return FileResponse for file downloads",
+  "Use async context managers for database sessions",
+];
+
+// Database and Query Patterns
+const databasePatterns = {
+  sqlQueries: {
+    location: "app/database/queries/",
+    naming: "${report_name}.sql",
+    format: "SQL with comments explaining purpose and structure",
+    bestPractices: [
+      "Keep complex queries in separate .sql files",
+      "Include detailed comments explaining the query",
+      "Use CTEs for better readability",
+      "Document any assumptions or requirements",
+      "Note the last updated date",
+    ],
+  },
+  asyncOperations: {
+    session: "Use async_session context manager",
+    execution: "await session.execute(text(query))",
+    transaction: "async with session.begin()",
+  },
+};
+
+// Export Patterns
+const exportPatterns = {
+  directory: "app/static/exports/",
+  naming: "${query_name}_${timestamp}.xlsx",
+  formats: ["Excel", "CSV", "PDF"],
+  handling: [
+    "Generate unique filenames with timestamps",
+    "Clean up old export files periodically",
+    "Use appropriate MIME types",
+    "Handle large datasets efficiently",
+  ],
+};
+
+// Template Patterns
+const templatePatterns = {
+  inheritance: {
+    base: "base.html",              // Base template with common structure
+    layout: "layouts/report.html",   // Report-specific layout
+    components: "components/*.html", // Reusable components
+  },
+  organization: {
+    shared: "components/shared/",    // Shared across all reports
+    category: "components/reports/", // Category-specific components
+    report: "reports/",             // Individual report templates
+  },
+  bestPractices: [
+    "Use template inheritance for consistent layouts",
+    "Break complex templates into components",
+    "Keep component-specific scripts with their templates",
+    "Use consistent naming for template blocks",
+  ],
+};
+
+// Project Structure
+const projectStructure = `
+app/
+  ├── database/
+  │   ├── models/      # SQLAlchemy models
+  │   ├── schemas/     # Pydantic schemas
+  │   └── queries/     # Raw SQL queries
+  ├── routes/
+  │   ├── reports/     # Report-specific routes
+  │   ├── dashboard/   # Dashboard routes
+  │   └── metrics/     # Metrics routes
+  ├── services/        # Business logic layer
+  │   └── reports/     # Report-specific services
+  ├── templates/       # Jinja2 templates
+  │   └── reports/     # Report templates
+  └── static/
+      ├── css/
+      ├── js/
+      └── exports/     # Generated report files
 `;
 
 // Additional instructions
@@ -28,5 +105,37 @@ const additionalInstructions = `
 4. Use hx-boost for full page navigation
 5. Implement proper error handling
 6. Follow progressive enhancement principles
-7. Use server-side templating (e.g., Jinja2, Handlebars)
+7. Use server-side templating (Jinja2)
+8. Use async/await for database operations
+9. Keep SQL queries in separate files
+10. Use type hints consistently
+11. Document complex SQL queries
+12. Handle file exports securely
+13. Use async context managers
+14. Implement proper error logging
+15. Follow template inheritance patterns
 `;
+
+// Report Structure
+const reportStructure = {
+  components: {
+    landing: "index.html",          // Reports landing page
+    categories: [
+      "inventory",                  // Inventory reports
+      "sales",                      // Sales reports
+      "customers",                  // Customer reports
+    ],
+    features: [
+      "filtering",                  // Report filtering
+      "sorting",                    // Column sorting
+      "export",                     // Excel export
+      "print",                      // Print view
+    ],
+  },
+  patterns: {
+    query: "app/database/queries/", // SQL queries location
+    route: "app/routes/reports/",   // FastAPI routes
+    service: "app/services/reports/", // Business logic
+    template: "app/templates/reports/", // HTML templates
+  },
+};

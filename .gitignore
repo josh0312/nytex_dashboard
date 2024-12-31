@@ -27,3 +27,6 @@ app/static/css/dist/
 
 # SQLite database files
 *.db
+
+# Generated exports
+app/static/exports/
