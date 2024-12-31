@@ -44,7 +44,7 @@ missing_skus AS (
 )
 
 -- Main query to get inventory levels by location
-SELECT 
+SELECT DISTINCT ON (location_names.name, item_name)
     location_names.name AS location,
     item_name,
     sku,
@@ -68,7 +68,7 @@ LEFT JOIN catalog_inventory
     ON catalog_inventory.variation_id = missing_skus.variation_id 
     AND catalog_inventory.location_id = location_names.id
 WHERE COALESCE(catalog_inventory.quantity, 0) != 0  -- Exclude zero inventory
-ORDER BY location_names.name, item_name;
+ORDER BY location_names.name, item_name, quantity DESC;  -- Added quantity DESC to get highest quantity variant
 
 -- Note: This query shows:
 -- 1. Items with Square-generated SKUs (7 characters with letters)
@@ -76,3 +76,4 @@ ORDER BY location_names.name, item_name;
 -- 3. Only non-zero inventory levels
 -- 4. Only active (non-archived, non-deleted) items
 -- 5. Inventory grouped by location and sorted by item name 
+-- 6. Only one entry per item name per location (highest quantity variant) 

@@ -20,7 +20,10 @@ def create_app():
     
     # Register routes
     from app.routes import dashboard_router, metrics_router
+    from app.routes.reports import reports_router
+    
     app.include_router(dashboard_router)
     app.include_router(metrics_router)
+    app.include_router(reports_router)
     
     return app
