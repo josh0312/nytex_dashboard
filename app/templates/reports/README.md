@@ -58,6 +58,106 @@ The reports section follows a clean separation of concerns:
    - No embedded SQL
    - Focused on presentation
 
+## Design System
+To maintain consistency with the dashboard, we follow these design patterns:
+
+### Color Schemes
+1. **Inventory Section (Blue)**
+   ```html
+   <!-- Card -->
+   bg-blue-100 dark:bg-blue-800/40
+   <!-- Icon Background -->
+   bg-blue-200 dark:bg-blue-700
+   <!-- Icon -->
+   text-blue-600 dark:text-blue-400
+   <!-- Hover States -->
+   hover:bg-blue-50 dark:hover:bg-blue-700/50
+   ```
+
+2. **Sales Section (Indigo)**
+   ```html
+   <!-- Card -->
+   bg-indigo-100 dark:bg-indigo-800/40
+   <!-- Icon Background -->
+   bg-indigo-200 dark:bg-indigo-700
+   <!-- Icon -->
+   text-indigo-600 dark:text-indigo-400
+   <!-- Hover States -->
+   hover:bg-indigo-50 dark:hover:bg-indigo-700/50
+   ```
+
+3. **Customer Section (Green)**
+   ```html
+   <!-- Card -->
+   bg-green-100 dark:bg-green-800/40
+   <!-- Icon Background -->
+   bg-green-200 dark:bg-green-700
+   <!-- Icon -->
+   text-green-600 dark:text-green-400
+   <!-- Hover States -->
+   hover:bg-green-50 dark:hover:bg-green-700/50
+   ```
+
+4. **Alert Section (Red)**
+   ```html
+   <!-- Card -->
+   bg-red-100 dark:bg-red-800/40
+   <!-- Icon Background -->
+   bg-red-200 dark:bg-red-700
+   <!-- Icon -->
+   text-red-600 dark:text-red-400
+   <!-- Hover States -->
+   hover:bg-red-50 dark:hover:bg-red-700/50
+   ```
+
+5. **Status Section (Yellow)**
+   ```html
+   <!-- Card -->
+   bg-yellow-100 dark:bg-yellow-800/40
+   <!-- Icon Background -->
+   bg-yellow-200 dark:bg-yellow-700
+   <!-- Icon -->
+   text-yellow-600 dark:text-yellow-400
+   <!-- Hover States -->
+   hover:bg-yellow-50 dark:hover:bg-yellow-700/50
+   ```
+
+### Usage Guidelines
+- **Blue**: Used for inventory and data-focused sections
+- **Indigo**: Primary color for sales and revenue sections
+- **Green**: Used for customer and success metrics
+- **Red**: Reserved for alerts, warnings, and critical notifications
+- **Yellow**: Ideal for status indicators, pending states, or attention-needed items
+
+### Component Patterns
+1. **Card Structure**
+   ```html
+   <div class="bg-{color}-100 dark:bg-{color}-800/40 shadow-sm rounded-lg overflow-hidden">
+     <div class="p-4">
+       <!-- Content -->
+     </div>
+   </div>
+   ```
+
+2. **Icon Containers**
+   ```html
+   <div class="p-3 bg-{color}-200 dark:bg-{color}-700 rounded-full mr-4">
+     <i class="h-6 w-6 text-{color}-600 dark:text-{color}-400"></i>
+   </div>
+   ```
+
+3. **Spacing**
+   - Grid gap: `gap-4`
+   - Padding: `p-4`
+   - Margins: `mb-4`
+   - Icon spacing: `mr-4`
+
+4. **Typography**
+   - Headers: `text-2xl font-semibold`
+   - Subheaders: `text-xl font-semibold`
+   - Body: `text-sm text-gray-500 dark:text-gray-400`
+   - Links: `font-medium text-gray-900 dark:text-white`
+
 ## Categories
 
 ### Inventory Reports

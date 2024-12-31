@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - NyTex Fireworks{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <!-- Report Categories Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Inventory Reports -->
+        <div class="bg-blue-100 dark:bg-blue-800/40 shadow-sm rounded-lg overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center mb-4">
+                    <div class="p-3 bg-blue-200 dark:bg-blue-700 rounded-full">
+                        <i data-lucide="package" class="h-6 w-6 text-blue-600 dark:text-blue-400"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex-1 text-center">Inventory Reports</h2>
+                </div>
+                <div class="space-y-4">
+                    <a href="#" class="block p-4 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Missing SKU Report</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Identify items with missing or auto-generated SKUs</p>
+                    </a>
+                    <a href="#" class="block p-4 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Low Stock Report</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">View items with low inventory levels</p>
+                    </a>
+                    <a href="#" class="block p-4 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Dead Stock Report</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Identify non-moving inventory items</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Reports -->
+        <div class="bg-indigo-100 dark:bg-indigo-800/40 shadow-sm rounded-lg overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center mb-4">
+                    <div class="p-3 bg-indigo-200 dark:bg-indigo-700 rounded-full">
+                        <i data-lucide="trending-up" class="h-6 w-6 text-indigo-600 dark:text-indigo-400"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex-1 text-center">Sales Reports</h2>
+                </div>
+                <div class="space-y-4">
+                    <a href="#" class="block p-4 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Daily Sales Report</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">View daily sales performance</p>
+                    </a>
+                    <a href="#" class="block p-4 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Seasonal Comparison</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Compare sales across seasons</p>
+                    </a>
+                    <a href="#" class="block p-4 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Location Performance</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Analyze sales by location</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Reports -->
+        <div class="bg-green-100 dark:bg-green-800/40 shadow-sm rounded-lg overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center mb-4">
+                    <div class="p-3 bg-green-200 dark:bg-green-700 rounded-full">
+                        <i data-lucide="users" class="h-6 w-6 text-green-600 dark:text-green-400"></i>
+                    </div>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white flex-1 text-center">Customer Reports</h2>
+                </div>
+                <div class="space-y-4">
+                    <a href="#" class="block p-4 rounded-lg hover:bg-green-50 dark:hover:bg-green-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Demographics Report</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Analyze customer demographics</p>
+                    </a>
+                    <a href="#" class="block p-4 rounded-lg hover:bg-green-50 dark:hover:bg-green-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Purchase Patterns</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">View customer buying habits</p>
+                    </a>
+                    <a href="#" class="block p-4 rounded-lg hover:bg-green-50 dark:hover:bg-green-700/50 transition-colors">
+                        <div class="font-medium text-gray-900 dark:text-white">Loyalty Stats</div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Track customer loyalty metrics</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Initialize Lucide Icons -->
+{% block scripts %}
+<script>
+    lucide.createIcons();
+</script>
+{% endblock %}
+{% endblock %} 

@@ -1,9 +1,19 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 import os
 from app.services.reports.query_executor import QueryExecutor
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+templates = Jinja2Templates(directory="app/templates")
+
+@router.get("/", response_class=HTMLResponse)
+async def reports_index(request: Request):
+    """Render the reports landing page."""
+    return templates.TemplateResponse(
+        "reports/index.html",
+        {"request": request}
+    )
 
 @router.get("/export/{query_name}")
 async def export_report(query_name: str):
