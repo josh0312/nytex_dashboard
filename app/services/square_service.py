@@ -44,20 +44,25 @@ class SquareService:
     async def fetch_todays_orders(self):
         """Fetch today's orders from Square API for all active locations"""
         try:
+            logger.info("=== Starting Square API orders fetch ===")
             # Get active locations
+            logger.info("Fetching active locations...")
             active_locations = await self.get_active_locations()
             if not active_locations:
                 logger.warning("No active locations found")
                 return None
 
             location_ids = [loc.get('id') for loc in active_locations]
+            logger.info(f"Found {len(location_ids)} active locations")
             
             # Get today's date range in Central Time (converted to UTC for API)
             start_time, end_time = get_central_today_range()
-            logger.info(f"Fetching orders between {start_time.astimezone(CENTRAL_TZ)} and {end_time.astimezone(CENTRAL_TZ)} for {len(location_ids)} locations")
+            logger.info(f"Date range for orders:")
+            logger.info(f"- Start: {start_time.astimezone(CENTRAL_TZ)} Central")
+            logger.info(f"- End: {end_time.astimezone(CENTRAL_TZ)} Central")
 
-            # Build the query
-            body = {
+            # Build the base query
+            base_query = {
                 "location_ids": location_ids,
                 "query": {
                     "filter": {
@@ -71,71 +76,120 @@ class SquareService:
                             "states": ["COMPLETED"]
                         }
                     }
-                }
+                },
+                "limit": 500  # Maximum allowed by Square API
             }
+            logger.info("Prepared Square API base query")
 
-            # Make the API call
-            result = self.client.orders.search_orders(body=body)
+            # Initialize variables for pagination
+            all_orders = []
+            cursor = None
+            page = 1
+
+            while True:
+                # Add cursor to query if we have one
+                body = base_query.copy()
+                if cursor:
+                    body["cursor"] = cursor
+
+                logger.info(f"Making Square API search_orders call (page {page})...")
+                result = self.client.orders.search_orders(body=body)
+                
+                if result.is_success():
+                    orders = result.body.get('orders', [])
+                    logger.info(f"Retrieved {len(orders)} orders on page {page}")
+                    all_orders.extend(orders)
+                    
+                    # Check if we have more pages
+                    cursor = result.body.get('cursor')
+                    if not cursor:
+                        logger.info("No more pages to fetch")
+                        break
+                    
+                    page += 1
+                    logger.info(f"Moving to page {page}")
+                else:
+                    logger.error(f"Square API error: {result.errors}")
+                    logger.error("=== Failed Square API orders fetch ===")
+                    return None
+
+            logger.info(f"Successfully retrieved {len(all_orders)} total orders across all pages")
             
-            if result.is_success():
-                orders = result.body.get('orders', [])
-                logger.info(f"Found {len(orders)} orders across all locations")
+            # Calculate total sales
+            total_sales = sum(float(order.get('total_money', {}).get('amount', 0)) / 100 for order in all_orders)
+            logger.info(f"Calculated total sales: ${total_sales:,.2f}")
+            
+            # Process location data
+            locations_data = {}
+            for loc in active_locations:
+                loc_id = loc.get('id')
+                loc_orders = [order for order in all_orders if order.get('location_id') == loc_id]
+                loc_sales = sum(float(order.get('total_money', {}).get('amount', 0)) / 100 for order in loc_orders)
                 
-                # Calculate total sales
-                total_sales = sum(float(order.get('total_money', {}).get('amount', 0)) / 100 for order in orders)
-                logger.info(f"Total sales across all locations: ${total_sales:.2f}")
-                
-                return {
-                    'total_sales': total_sales,
-                    'total_orders': len(orders),
-                    'orders': orders,
-                    'locations': {
-                        loc.get('id'): {
-                            'name': loc.get('name'),
-                            'sales': sum(
-                                float(order.get('total_money', {}).get('amount', 0)) / 100 
-                                for order in orders 
-                                if order.get('location_id') == loc.get('id')
-                            ),
-                            'orders': len([
-                                order for order in orders 
-                                if order.get('location_id') == loc.get('id')
-                            ]),
-                            'postal_code': loc.get('address', {}).get('postal_code', '').split('-')[0]
-                        }
-                        for loc in active_locations
-                    }
+                locations_data[loc_id] = {
+                    'name': loc.get('name'),
+                    'sales': loc_sales,
+                    'orders': len(loc_orders),
+                    'postal_code': loc.get('address', {}).get('postal_code', '').split('-')[0]
                 }
-            else:
-                logger.error(f"Error fetching orders: {result.errors}")
-                return None
+                logger.info(f"Location {loc.get('name')}: ${loc_sales:,.2f} ({len(loc_orders)} orders)")
+            
+            response_data = {
+                'total_sales': total_sales,
+                'total_orders': len(all_orders),
+                'orders': all_orders,
+                'locations': locations_data
+            }
+            
+            logger.info("Successfully compiled orders response")
+            logger.info("=== Completed Square API orders fetch ===")
+            return response_data
                 
         except Exception as e:
             logger.error(f"Error fetching orders: {str(e)}", exc_info=True)
+            logger.error("=== Failed Square API orders fetch ===")
             return None
 
     async def get_todays_sales(self):
         """Get today's sales metrics"""
         try:
-            logger.info("Fetching today's sales metrics...")
+            logger.info("=== Starting Square API sales metrics fetch ===")
             # Fetch fresh data from Square
+            logger.info("Initiating fetch_todays_orders call...")
             square_data = await self.fetch_todays_orders()
+            logger.info(f"fetch_todays_orders returned data: {bool(square_data)}")
+            
             if not square_data:
-                logger.warning("No sales data available")
+                logger.warning("No sales data available from Square API")
                 return None
+            
+            # Extract metrics
+            total_sales = square_data.get('total_sales', 0)
+            total_orders = square_data.get('total_orders', 0)
+            locations = square_data.get('locations', {})
+            
+            logger.info(f"Processed metrics:")
+            logger.info(f"- Total Sales: ${total_sales:,.2f}")
+            logger.info(f"- Total Orders: {total_orders}")
+            logger.info(f"- Number of Locations: {len(locations)}")
             
             # Get inventory metrics (placeholder for now)
             inventory_items = 0
             low_stock_items = 0
             
-            return {
-                'total_sales': square_data['total_sales'],
-                'total_orders': square_data['total_orders'],
+            metrics = {
+                'total_sales': total_sales,
+                'total_orders': total_orders,
                 'inventory_items': inventory_items,
                 'low_stock_items': low_stock_items,
-                'locations': square_data['locations']
+                'locations': locations
             }
+            
+            logger.info("Successfully compiled sales metrics")
+            logger.info("=== Completed Square API sales metrics fetch ===")
+            return metrics
             
         except Exception as e:
             logger.error(f"Error getting today's sales: {str(e)}", exc_info=True)
+            logger.error("=== Failed Square API sales metrics fetch ===")
             return None 

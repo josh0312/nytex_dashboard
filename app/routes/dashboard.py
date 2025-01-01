@@ -169,23 +169,66 @@ async def get_total_sales(request: Request):
     """Get total sales component"""
     try:
         logger.info("=== Starting total sales component fetch ===")
+        logger.info(f"Request headers: {dict(request.headers)}")
+        logger.info(f"Request client: {request.client}")
+        
         logger.info("Creating Square service...")
         square_service = SquareService()
-        logger.info("Getting today's sales...")
-        metrics = await square_service.get_todays_sales()
-        total_sales = metrics.get('total_sales', 0) if metrics else 0
-        formatted_sales = "{:,.2f}".format(float(total_sales))
-        logger.info(f"Total sales value: {formatted_sales}")
-        logger.info("Rendering total sales template...")
         
-        return templates.TemplateResponse("dashboard/components/total_sales.html", {
+        logger.info("Initiating Square API call for today's sales...")
+        metrics = await square_service.get_todays_sales()
+        logger.info(f"Received metrics from Square: {bool(metrics)}")
+        
+        if not metrics:
+            logger.warning("No metrics received from Square API")
+            total_sales = 0
+        else:
+            total_sales = metrics.get('total_sales', 0)
+            logger.info(f"Raw total sales value: {total_sales}")
+        
+        formatted_sales = "{:,.2f}".format(float(total_sales))
+        logger.info(f"Formatted total sales value: ${formatted_sales}")
+        
+        logger.info("Preparing to render total sales template...")
+        response = templates.TemplateResponse("dashboard/components/total_sales.html", {
             "request": request,
             "total_sales": formatted_sales
         })
+        logger.info("Total sales template rendered successfully")
+        logger.info(f"Response status: {response.status_code}")
+        logger.info("=== Completed total sales component fetch ===")
+        
+        return response
     except Exception as e:
         logger.error(f"Error fetching total sales: {str(e)}", exc_info=True)
+        logger.error("=== Failed total sales component fetch ===")
         return templates.TemplateResponse("dashboard/components/error.html", {
             "request": request,
             "title": "Total Sales",
             "message": "Unable to load total sales"
+        })
+
+@router.get("/metrics/total_orders")
+async def get_total_orders(request: Request):
+    """Get total orders component"""
+    try:
+        logger.info("=== Starting total orders component fetch ===")
+        logger.info("Creating Square service...")
+        square_service = SquareService()
+        logger.info("Getting today's sales...")
+        metrics = await square_service.get_todays_sales()
+        total_orders = metrics.get('total_orders', 0) if metrics else 0
+        logger.info(f"Total orders value: {total_orders}")
+        logger.info("Rendering total orders template...")
+        
+        return templates.TemplateResponse("dashboard/components/total_orders.html", {
+            "request": request,
+            "total_orders": total_orders
+        })
+    except Exception as e:
+        logger.error(f"Error fetching total orders: {str(e)}", exc_info=True)
+        return templates.TemplateResponse("dashboard/components/error.html", {
+            "request": request,
+            "title": "Total Orders",
+            "message": "Unable to load total orders"
         }) 
