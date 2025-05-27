@@ -1,0 +1,106 @@
+<!-- Table Headers -->
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+    data-sort="location"
+    hx-get="{{ endpoint }}?sort=location&direction={% if sort == 'location' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+    hx-target="#table-rows"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    hx-trigger="click"
+>
+    <div class="flex items-center space-x-1">
+        <span>Location</span>
+        {% if sort == 'location' %}
+        <i data-lucide="{{ 'chevron-up' if direction == 'asc' else 'chevron-down' }}" class="w-4 h-4"></i>
+        {% endif %}
+    </div>
+</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+    data-sort="item_name"
+    hx-get="{{ endpoint }}?sort=item_name&direction={% if sort == 'item_name' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+    hx-target="#table-rows"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    hx-trigger="click"
+>
+    <div class="flex items-center space-x-1">
+        <span>Item Name</span>
+        {% if sort == 'item_name' %}
+        <i data-lucide="{{ 'chevron-up' if direction == 'asc' else 'chevron-down' }}" class="w-4 h-4"></i>
+        {% endif %}
+    </div>
+</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+    data-sort="sku"
+    hx-get="{{ endpoint }}?sort=sku&direction={% if sort == 'sku' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+    hx-target="#table-rows"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    hx-trigger="click"
+>
+    <div class="flex items-center space-x-1">
+        <span>SKU</span>
+        {% if sort == 'sku' %}
+        <i data-lucide="{{ 'chevron-up' if direction == 'asc' else 'chevron-down' }}" class="w-4 h-4"></i>
+        {% endif %}
+    </div>
+</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+    data-sort="price"
+    hx-get="{{ endpoint }}?sort=price&direction={% if sort == 'price' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+    hx-target="#table-rows"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    hx-trigger="click"
+>
+    <div class="flex items-center space-x-1">
+        <span>Price</span>
+        {% if sort == 'price' %}
+        <i data-lucide="{{ 'chevron-up' if direction == 'asc' else 'chevron-down' }}" class="w-4 h-4"></i>
+        {% endif %}
+    </div>
+</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+    data-sort="category_name"
+    hx-get="{{ endpoint }}?sort=category_name&direction={% if sort == 'category_name' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+    hx-target="#table-rows"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    hx-trigger="click"
+>
+    <div class="flex items-center space-x-1">
+        <span>Category</span>
+        {% if sort == 'category_name' %}
+        <i data-lucide="{{ 'chevron-up' if direction == 'asc' else 'chevron-down' }}" class="w-4 h-4"></i>
+        {% endif %}
+    </div>
+</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+    data-sort="quantity"
+    hx-get="{{ endpoint }}?sort=quantity&direction={% if sort == 'quantity' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+    hx-target="#table-rows"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    hx-trigger="click"
+>
+    <div class="flex items-center space-x-1">
+        <span>Quantity</span>
+        {% if sort == 'quantity' %}
+        <i data-lucide="{{ 'chevron-up' if direction == 'asc' else 'chevron-down' }}" class="w-4 h-4"></i>
+        {% endif %}
+    </div>
+</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+    data-sort="stock_status"
+    hx-get="{{ endpoint }}?sort=stock_status&direction={% if sort == 'stock_status' and direction == 'asc' %}desc{% else %}asc{% endif %}"
+    hx-target="#table-rows"
+    hx-swap="innerHTML"
+    hx-push-url="true"
+    hx-trigger="click"
+>
+    <div class="flex items-center space-x-1">
+        <span>Status</span>
+        {% if sort == 'stock_status' %}
+        <i data-lucide="{{ 'chevron-up' if direction == 'asc' else 'chevron-down' }}" class="w-4 h-4"></i>
+        {% endif %}
+    </div>
+</th> 

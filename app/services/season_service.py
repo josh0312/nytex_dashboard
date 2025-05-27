@@ -223,37 +223,6 @@ class SeasonService:
                         f"Amount: ${float(season.total_amount)/100:.2f}"
                     )
                 
-                # For debugging July 4th season specifically
-                july_4th_stmt = (
-                    select(
-                        func.sum(amount_expr).label('total_amount')
-                    )
-                    .select_from(Order)
-                    .where(
-                        and_(
-                            text("(orders.created_at AT TIME ZONE 'UTC')::date >= :start_date"),
-                            text("(orders.created_at AT TIME ZONE 'UTC')::date <= :end_date"),
-                            Order.state != 'CANCELED'
-                        )
-                    )
-                )
-
-                # Log the exact SQL with values
-                debug_compiled = july_4th_stmt.compile(
-                    compile_kwargs={"literal_binds": True}
-                )
-                logger.info(f"\nJuly 4th Debug SQL Query:\n{str(debug_compiled)}")
-
-                july_4th_result = await session.execute(
-                    july_4th_stmt,
-                    {
-                        'start_date': datetime(2024, 6, 24).date(),
-                        'end_date': datetime(2024, 7, 4).date()
-                    }
-                )
-                july_4th_total = july_4th_result.scalar()
-                logger.info(f"\nJuly 4th total amount from direct query: ${float(july_4th_total)/100:.2f}")
-                
                 # Group results by year
                 years_dict = {}
                 for season in seasons:

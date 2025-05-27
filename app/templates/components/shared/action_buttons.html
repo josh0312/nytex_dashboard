@@ -1,0 +1,82 @@
+<!-- Action Buttons Component -->
+<!-- Parameters:
+    - endpoint: Base endpoint for the report
+    - show_refresh: Boolean to show/hide refresh button
+    - show_export: Boolean to show/hide export button
+    - show_email: Boolean to show/hide email button
+    - show_print: Boolean to show/hide print button
+    - sort: Current sort column (optional)
+    - direction: Current sort direction (optional)
+-->
+<div class="flex space-x-2" id="action-buttons">
+    {% if show_refresh | default(true) %}
+    <button
+        class="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700"
+        hx-get="{{ endpoint }}{% if sort %}?sort={{ sort }}&direction={{ direction }}{% endif %}"
+        hx-target="#table-rows"
+        hx-swap="innerHTML"
+        hx-indicator="#refresh-indicator"
+        hx-trigger="click"
+        hx-headers='{"HX-Request": "true"}'
+        title="Refresh"
+        onclick="console.log('Refresh clicked')"
+        id="refresh-button"
+    >
+        <i data-lucide="rotate-cw" class="w-5 h-5"></i>
+        <div id="refresh-indicator" class="htmx-indicator">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+        </div>
+    </button>
+    {% endif %}
+
+    {% if show_export | default(true) %}
+    <button
+        class="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700"
+        hx-get="{{ endpoint }}/export"
+        hx-indicator="#export-indicator"
+        title="Export"
+    >
+        <i data-lucide="download" class="w-5 h-5"></i>
+        <div id="export-indicator" class="htmx-indicator">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+        </div>
+    </button>
+    {% endif %}
+
+    {% if show_email | default(true) %}
+    <button
+        class="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700"
+        hx-post="{{ endpoint }}/email"
+        hx-indicator="#email-indicator"
+        title="Email"
+    >
+        <i data-lucide="mail" class="w-5 h-5"></i>
+        <div id="email-indicator" class="htmx-indicator">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+        </div>
+    </button>
+    {% endif %}
+
+    {% if show_print | default(true) %}
+    <button
+        class="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-700"
+        hx-get="{{ endpoint }}/print"
+        hx-target="#print-container"
+        hx-indicator="#print-indicator"
+        title="Print"
+    >
+        <i data-lucide="printer" class="w-5 h-5"></i>
+        <div id="print-indicator" class="htmx-indicator">
+            <i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>
+        </div>
+    </button>
+    {% endif %}
+</div>
+
+<!-- Hidden print container -->
+<div id="print-container" class="hidden"></div>
+
+<script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+</script> 

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Missing SKU Report - Print View</title>
+    <style>
+        @media print {
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 20px;
+            }
+            th, td {
+                padding: 8px;
+                text-align: left;
+                border-bottom: 1px solid #ddd;
+            }
+            th {
+                background-color: #f8f9fa;
+                font-weight: bold;
+            }
+            .status-badge {
+                padding: 2px 6px;
+                border-radius: 12px;
+                font-size: 12px;
+            }
+            .missing { background-color: #fee2e2; }
+            .generated { background-color: #fef3c7; }
+            .in-stock { background-color: #dcfce7; }
+            .no-stock { background-color: #f3f4f6; }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+            .timestamp {
+                font-size: 12px;
+                color: #666;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Missing SKU Report</h1>
+        <div class="timestamp">
+            Generated: {{ timestamp }}
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Location</th>
+                <th>Item Name</th>
+                <th>SKU</th>
+                <th>Price</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.location }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>
+                    <span class="status-badge {% if item.sku %}generated{% else %}missing{% endif %}">
+                        {{ item.sku if item.sku else 'Missing' }}
+                    </span>
+                </td>
+                <td>{{ item.price }}</td>
+                <td>{{ item.category_name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>
+                    <span class="status-badge {% if item.stock_status == 'In Stock' %}in-stock{% elif item.stock_status == 'No Stock' %}no-stock{% else %}missing{% endif %}">
+                        {{ item.stock_status }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        window.onload = function() {
+            window.print();
+        }
+    </script>
+</body>
+</html> 

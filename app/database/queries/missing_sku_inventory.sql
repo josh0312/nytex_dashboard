@@ -25,7 +25,7 @@ missing_skus AS (
         CASE 
             WHEN catalog_variations.sku IS NULL OR catalog_variations.sku = '' 
                 THEN 'Missing SKU'
-            WHEN LENGTH(catalog_variations.sku) = 7 AND catalog_variations.sku ~ '[A-Za-z]' 
+            WHEN LENGTH(catalog_variations.sku) = 7 
                 THEN 'Square Generated'
         END AS sku_status
     FROM catalog_variations
@@ -36,7 +36,7 @@ missing_skus AS (
     WHERE (
         catalog_variations.sku IS NULL 
         OR catalog_variations.sku = '' 
-        OR (LENGTH(catalog_variations.sku) = 7 AND catalog_variations.sku ~ '[A-Za-z]')
+        OR LENGTH(catalog_variations.sku) = 7
     )
     AND catalog_variations.is_deleted = false
     AND catalog_items.is_deleted = false
@@ -71,7 +71,7 @@ WHERE COALESCE(catalog_inventory.quantity, 0) != 0  -- Exclude zero inventory
 ORDER BY location_names.name, item_name, quantity DESC;  -- Added quantity DESC to get highest quantity variant
 
 -- Note: This query shows:
--- 1. Items with Square-generated SKUs (7 characters with letters)
+-- 1. Items with Square-generated SKUs (exactly 7 characters)
 -- 2. Items with missing SKUs (null or empty)
 -- 3. Only non-zero inventory levels
 -- 4. Only active (non-archived, non-deleted) items
