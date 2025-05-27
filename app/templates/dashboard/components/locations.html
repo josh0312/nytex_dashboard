@@ -26,7 +26,7 @@
                         {% if location.weather %}
                             <div class="relative flex items-center justify-center">
                                 <div class="group flex items-center">
-                                    <div style="background-color: rgba(51, 65, 85, 0.95);" class="absolute hidden group-hover:block right-full top-1/2 -translate-y-1/2 mr-2 px-3 py-2 text-white text-xs rounded shadow-lg z-10">
+                                    <div class="absolute hidden group-hover:block right-full top-1/2 -translate-y-1/2 mr-2 px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg z-10">
                                         <div>{{ location.weather.description }}</div>
                                         <div>High: {{ location.weather.temp_max }}°F</div>
                                         <div>Low: {{ location.weather.temp_min }}°F</div>

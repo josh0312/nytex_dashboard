@@ -1,7 +1,7 @@
-<div class="bg-green-100 dark:bg-green-800/40 rounded-lg shadow-sm">
+<div class="bg-green-100 dark:bg-green-800 rounded-lg shadow-sm">
     <div class="p-4">
         <div class="flex items-start">
-            <div class="p-3 bg-green-200 dark:bg-green-800 rounded-full">
+            <div class="p-3 bg-green-200 dark:bg-green-700 rounded-full">
                 <i data-lucide="bar-chart-2" class="w-6 h-6 text-green-600 dark:text-green-300"></i>
             </div>
             <div class="flex flex-col items-center flex-grow">
@@ -29,6 +29,12 @@
                     }
                     
                     const ctx = document.getElementById('seasonalSalesChart').getContext('2d');
+                    
+                    // Get dark mode state for dynamic colors
+                    const isDarkMode = document.documentElement.classList.contains('dark');
+                    const textColor = isDarkMode ? '#D1D5DB' : '#374151';
+                    const gridColor = isDarkMode ? '#4B5563' : '#E5E7EB';
+                    
                     window.seasonalChart = new Chart(ctx, {
                         type: 'bar',
                         data: {
@@ -36,8 +42,8 @@
                             datasets: [{
                                 label: 'Daily Sales',
                                 data: {{ amounts|tojson|safe }},
-                                backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                                borderColor: 'rgb(34, 197, 94)',
+                                backgroundColor: isDarkMode ? '#16A34A' : 'rgba(34, 197, 94, 0.2)',
+                                borderColor: '#16A34A',
                                 borderWidth: 1,
                                 barThickness: 'flex',
                                 maxBarThickness: 12,
@@ -65,18 +71,22 @@
                                     }
                                 },
                                 legend: {
-                                    display: false
+                                    display: false,
+                                    labels: {
+                                        color: textColor
+                                    }
                                 }
                             },
                             scales: {
                                 y: {
                                     beginAtZero: true,
                                     grid: {
-                                        color: 'rgba(0, 0, 0, 0.05)',
+                                        color: gridColor,
                                         drawBorder: false
                                     },
                                     ticks: {
                                         padding: 8,
+                                        color: textColor,
                                         callback: function(value) {
                                             return '$' + value.toLocaleString();
                                         }
@@ -89,6 +99,7 @@
                                     },
                                     ticks: {
                                         padding: 8,
+                                        color: textColor,
                                         callback: function(value, index, ticks) {
                                             const labels = {{ dates|tojson|safe }};
                                             return labels[index].split(' ')[1];

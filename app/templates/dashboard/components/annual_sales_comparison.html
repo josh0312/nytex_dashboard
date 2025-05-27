@@ -12,36 +12,49 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         (function() {
-            // Destroy existing chart if it exists
-            const existingChart = Chart.getChart('yearlyComparisonChart');
-            if (existingChart) {
-                existingChart.destroy();
-            }
+            function createChart() {
+                // Destroy existing chart if it exists
+                const existingChart = Chart.getChart('yearlyComparisonChart');
+                if (existingChart) {
+                    existingChart.destroy();
+                }
 
-            const canvas = document.getElementById('yearlyComparisonChart');
-            if (!canvas) {
-                return;
-            }
+                const canvas = document.getElementById('yearlyComparisonChart');
+                if (!canvas) {
+                    return;
+                }
 
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-                return;
-            }
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    return;
+                }
 
-            const isDarkMode = document.documentElement.classList.contains('dark');
-            const textColor = isDarkMode ? '#D1D5DB' : '#374151';
-            const gridColor = isDarkMode ? '#4B5563' : '#E5E7EB';
-            
-            const seasonTotals = {{ season_totals|tojson|safe if season_totals else '[]' }};
-            
-            if (!seasonTotals || seasonTotals.length === 0) {
-                const container = canvas.parentElement;
-                container.innerHTML = `
-                    <div class="flex items-center justify-center h-full">
-                        <p class="text-gray-500 dark:text-gray-400">No sales data available</p>
-                    </div>
-                `;
-            } else {
+                // Simplified and more reliable dark mode detection
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                
+                // Debug logging
+                console.log('HTML element classes:', document.documentElement.className);
+                console.log('Dark mode detected:', isDarkMode);
+                
+                // Text colors - ALWAYS default to light mode colors unless explicitly dark
+                const textColor = isDarkMode ? '#FFFFFF' : '#1F2937';
+                const gridColor = isDarkMode ? '#9CA3AF' : '#E5E7EB';
+                
+                console.log('Using text color:', textColor);
+                console.log('Using grid color:', gridColor);
+                
+                const seasonTotals = {{ season_totals|tojson|safe if season_totals else '[]' }};
+                
+                if (!seasonTotals || seasonTotals.length === 0) {
+                    const container = canvas.parentElement;
+                    container.innerHTML = `
+                        <div class="flex items-center justify-center h-full">
+                            <p class="text-gray-500 dark:text-gray-400">No sales data available</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
                 // Process data for the chart
                 const seasons = new Set();
                 const years = new Set();
@@ -67,12 +80,13 @@
                 // Create datasets (one for each year)
                 const datasets = sortedYears.map(year => {
                     const yearColor = getColorForYear(year, isDarkMode);
+                    console.log(`Year ${year} colors:`, yearColor);
                     return {
                         label: year.toString(),
                         data: sortedSeasons.map(season => dataByYearAndSeason[year]?.[season] || 0),
                         backgroundColor: yearColor.background,
                         borderColor: yearColor.border,
-                        borderWidth: 1,
+                        borderWidth: 2,
                         borderRadius: 4
                     };
                 });
@@ -92,7 +106,10 @@
                                 labels: {
                                     color: textColor,
                                     usePointStyle: true,
-                                    pointStyle: 'circle'
+                                    pointStyle: 'circle',
+                                    font: {
+                                        size: 12
+                                    }
                                 }
                             },
                             tooltip: {
@@ -111,10 +128,14 @@
                                 type: 'logarithmic',
                                 beginAtZero: false,
                                 grid: {
-                                    color: gridColor
+                                    color: gridColor,
+                                    lineWidth: 1
                                 },
                                 ticks: {
                                     color: textColor,
+                                    font: {
+                                        size: 11
+                                    },
                                     callback: function(value) {
                                         if (value === 0) return '$0';
                                         return '$' + value.toLocaleString();
@@ -126,26 +147,68 @@
                                     display: false
                                 },
                                 ticks: {
-                                    color: textColor
+                                    color: textColor,
+                                    font: {
+                                        size: 11
+                                    }
                                 }
                             }
                         }
                     }
                 });
             }
-        })();
 
-        // Helper function to generate colors for each year
-        function getColorForYear(year, isDarkMode) {
-            const colors = [
-                { background: isDarkMode ? 'rgba(59, 130, 246, 0.7)' : 'rgba(59, 130, 246, 0.2)', border: '#3B82F6' }, // Blue
-                { background: isDarkMode ? 'rgba(16, 185, 129, 0.7)' : 'rgba(16, 185, 129, 0.2)', border: '#10B981' }, // Green
-                { background: isDarkMode ? 'rgba(245, 158, 11, 0.7)' : 'rgba(245, 158, 11, 0.2)', border: '#F59E0B' }, // Yellow
-                { background: isDarkMode ? 'rgba(239, 68, 68, 0.7)' : 'rgba(239, 68, 68, 0.2)', border: '#EF4444' }, // Red
-                { background: isDarkMode ? 'rgba(139, 92, 246, 0.7)' : 'rgba(139, 92, 246, 0.2)', border: '#8B5CF6' }  // Purple
-            ];
-            const index = (year - 2020) % colors.length;
-            return colors[index];
-        }
+            // Helper function to generate colors for each year
+            function getColorForYear(year, isDarkMode) {
+                const colors = [
+                    { 
+                        background: isDarkMode ? '#2563EB' : '#BFDBFE', 
+                        border: isDarkMode ? '#3B82F6' : '#2563EB' 
+                    }, // Blue
+                    { 
+                        background: isDarkMode ? '#059669' : '#A7F3D0', 
+                        border: isDarkMode ? '#10B981' : '#059669' 
+                    }, // Green
+                    { 
+                        background: isDarkMode ? '#D97706' : '#FDE68A', 
+                        border: isDarkMode ? '#F59E0B' : '#D97706' 
+                    }, // Yellow
+                    { 
+                        background: isDarkMode ? '#DC2626' : '#FECACA', 
+                        border: isDarkMode ? '#EF4444' : '#DC2626' 
+                    }, // Red
+                    { 
+                        background: isDarkMode ? '#7C3AED' : '#DDD6FE', 
+                        border: isDarkMode ? '#8B5CF6' : '#7C3AED' 
+                    }  // Purple
+                ];
+                const index = (year - 2020) % colors.length;
+                return colors[index];
+            }
+
+            // Create chart initially with a small delay to ensure Alpine.js is ready
+            setTimeout(createChart, 200);
+
+            // Also try to create chart when Alpine is ready
+            document.addEventListener('alpine:init', () => {
+                console.log('Alpine initialized, creating chart');
+                setTimeout(createChart, 100);
+            });
+
+            // Listen for theme changes and recreate chart
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                        console.log('Theme changed, recreating chart');
+                        setTimeout(createChart, 100); // Small delay to ensure DOM is updated
+                    }
+                });
+            });
+
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+        })();
     </script>
 </div> 
