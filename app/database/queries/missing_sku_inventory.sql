@@ -2,7 +2,7 @@
 -- Purpose: Identifies items with Square-generated or missing SKUs and shows their inventory levels by location
 -- Excludes: Archived items, deleted items, and zero inventory items
 -- Groups by: Location, then item name
--- Last Updated: 2024-01-02
+-- Last Updated: 2025-01-27
 
 WITH RECURSIVE 
 -- Get location names for mapping location IDs
@@ -22,6 +22,8 @@ missing_skus AS (
         catalog_categories.name AS category_name,
         catalog_variations.present_at_location_ids AS location_ids,
         catalog_variations.id AS variation_id,
+        -- Get vendor information with vendor name
+        vendors.name AS vendor_name,
         CASE 
             WHEN catalog_variations.sku IS NULL OR catalog_variations.sku = '' 
                 THEN 'Missing SKU'
@@ -33,6 +35,11 @@ missing_skus AS (
         ON catalog_variations.item_id = catalog_items.id
     LEFT JOIN catalog_categories 
         ON catalog_items.category_id = catalog_categories.id
+    LEFT JOIN catalog_vendor_info 
+        ON catalog_variations.id = catalog_vendor_info.variation_id
+        AND catalog_vendor_info.is_deleted = false
+    LEFT JOIN vendors 
+        ON catalog_vendor_info.vendor_id = vendors.id
     WHERE (
         catalog_variations.sku IS NULL 
         OR catalog_variations.sku = '' 
@@ -47,6 +54,8 @@ missing_skus AS (
 SELECT DISTINCT ON (location_names.name, item_name)
     location_names.name AS location,
     item_name,
+    -- Display vendor name or 'No Vendor' if not available
+    COALESCE(vendor_name, 'No Vendor') AS vendor_name,
     sku,
     -- Format price to currency with 2 decimal places
     CASE 
@@ -76,4 +85,5 @@ ORDER BY location_names.name, item_name, quantity DESC;  -- Added quantity DESC 
 -- 3. Only non-zero inventory levels
 -- 4. Only active (non-archived, non-deleted) items
 -- 5. Inventory grouped by location and sorted by item name 
--- 6. Only one entry per item name per location (highest quantity variant) 
+-- 6. Only one entry per item name per location (highest quantity variant)
+-- 7. Vendor information when available (vendor name from vendors table) 

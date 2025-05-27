@@ -1,48 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Missing SKU Report - Print View</title>
     <style>
         @media print {
-            body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                padding: 20px;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 20px;
-            }
-            th, td {
-                padding: 8px;
-                text-align: left;
-                border-bottom: 1px solid #ddd;
-            }
-            th {
-                background-color: #f8f9fa;
-                font-weight: bold;
-            }
-            .status-badge {
-                padding: 2px 6px;
-                border-radius: 12px;
-                font-size: 12px;
-            }
-            .missing { background-color: #fee2e2; }
-            .generated { background-color: #fef3c7; }
-            .in-stock { background-color: #dcfce7; }
-            .no-stock { background-color: #f3f4f6; }
-            .header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 20px;
-            }
-            .timestamp {
-                font-size: 12px;
-                color: #666;
-            }
+            body { margin: 0; }
+            .no-print { display: none; }
         }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #333;
+        }
+        
+        .timestamp {
+            margin-top: 5px;
+            color: #666;
+            font-size: 10px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        .status-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .status-badge.missing { background-color: #fee; color: #c53030; }
+        .status-badge.generated { background-color: #fef5e7; color: #d69e2e; }
+        .status-badge.in-stock { background-color: #f0fff4; color: #38a169; }
+        .status-badge.no-stock { background-color: #f7fafc; color: #4a5568; }
     </style>
 </head>
 <body>
@@ -56,33 +78,25 @@
     <table>
         <thead>
             <tr>
-                <th>Location</th>
-                <th>Item Name</th>
-                <th>SKU</th>
-                <th>Price</th>
-                <th>Category</th>
-                <th>Quantity</th>
-                <th>Status</th>
+                {% for column in columns %}
+                <th>{{ column.label }}</th>
+                {% endfor %}
             </tr>
         </thead>
         <tbody>
             {% for item in items %}
             <tr>
-                <td>{{ item.location }}</td>
-                <td>{{ item.item_name }}</td>
+                {% for column in columns %}
                 <td>
-                    <span class="status-badge {% if item.sku %}generated{% else %}missing{% endif %}">
-                        {{ item.sku if item.sku else 'Missing' }}
-                    </span>
+                    {% if column.key == 'sku' %}
+                        <span class="status-badge {% if item.sku %}generated{% else %}missing{% endif %}">
+                            {{ item.sku if item.sku else 'Missing' }}
+                        </span>
+                    {% else %}
+                        {{ item[column.key] }}
+                    {% endif %}
                 </td>
-                <td>{{ item.price }}</td>
-                <td>{{ item.category_name }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>
-                    <span class="status-badge {% if item.stock_status == 'In Stock' %}in-stock{% elif item.stock_status == 'No Stock' %}no-stock{% else %}missing{% endif %}">
-                        {{ item.stock_status }}
-                    </span>
-                </td>
+                {% endfor %}
             </tr>
             {% endfor %}
         </tbody>

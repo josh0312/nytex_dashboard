@@ -5,110 +5,48 @@ Items with missing or auto-generated SKUs ({{ total_items }} items found)
 {% endblock %}
 
 {% block table_headers %}
-<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-    data-sort="location"
-    hx-get="/reports/inventory/missing-sku"
+{% for column in columns %}
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 select-none"
+    style="user-select: none; cursor: pointer;"
+    data-sort="{{ column.key }}"
+    hx-get="/reports/inventory/missing-sku?sort={{ column.key }}&direction={% if sort == column.key %}{% if direction == 'asc' %}desc{% elif direction == 'desc' %}none{% else %}asc{% endif %}{% else %}asc{% endif %}"
     hx-target="#table-container"
     hx-swap="innerHTML"
     hx-trigger="click"
 >
-    Location
+    {{ column.label }}
 </th>
-<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-    data-sort="item_name"
-    hx-get="/reports/inventory/missing-sku"
-    hx-target="#table-container"
-    hx-swap="innerHTML"
-    hx-trigger="click"
->
-    Item Name
-</th>
-<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-    data-sort="sku"
-    hx-get="/reports/inventory/missing-sku"
-    hx-target="#table-container"
-    hx-swap="innerHTML"
-    hx-trigger="click"
->
-    SKU
-</th>
-<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-    data-sort="price"
-    hx-get="/reports/inventory/missing-sku"
-    hx-target="#table-container"
-    hx-swap="innerHTML"
-    hx-trigger="click"
->
-    Price
-</th>
-<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-    data-sort="category_name"
-    hx-get="/reports/inventory/missing-sku"
-    hx-target="#table-container"
-    hx-swap="innerHTML"
-    hx-trigger="click"
->
-    Category
-</th>
-<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-    data-sort="quantity"
-    hx-get="/reports/inventory/missing-sku"
-    hx-target="#table-container"
-    hx-swap="innerHTML"
-    hx-trigger="click"
->
-    Quantity
-</th>
-<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-    data-sort="stock_status"
-    hx-get="/reports/inventory/missing-sku"
-    hx-target="#table-container"
-    hx-swap="innerHTML"
-    hx-trigger="click"
->
-    Status
-</th>
+{% endfor %}
 {% endblock %}
 
 {% block table_rows %}
 {% for item in items %}
 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ item.location }}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ item.item_name }}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm">
-        <span class="px-2 py-1 text-xs rounded-full 
-            {% if item.sku %}
-            bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300
-            {% else %}
-            bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300
-            {% endif %}">
-            {{ item.sku if item.sku else 'Missing' }}
-        </span>
+    {% for column in columns %}
+    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+        {% if column.key == 'sku' %}
+            <span class="px-2 py-1 text-xs rounded-full 
+                {% if item.sku %}
+                bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300
+                {% else %}
+                bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300
+                {% endif %}">
+                {{ item.sku if item.sku else 'Missing' }}
+            </span>
+        {% elif column.key == 'quantity' %}
+            <span class="px-2 py-1 text-xs rounded-full 
+                {% if item.quantity > 0 %}
+                bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300
+                {% else %}
+                bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300
+                {% endif %}">
+                {{ item[column.key] }}
+            </span>
+        {% else %}
+            {{ item[column.key] }}
+        {% endif %}
     </td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ item.price }}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{{ item.category_name }}</td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm">
-        <span class="px-2 py-1 text-xs rounded-full 
-            {% if item.quantity > 0 %}
-            bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300
-            {% else %}
-            bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300
-            {% endif %}">
-            {{ item.quantity }}
-        </span>
-    </td>
-    <td class="px-6 py-4 whitespace-nowrap text-sm">
-        <span class="px-2 py-1 text-xs rounded-full 
-            {% if item.stock_status == 'In Stock' %}
-            bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300
-            {% elif item.stock_status == 'No Stock' %}
-            bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300
-            {% else %}
-            bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300
-            {% endif %}">
-            {{ item.stock_status }}
-        </span>
-    </td>
+    {% endfor %}
 </tr>
 {% endfor %}
 {% endblock %} 

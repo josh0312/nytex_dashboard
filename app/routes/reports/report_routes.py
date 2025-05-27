@@ -46,14 +46,26 @@ async def missing_sku_report(
 ):
     """Render the Missing SKU Report page."""
     try:
+        # Define columns in one place - easy to modify
+        columns = [
+            {"key": "location", "label": "Location", "sortable": True},
+            {"key": "item_name", "label": "Item Name", "sortable": True},
+            {"key": "vendor_name", "label": "Vendor", "sortable": True},
+            {"key": "sku", "label": "SKU", "sortable": True},
+            {"key": "price", "label": "Price", "sortable": True},
+            {"key": "category_name", "label": "Category", "sortable": True},
+            {"key": "quantity", "label": "Quantity", "sortable": True},
+        ]
+        
         # Use QueryExecutor to run the query
         executor = QueryExecutor()
         df = await executor.execute_query_to_df("missing_sku_inventory")
         
-        # Apply sorting if requested
-        if sort and sort in df.columns:
+        # Apply sorting if requested and direction is not "none"
+        if sort and sort in df.columns and direction != "none":
             ascending = direction.lower() == "asc"
             df = df.sort_values(by=sort, ascending=ascending)
+        # If direction is "none", keep original order (no sorting)
         
         # Convert DataFrame to list of dicts
         items = df.to_dict('records')
@@ -62,7 +74,8 @@ async def missing_sku_report(
         template_vars = {
             "request": request,
             "items": items,
-            "sort": sort,
+            "columns": columns,  # Pass columns to template
+            "sort": sort if direction != "none" else None,  # Clear sort when returning to original order
             "direction": direction
         }
         
