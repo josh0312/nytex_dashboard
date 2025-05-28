@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import FileResponse, HTMLResponse
 import os
 from app.services.reports.query_executor import QueryExecutor
@@ -19,11 +19,29 @@ async def reports_index(request: Request):
     )
 
 @router.get("/export/{query_name}")
-async def export_report(query_name: str):
-    """Export a report query to Excel."""
+async def export_report(
+    query_name: str, 
+    format: str = Query("xlsx", description="Export format: xlsx or pdf"),
+    sort: str = Query(None, description="Sort column"),
+    direction: str = Query("asc", description="Sort direction: asc or desc")
+):
+    """Export a report query to Excel or PDF."""
     try:
         executor = QueryExecutor()
-        filename = await executor.export_query_to_excel(query_name)
+        
+        # Prepare parameters for sorting
+        params = {}
+        if sort and direction and direction != "none":
+            params['sort_column'] = sort
+            params['sort_direction'] = direction
+        
+        # Export based on format
+        if format.lower() == "pdf":
+            filename = await executor.export_query_to_pdf(query_name, params)
+            media_type = "application/pdf"
+        else:  # Default to xlsx
+            filename = await executor.export_query_to_excel(query_name, params)
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         
         # Get the full path to the exported file
         exports_dir = os.path.join('app', 'static', 'exports')
@@ -32,10 +50,10 @@ async def export_report(query_name: str):
         return FileResponse(
             path=file_path,
             filename=filename,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            media_type=media_type
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export report: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to export report: {str(e)}")
 
 @router.get("/inventory/missing-sku", response_class=HTMLResponse)
 async def missing_sku_report(
@@ -91,6 +109,7 @@ async def missing_sku_report(
             {
                 **template_vars,
                 "report_title": "Missing SKU Report",
+                "report_name": "missing_sku_inventory",
                 "total_items": len(items),
                 "locations": sorted(set(item["location"] for item in items)),
                 "categories": sorted(set(item["category_name"] for item in items if item["category_name"])),
@@ -151,6 +170,7 @@ async def missing_category_report(
             {
                 **template_vars,
                 "report_title": "Missing Category Report",
+                "report_name": "missing_category_inventory",
                 "total_items": len(items),
                 "vendors": sorted(set(item["vendor_name"] for item in items if item["vendor_name"])),
             }
@@ -214,6 +234,7 @@ async def missing_description_report(
             {
                 **template_vars,
                 "report_title": "Missing Description Report",
+                "report_name": "missing_description_inventory",
                 "total_items": len(items),
                 "vendors": sorted(set(item["vendor_name"] for item in items if item["vendor_name"])),
             }
@@ -273,6 +294,7 @@ async def missing_vendor_info_report(
             {
                 **template_vars,
                 "report_title": "Missing Vendor Info Report",
+                "report_name": "missing_vendor_info_inventory",
                 "total_items": len(items),
                 "vendors": sorted(set(item["vendor_name"] for item in items if item["vendor_name"] and item["vendor_name"] != "No Vendor")),
             }

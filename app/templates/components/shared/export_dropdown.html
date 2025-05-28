@@ -1,0 +1,136 @@
+<!-- Export Dropdown Component -->
+<!-- Parameters:
+    - report_name: The name of the report for export endpoints
+    - sort: Current sort column (optional)
+    - direction: Current sort direction (optional)
+-->
+<div class="relative inline-block text-left" id="export-dropdown">
+    <div>
+        <button type="button" 
+                class="inline-flex justify-center w-full rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                id="export-menu-button" 
+                aria-expanded="false" 
+                aria-haspopup="true"
+                onclick="toggleExportDropdown()">
+            <i data-lucide="download" class="h-4 w-4 mr-2"></i>
+            Export
+            <i data-lucide="chevron-down" class="ml-2 -mr-1 h-4 w-4" aria-hidden="true"></i>
+        </button>
+    </div>
+
+    <!-- Dropdown menu -->
+    <div class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none hidden z-50" 
+         id="export-menu" 
+         role="menu" 
+         aria-orientation="vertical" 
+         aria-labelledby="export-menu-button" 
+         tabindex="-1">
+        <div class="py-1" role="none">
+            <!-- XLSX Export -->
+            <button class="group flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                    role="menuitem" 
+                    tabindex="-1"
+                    onclick="exportReport('xlsx')"
+                    id="export-xlsx-btn">
+                <i data-lucide="file-spreadsheet" class="mr-3 h-4 w-4 text-green-600 dark:text-green-400" aria-hidden="true"></i>
+                XLSX
+                <div class="ml-auto">
+                    <i data-lucide="loader-2" class="h-4 w-4 animate-spin hidden" id="xlsx-loading"></i>
+                </div>
+            </button>
+            
+            <!-- PDF Export -->
+            <button class="group flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
+                    role="menuitem" 
+                    tabindex="-1"
+                    onclick="exportReport('pdf')"
+                    id="export-pdf-btn">
+                <i data-lucide="file-text" class="mr-3 h-4 w-4 text-red-600 dark:text-red-400" aria-hidden="true"></i>
+                PDF
+                <div class="ml-auto">
+                    <i data-lucide="loader-2" class="h-4 w-4 animate-spin hidden" id="pdf-loading"></i>
+                </div>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Export dropdown functionality
+let exportDropdownOpen = false;
+
+function toggleExportDropdown() {
+    const menu = document.getElementById('export-menu');
+    const button = document.getElementById('export-menu-button');
+    
+    exportDropdownOpen = !exportDropdownOpen;
+    
+    if (exportDropdownOpen) {
+        menu.classList.remove('hidden');
+        button.setAttribute('aria-expanded', 'true');
+    } else {
+        menu.classList.add('hidden');
+        button.setAttribute('aria-expanded', 'false');
+    }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('export-dropdown');
+    if (!dropdown.contains(event.target) && exportDropdownOpen) {
+        toggleExportDropdown();
+    }
+});
+
+// Export function
+async function exportReport(format) {
+    // Get report data from the page context
+    const reportName = '{{ report_name | default("") }}';
+    const sort = '{{ sort | default("") }}';
+    const direction = '{{ direction | default("") }}';
+    
+    if (!reportName) {
+        console.error('Report name not found');
+        return;
+    }
+    
+    // Show loading indicator
+    const loadingIcon = document.getElementById(`${format}-loading`);
+    const exportBtn = document.getElementById(`export-${format}-btn`);
+    
+    loadingIcon.classList.remove('hidden');
+    exportBtn.disabled = true;
+    
+    try {
+        // Build export URL with current sort parameters
+        let exportUrl = `/reports/export/${reportName}?format=${format}`;
+        if (sort && direction && direction !== 'none') {
+            exportUrl += `&sort=${sort}&direction=${direction}`;
+        }
+        
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = exportUrl;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Close dropdown after successful export
+        toggleExportDropdown();
+        
+    } catch (error) {
+        console.error('Export failed:', error);
+        // You could add a toast notification here
+    } finally {
+        // Hide loading indicator
+        loadingIcon.classList.add('hidden');
+        exportBtn.disabled = false;
+    }
+}
+
+// Initialize icons when component loads
+document.addEventListener('DOMContentLoaded', function() {
+    lucide.createIcons();
+});
+</script> 

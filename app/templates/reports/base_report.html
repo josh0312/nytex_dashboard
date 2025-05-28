@@ -14,10 +14,7 @@
         </div>
         <div class="flex gap-2">
             {% block report_actions %}
-            <button class="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white dark:text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors" style="background-color: #2563eb; color: white;">
-                <i data-lucide="download" class="h-4 w-4 inline-block mr-1"></i>
-                Export
-            </button>
+            {% include "components/shared/export_dropdown.html" %}
             {% endblock %}
         </div>
     </div>
