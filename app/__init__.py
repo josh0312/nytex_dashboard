@@ -16,11 +16,13 @@ def create_app():
     from app.routes import dashboard_router, metrics_router, tools_router
     from app.routes.reports import reports_router
     from app.routes.catalog import router as catalog_router
+    from app.routes.items_routes import router as items_router
     
     app.include_router(dashboard_router)
     app.include_router(metrics_router)
     app.include_router(reports_router)
     app.include_router(catalog_router)
     app.include_router(tools_router, prefix="/tools")
+    app.include_router(items_router, prefix="/items")
     
     return app
