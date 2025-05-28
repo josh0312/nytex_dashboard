@@ -47,7 +47,21 @@
                         {% elif column.key == "total_qty" %}
                             <div class="text-gray-900 dark:text-gray-300">{{ item.total_qty }}</div>
                         {% elif column.key == "case_percentage" %}
-                            <div class="text-gray-900 dark:text-gray-300">{{ "%.1f"|format(item.case_percentage) }}%</div>
+                            <div class="w-full">
+                                <div class="flex items-center space-x-2">
+                                    <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        {% set percentage = item.case_percentage %}
+                                        {% if percentage <= 15 %}
+                                            <div class="bg-red-500 h-2 rounded-full" style="width: {{ percentage }}%"></div>
+                                        {% elif percentage <= 50 %}
+                                            <div class="bg-yellow-500 h-2 rounded-full" style="width: {{ percentage }}%"></div>
+                                        {% else %}
+                                            <div class="bg-green-500 h-2 rounded-full" style="width: {{ percentage }}%"></div>
+                                        {% endif %}
+                                    </div>
+                                    <span class="text-xs text-gray-600 dark:text-gray-400 min-w-[3rem] text-right">{{ "%.1f"|format(percentage) }}%</span>
+                                </div>
+                            </div>
                         {% elif column.key == "price" %}
                             <div class="text-gray-900 dark:text-gray-300">${{ "%.2f"|format(item.price) }}</div>
                         {% elif column.key == "cost" %}

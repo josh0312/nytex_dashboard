@@ -316,6 +316,7 @@ async def low_stock_report(
             {"key": "vendor_name", "label": "Vendor", "sortable": True},
             {"key": "total_qty", "label": "Total Qty", "sortable": True},
             {"key": "units_per_case", "label": "Units/Case", "sortable": True},
+            {"key": "case_percentage", "label": "Case %", "sortable": True},
             {"key": "low_stock_threshold", "label": "Low Item Stock Threshold", "sortable": True},
         ]
         
