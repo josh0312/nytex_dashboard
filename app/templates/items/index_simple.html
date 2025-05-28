@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link href="{{ url_for('static', path='css/tabulator_bootstrap5.min.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4">Items Table - Simple Version</h1>
+    
+    <div id="status" class="mb-4 p-2 bg-gray-100 border rounded">
+        Status: Initializing...
+    </div>
+    
+    <div id="example-table" style="background: white; border: 2px solid blue; min-height: 400px; padding: 20px;">
+        Loading table...
+    </div>
+</div>
+
+<script src="{{ url_for('static', path='js/vendor/tabulator.min.js') }}"></script>
+<script>
+function updateStatus(message, isError = false) {
+    const status = document.getElementById('status');
+    status.textContent = 'Status: ' + message;
+    status.style.color = isError ? 'red' : 'green';
+    console.log(message);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateStatus('DOM loaded');
+    
+    if (typeof Tabulator === 'undefined') {
+        updateStatus('ERROR: Tabulator not loaded', true);
+        return;
+    }
+    updateStatus('Tabulator loaded successfully');
+    
+    try {
+        updateStatus('Creating table...');
+        const table = new Tabulator("#example-table", {
+            ajaxURL: "/items/data?page=1&size=10",
+            height: "400px",
+            layout: "fitColumns",
+            columns: [
+                {title: "Item Name", field: "item_name"},
+                {title: "SKU", field: "sku"},
+                {title: "Price", field: "price", formatter: "money", formatterParams: {symbol: "$"}}
+            ],
+            tableBuilt: function() {
+                updateStatus('Table built successfully!');
+            },
+            dataLoaded: function(data) {
+                updateStatus('Data loaded: ' + data.length + ' rows');
+            },
+            ajaxError: function(error) {
+                updateStatus('AJAX Error: ' + error, true);
+            }
+        });
+        updateStatus('Table instance created');
+    } catch (e) {
+        updateStatus('ERROR: ' + e.message, true);
+    }
+});
+</script>
+{% endblock %} 

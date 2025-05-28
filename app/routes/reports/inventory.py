@@ -1,16 +1,15 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, Header
 from fastapi.responses import HTMLResponse, FileResponse, PlainTextResponse
-from fastapi.templating import Jinja2Templates
 from typing import Optional
 from datetime import datetime
 import logging
 from sqlalchemy import text
 from ...services.monitor_service import monitor, monitor_route
 from ...database import get_session
+from ...templates_config import templates
 import os
 
 router = APIRouter(tags=["inventory"])
-templates = Jinja2Templates(directory="app/templates")
 logger = logging.getLogger(__name__)
 
 # Load SQL queries

@@ -115,10 +115,22 @@
                             tooltip: {
                                 callbacks: {
                                     label: function(context) {
-                                        return context.dataset.label + ': $' + context.raw.toLocaleString(undefined, {
+                                        const year = context.dataset.label;
+                                        const season = context.label;
+                                        let tooltip = year + ': $' + context.raw.toLocaleString(undefined, {
                                             minimumFractionDigits: 2,
                                             maximumFractionDigits: 2
                                         });
+                                        
+                                        // Add day of week for July 4th
+                                        if (season === 'July 4th') {
+                                            const july4th = new Date(parseInt(year), 6, 4); // Month is 0-indexed, so 6 = July
+                                            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                            const dayOfWeek = dayNames[july4th.getDay()];
+                                            tooltip += ` (${dayOfWeek})`;
+                                        }
+                                        
+                                        return tooltip;
                                     }
                                 }
                             }
@@ -162,25 +174,33 @@
             function getColorForYear(year, isDarkMode) {
                 const colors = [
                     { 
-                        background: isDarkMode ? '#2563EB' : '#BFDBFE', 
-                        border: isDarkMode ? '#3B82F6' : '#2563EB' 
-                    }, // Blue
+                        background: isDarkMode ? '#EA580C' : '#FED7AA', 
+                        border: isDarkMode ? '#F97316' : '#EA580C' 
+                    }, // Orange - 2020
                     { 
                         background: isDarkMode ? '#059669' : '#A7F3D0', 
                         border: isDarkMode ? '#10B981' : '#059669' 
-                    }, // Green
+                    }, // Green - 2021
                     { 
                         background: isDarkMode ? '#D97706' : '#FDE68A', 
                         border: isDarkMode ? '#F59E0B' : '#D97706' 
-                    }, // Yellow
+                    }, // Yellow - 2022
                     { 
                         background: isDarkMode ? '#DC2626' : '#FECACA', 
                         border: isDarkMode ? '#EF4444' : '#DC2626' 
-                    }, // Red
+                    }, // Red - 2023
                     { 
                         background: isDarkMode ? '#7C3AED' : '#DDD6FE', 
                         border: isDarkMode ? '#8B5CF6' : '#7C3AED' 
-                    }  // Purple
+                    }, // Purple - 2024
+                    { 
+                        background: isDarkMode ? '#2563EB' : '#BFDBFE', 
+                        border: isDarkMode ? '#3B82F6' : '#2563EB' 
+                    }, // Blue - 2025
+                    { 
+                        background: isDarkMode ? '#0891B2' : '#A5F3FC', 
+                        border: isDarkMode ? '#0EA5E9' : '#0891B2' 
+                    }  // Cyan - 2026+
                 ];
                 const index = (year - 2020) % colors.length;
                 return colors[index];

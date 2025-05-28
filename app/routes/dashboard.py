@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Request
-from fastapi.templating import Jinja2Templates
 from app.services.square_service import SquareService
 from app.services.weather_service import WeatherService
 from app.services.current_season import get_current_season
 from app.services.season_service import SeasonService
 from app.database import get_session
 from app.logger import logger
+from app.templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 async def get_cached_seasonal_sales():
     """Get cached seasonal sales data"""

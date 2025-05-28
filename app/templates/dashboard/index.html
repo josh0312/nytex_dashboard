@@ -31,8 +31,20 @@
         document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
     }
     
+    // Reinitialize Lucide icons after HTMX swap
+    function reinitializeLucideIcons() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+    
     // Update initially and after each HTMX swap
-    document.addEventListener('htmx:afterSwap', updateLastUpdated);
+    document.addEventListener('htmx:afterSwap', function() {
+        updateLastUpdated();
+        reinitializeLucideIcons();
+    });
+    
     updateLastUpdated();
+    reinitializeLucideIcons();
 </script>
 {% endblock %} 

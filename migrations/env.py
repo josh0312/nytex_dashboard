@@ -18,11 +18,12 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from app import create_app
-from app.database import db
-from app.database.models.square_sale import SquareSale
+from app.database import Base, init_models
 
-target_metadata = db.metadata
+# Initialize all models to ensure they're registered with Base
+init_models()
+
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

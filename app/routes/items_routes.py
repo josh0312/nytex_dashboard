@@ -94,7 +94,8 @@ async def items_data(
     page: int = Query(1, description="Page number"),
     size: int = Query(50, description="Page size"),
     sort: Optional[str] = Query(None, description="Column to sort by"),
-    dir: str = Query("asc", description="Sort direction")
+    dir: str = Query("asc", description="Sort direction"),
+    global_search: Optional[str] = Query(None, description="Global search term")
 ):
     """
     JSON API endpoint for Tabulator table data with server-side processing
@@ -198,7 +199,7 @@ async def items_data(
                 session=session,
                 sort=sort_field,
                 direction=sort_dir,
-                search=None,  # Global search not implemented in this endpoint yet
+                search=global_search,
                 filters=filters
             )
             
@@ -291,39 +292,123 @@ async def items_table(
 @router.get("/export", response_class=JSONResponse)
 async def items_export(
     request: Request,
-    format: str = Query("csv", description="Export format (csv, xlsx, json)"),
-    search: Optional[str] = Query(None, description="Global search term"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-    vendor: Optional[str] = Query(None, description="Filter by vendor"),
-    item_type: Optional[str] = Query(None, description="Filter by item type")
+    format: str = Query("xlsx", description="Export format (csv, xlsx, json)"),
+    global_search: Optional[str] = Query(None, description="Global search term"),
+    sort: Optional[str] = Query(None, description="Column to sort by"),
+    dir: str = Query("asc", description="Sort direction")
 ):
     """
-    Export items data in various formats
+    Export items data in various formats with support for filters and search
     """
     try:
         # Get database session
         async with get_session() as session:
-            # Build filters dictionary
+            # Debug: Log all query parameters
+            query_params = dict(request.query_params)
+            logger.info(f"Export query parameters: {query_params}")
+            
+            # Parse Tabulator's sorting parameters if they exist
+            sort_field = None
+            sort_dir = "asc"
+            
+            # Check for Tabulator's sort parameter format
+            for key, value in query_params.items():
+                if 'sort[0][field]' in key:
+                    sort_field = value
+                elif 'sort[0][dir]' in key:
+                    sort_dir = value
+            
+            # Fall back to simple sort parameter if Tabulator format not found
+            if not sort_field and sort:
+                sort_field = sort
+                sort_dir = dir
+            
+            # Parse Tabulator's filter parameters
             filters = {}
-            if category:
-                filters['category'] = category
-            if vendor:
-                filters['vendor_name'] = vendor
-            if item_type:
-                filters['item_type'] = item_type
+            filter_groups = {}
+            
+            for key, value in query_params.items():
+                if key.startswith('filter[') and '[' in key and ']' in key:
+                    import re
+                    # Parse filter[0][field], filter[0][type], filter[0][value], or filter[0][value][0]
+                    match = re.match(r'filter\[(\d+)\]\[(\w+)\](?:\[(\d+)\])?', key)
+                    if match:
+                        filter_index = match.group(1)
+                        filter_property = match.group(2)  # field, type, or value
+                        array_index = match.group(3)  # for multi-select values
+                        
+                        if filter_index not in filter_groups:
+                            filter_groups[filter_index] = {}
+                        
+                        if filter_property == 'value' and array_index is not None:
+                            # Handle multi-select values as arrays
+                            if 'value' not in filter_groups[filter_index]:
+                                filter_groups[filter_index]['value'] = []
+                            filter_groups[filter_index]['value'].append(value)
+                        else:
+                            # Handle single values
+                            filter_groups[filter_index][filter_property] = value
+            
+            # Convert filter groups to the format expected by ItemsService
+            for filter_index, filter_data in filter_groups.items():
+                if 'field' in filter_data and 'value' in filter_data:
+                    field_name = filter_data['field']
+                    field_value = filter_data['value']
+                    
+                    # Skip empty values
+                    if not field_value:
+                        continue
+                    
+                    # Handle arrays (multi-select)
+                    if isinstance(field_value, list):
+                        # Filter out empty values
+                        non_empty_values = [v for v in field_value if v and str(v).strip()]
+                        if not non_empty_values:
+                            continue
+                        field_value = non_empty_values
+                    elif isinstance(field_value, str):
+                        # Skip empty strings
+                        if not field_value.strip():
+                            continue
+                    
+                    # Map Tabulator field names to our service field names
+                    field_mapping = {
+                        'category': 'category',
+                        'vendor_name': 'vendor_name',
+                        'item_name': 'item_name',
+                        'sku': 'sku',
+                        'description': 'description',
+                        'vendor_code': 'vendor_code',
+                        'price': 'price',
+                        'cost': 'cost'
+                    }
+                    
+                    mapped_field = field_mapping.get(field_name, field_name)
+                    filters[mapped_field] = field_value
+            
+            logger.info(f"Export - Parsed sort: field={sort_field}, dir={sort_dir}")
+            logger.info(f"Export - Parsed filters: {filters}")
+            logger.info(f"Export - Global search: {global_search}")
             
             # Get all items data (no pagination for export)
             items = await ItemsService.get_items(
                 session=session,
-                search=search,
+                sort=sort_field,
+                direction=sort_dir,
+                search=global_search,
                 filters=filters
             )
+            
+            logger.info(f"Export - Retrieved {len(items)} items")
             
             # Return data for client-side export (Tabulator handles the actual file creation)
             return JSONResponse(content={"data": items, "total": len(items)})
         
     except Exception as e:
         logger.error(f"Error in items export: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
         return JSONResponse(
             content={"error": f"Unable to export items data: {str(e)}"}, 
             status_code=500

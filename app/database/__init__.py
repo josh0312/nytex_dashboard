@@ -33,6 +33,9 @@ def init_models():
         CatalogLocationAvailability,
         CatalogInventory
     )
+    
+    # Import catalog export model
+    from app.database.models.square_catalog_export import SquareItemLibraryExport
 
 engine = create_async_engine(
     Config.SQLALCHEMY_DATABASE_URI,

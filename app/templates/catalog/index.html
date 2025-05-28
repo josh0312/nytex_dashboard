@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Catalog Export - NyTex Fireworks{% endblock %}
+
+{% block head %}
+<style>
+    .export-button {
+        transition: all 0.3s ease;
+    }
+    
+    .export-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .export-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .status-card {
+        transition: all 0.3s ease;
+    }
+    
+    .status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .loading-spinner {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Square Catalog Export</h1>
+        <p class="mt-2 text-gray-600 dark:text-gray-400">
+            Export Square catalog data to the database for analysis and reporting.
+        </p>
+    </div>
+
+    <!-- Status Card -->
+    <div class="mb-8">
+        <div id="status-container" 
+             hx-get="/catalog/status/component" 
+             hx-trigger="load, every 30s"
+             hx-swap="innerHTML">
+            <!-- Status will be loaded here -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 status-card">
+                <div class="flex items-center justify-center py-4">
+                    <div class="loading-spinner">
+                        <i data-lucide="loader-2" class="h-6 w-6 text-gray-400"></i>
+                    </div>
+                    <span class="ml-2 text-gray-600 dark:text-gray-400">Loading status...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Controls -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div class="mb-4 sm:mb-0">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Export Catalog</h2>
+                <p class="text-gray-600 dark:text-gray-400">
+                    Click the button below to start a fresh export of your Square catalog data.
+                </p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button id="export-btn"
+                        class="export-button bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg inline-flex items-center justify-center"
+                        onclick="startExport()">
+                    <i data-lucide="download" class="h-5 w-5 mr-2"></i>
+                    Start Export
+                </button>
+                
+                <button class="bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg inline-flex items-center justify-center"
+                        onclick="refreshStatus()">
+                    <i data-lucide="refresh-cw" class="h-5 w-5 mr-2"></i>
+                    Refresh Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Log -->
+    <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Export Log</h2>
+        <div id="export-log" class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 min-h-[200px] font-mono text-sm overflow-y-auto">
+            <div class="text-gray-600 dark:text-gray-400">
+                Ready to start export. Click "Start Export" to begin.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" 
+     class="fixed top-4 right-4 z-50 transform translate-x-full transition-transform duration-300 ease-in-out">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 max-w-sm">
+        <div class="flex items-center">
+            <div id="toast-icon" class="flex-shrink-0 mr-3">
+                <!-- Icon will be inserted here -->
+            </div>
+            <div>
+                <p id="toast-title" class="font-medium text-gray-900 dark:text-white"></p>
+                <p id="toast-message" class="text-sm text-gray-600 dark:text-gray-400"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Lucide icons
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+
+    // Toast notification system
+    function showToast(title, message, type = 'info') {
+        const toast = document.getElementById('toast');
+        const toastIcon = document.getElementById('toast-icon');
+        const toastTitle = document.getElementById('toast-title');
+        const toastMessage = document.getElementById('toast-message');
+        
+        // Set icon based on type
+        let iconHtml = '';
+        let iconClass = '';
+        
+        switch(type) {
+            case 'success':
+                iconHtml = '<i data-lucide="check-circle" class="h-5 w-5 text-green-500"></i>';
+                break;
+            case 'error':
+                iconHtml = '<i data-lucide="x-circle" class="h-5 w-5 text-red-500"></i>';
+                break;
+            case 'warning':
+                iconHtml = '<i data-lucide="alert-triangle" class="h-5 w-5 text-yellow-500"></i>';
+                break;
+            default:
+                iconHtml = '<i data-lucide="info" class="h-5 w-5 text-blue-500"></i>';
+        }
+        
+        toastIcon.innerHTML = iconHtml;
+        toastTitle.textContent = title;
+        toastMessage.textContent = message;
+        
+        // Show toast
+        toast.classList.remove('translate-x-full');
+        toast.classList.add('translate-x-0');
+        
+        // Re-initialize icons
+        lucide.createIcons();
+        
+        // Hide after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove('translate-x-0');
+            toast.classList.add('translate-x-full');
+        }, 5000);
+    }
+
+    // Add log entry
+    function addLogEntry(message, type = 'info') {
+        const log = document.getElementById('export-log');
+        const timestamp = new Date().toLocaleTimeString();
+        
+        let className = 'text-gray-600 dark:text-gray-400';
+        switch(type) {
+            case 'success':
+                className = 'text-green-600 dark:text-green-400';
+                break;
+            case 'error':
+                className = 'text-red-600 dark:text-red-400';
+                break;
+            case 'warning':
+                className = 'text-yellow-600 dark:text-yellow-400';
+                break;
+        }
+        
+        const entry = document.createElement('div');
+        entry.className = className;
+        entry.innerHTML = `[${timestamp}] ${message}`;
+        
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+
+    // Start export
+    async function startExport() {
+        const exportBtn = document.getElementById('export-btn');
+        const originalContent = exportBtn.innerHTML;
+        
+        // Disable button and show loading
+        exportBtn.disabled = true;
+        exportBtn.innerHTML = '<i data-lucide="loader-2" class="h-5 w-5 mr-2 loading-spinner"></i>Starting...';
+        lucide.createIcons();
+        
+        addLogEntry('Starting catalog export...', 'info');
+        
+        try {
+            const response = await fetch('/catalog/export', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                if (result.data.status === 'running') {
+                    // Export started but still running
+                    addLogEntry('Export started successfully! Monitoring progress...', 'success');
+                    showToast('Export Started', result.data.message || 'Export is now running', 'success');
+                    
+                    // Update button to show monitoring state
+                    exportBtn.innerHTML = '<i data-lucide="activity" class="h-5 w-5 mr-2"></i>Monitoring...';
+                    lucide.createIcons();
+                    
+                    // Start polling for status
+                    pollExportStatus();
+                    
+                } else if (result.data.status === 'completed') {
+                    // Export completed immediately
+                    addLogEntry(`Export completed successfully! ${result.data.items_exported} items exported.`, 'success');
+                    showToast('Export Complete', `Successfully exported ${result.data.items_exported} items`, 'success');
+                    
+                    // Re-enable button
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = originalContent;
+                    lucide.createIcons();
+                    
+                    // Refresh status
+                    htmx.trigger('#status-container', 'load');
+                } else {
+                    // Unknown status
+                    addLogEntry(`Export response: ${result.message}`, 'info');
+                    showToast('Export Response', result.message, 'info');
+                    
+                    // Re-enable button
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = originalContent;
+                    lucide.createIcons();
+                }
+            } else {
+                addLogEntry(`Export failed: ${result.message}`, 'error');
+                showToast('Export Failed', result.message, 'error');
+                
+                // Re-enable button
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = originalContent;
+                lucide.createIcons();
+            }
+        } catch (error) {
+            addLogEntry(`Export error: ${error.message}`, 'error');
+            showToast('Export Error', 'An unexpected error occurred', 'error');
+            
+            // Re-enable button
+            exportBtn.disabled = false;
+            exportBtn.innerHTML = originalContent;
+            lucide.createIcons();
+        }
+    }
+    
+    // Poll export status
+    let statusPollingInterval = null;
+    
+    async function pollExportStatus() {
+        // Clear any existing polling
+        if (statusPollingInterval) {
+            clearInterval(statusPollingInterval);
+        }
+        
+        statusPollingInterval = setInterval(async () => {
+            try {
+                const response = await fetch('/catalog/export/status');
+                const result = await response.json();
+                
+                if (result.success && result.data.success) {
+                    const status = result.data.external_service_status;
+                    
+                    // Check if export is still running
+                    if (status.is_running) {
+                        // Export is still in progress
+                        const lastResult = status.last_result;
+                        if (lastResult) {
+                            if (lastResult.excel_export === 'completed' && !lastResult.database_export) {
+                                addLogEntry('Excel export completed, database export in progress...', 'info');
+                            } else if (lastResult.database_export === 'completed') {
+                                addLogEntry('Database export completed!', 'success');
+                            } else {
+                                addLogEntry('Export in progress...', 'info');
+                            }
+                        } else {
+                            addLogEntry('Export in progress...', 'info');
+                        }
+                        
+                    } else {
+                        // Export completed
+                        const lastResult = status.last_result;
+                        if (lastResult && lastResult.success) {
+                            addLogEntry(`Export completed successfully! ${lastResult.message || ''}`, 'success');
+                            showToast('Export Complete', 'Catalog export has finished', 'success');
+                        } else {
+                            addLogEntry(`Export failed: ${lastResult?.message || 'Unknown error'}`, 'error');
+                            showToast('Export Failed', lastResult?.message || 'Export encountered an error', 'error');
+                        }
+                        
+                        // Stop polling
+                        clearInterval(statusPollingInterval);
+                        statusPollingInterval = null;
+                        
+                        // Re-enable button
+                        const exportBtn = document.getElementById('export-btn');
+                        exportBtn.disabled = false;
+                        exportBtn.innerHTML = '<i data-lucide="download" class="h-5 w-5 mr-2"></i>Start Export';
+                        lucide.createIcons();
+                        
+                        // Refresh status
+                        htmx.trigger('#status-container', 'load');
+                    }
+                } else {
+                    addLogEntry('Unable to check export status', 'warning');
+                }
+            } catch (error) {
+                addLogEntry(`Status check error: ${error.message}`, 'warning');
+            }
+        }, 5000); // Poll every 5 seconds
+    }
+
+    // Refresh status
+    function refreshStatus() {
+        addLogEntry('Refreshing status...', 'info');
+        htmx.trigger('#status-container', 'load');
+    }
+</script>
+{% endblock %} 

@@ -19,12 +19,20 @@ class Config:
     # Construct database URL
     SQLALCHEMY_DATABASE_URI = f"postgresql+asyncpg://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     
+    @classmethod
+    def get_sync_db_url(cls):
+        """Get synchronous database URL for migrations"""
+        return f"postgresql://{cls.DB_USER}:{cls.DB_PASSWORD}@{cls.DB_HOST}:{cls.DB_PORT}/{cls.DB_NAME}"
+    
     # Square API configuration
     SQUARE_ACCESS_TOKEN = os.getenv('SQUARE_ACCESS_TOKEN')
     SQUARE_ENVIRONMENT = os.getenv('SQUARE_ENVIRONMENT', 'production')
     
     # OpenWeather API configuration
     OPENWEATHER_API_KEY = os.getenv('OPENWEATHER_API_KEY')
+    
+    # Square Catalog Export Service
+    SQUARE_CATALOG_EXPORT_URL = os.getenv("SQUARE_CATALOG_EXPORT_URL", "http://localhost:5001")
     
     # App settings
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"

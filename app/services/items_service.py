@@ -102,8 +102,14 @@ class ItemsService:
                                         values_str = ','.join([str(v) for v in numeric_values])
                                         filter_condition = f"{actual_column} IN ({values_str})"
                                         where_conditions.append(filter_condition)
+                                elif column == 'category':
+                                    # For category, use exact matching (not partial LIKE matching)
+                                    escaped_values = [str(item).replace("'", "''") for item in non_empty_values]
+                                    or_conditions = [f"LOWER(COALESCE({actual_column}, '')) = LOWER('{val}')" for val in escaped_values]
+                                    filter_condition = f"({' OR '.join(or_conditions)})"
+                                    where_conditions.append(filter_condition)
                                 else:
-                                    # For text fields, use LIKE for partial matching
+                                    # For other text fields, use LIKE for partial matching
                                     escaped_values = [str(item).replace("'", "''") for item in non_empty_values]
                                     or_conditions = [f"LOWER(COALESCE({actual_column}, '')) LIKE LOWER('%{val}%')" for val in escaped_values]
                                     filter_condition = f"({' OR '.join(or_conditions)})"
@@ -139,8 +145,13 @@ class ItemsService:
                                     # If not a valid number, skip this filter
                                     logger.warning(f"Invalid numeric value for {column}: {escaped_value}")
                                     continue
+                            elif column == 'category':
+                                # For category, use exact matching (not partial LIKE matching)
+                                if escaped_value:
+                                    filter_condition = f"LOWER(COALESCE({actual_column}, '')) = LOWER('{escaped_value}')"
+                                    where_conditions.append(filter_condition)
                             else:
-                                # For text fields, use LIKE only if value is not empty
+                                # For other text fields, use LIKE for partial matching
                                 if escaped_value:
                                     filter_condition = f"LOWER(COALESCE({actual_column}, '')) LIKE LOWER('%{escaped_value}%')"
                                     where_conditions.append(filter_condition)

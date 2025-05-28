@@ -15,3 +15,6 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
     }
+    
+    # External Services
+    SQUARE_CATALOG_EXPORT_URL = os.environ.get('SQUARE_CATALOG_EXPORT_URL', 'http://localhost:5000')

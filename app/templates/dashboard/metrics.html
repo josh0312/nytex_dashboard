@@ -59,5 +59,20 @@
 
 <script>
     // Initialize Lucide icons after metrics are loaded
-    lucide.createIcons();
+    function initializeLucideIcons() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+    
+    // Initialize icons when this template loads
+    initializeLucideIcons();
+    
+    // Reinitialize icons after each HTMX request completes
+    document.addEventListener('htmx:afterRequest', function(event) {
+        // Only reinitialize if the request was successful
+        if (event.detail.successful) {
+            setTimeout(initializeLucideIcons, 50); // Small delay to ensure DOM is updated
+        }
+    });
 </script> 

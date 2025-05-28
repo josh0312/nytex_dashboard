@@ -392,6 +392,25 @@
             </div>
         </div>
         
+        <!-- Global Search Row -->
+        <div class="mb-3">
+            <div class="max-w-md">
+                <label for="global-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Global Search
+                </label>
+                <input 
+                    type="text" 
+                    id="global-search" 
+                    name="global-search"
+                    placeholder="Search across all fields..."
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                >
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Search across item names, SKUs, descriptions, categories, vendors, and codes
+                </p>
+            </div>
+        </div>
+        
         <!-- Table info row -->
         <div class="flex justify-end">
             <div class="text-sm text-gray-600 dark:text-gray-400">
@@ -733,8 +752,164 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Export functionality
     document.getElementById("download-xlsx").addEventListener("click", function() {
-        table.download("xlsx", "items_export.xlsx", {sheetName: "Items Inventory"});
+        console.log("Export button clicked");
+        
+        // Get current filters and search criteria
+        const globalSearch = document.getElementById("global-search")?.value || "";
+        console.log("Global search:", globalSearch);
+        
+        // Get current filters applied to the table
+        const currentFilters = table.getFilters();
+        console.log("Current table filters:", currentFilters);
+        
+        // Get current sorting
+        const currentSort = table.getSorters();
+        console.log("Current table sorting:", currentSort);
+        
+        // Get the header filters from the filter module
+        const headerFilters = table.modules.filter.headerFilters;
+        console.log("Header filters object:", headerFilters);
+        
+        // Build query parameters object
+        const params = {};
+        
+        // Add global search
+        if (globalSearch.trim()) {
+            params.global_search = globalSearch;
+        }
+        
+        // Add sorting
+        if (currentSort && currentSort.length > 0) {
+            currentSort.forEach((sort, index) => {
+                params[`sort[${index}][field]`] = sort.field;
+                params[`sort[${index}][dir]`] = sort.dir;
+            });
+        }
+        
+        // Extract filters from header filters
+        let filterIndex = 0;
+        
+        // Process header filters
+        if (headerFilters) {
+            Object.keys(headerFilters).forEach(field => {
+                const filter = headerFilters[field];
+                console.log(`Header filter for ${field}:`, filter);
+                
+                if (filter && filter.value !== undefined && filter.value !== null) {
+                    // Handle different types of filter values
+                    if (Array.isArray(filter.value) && filter.value.length > 0) {
+                        // Multi-select filter (like category, vendor)
+                        console.log(`Found ${field} filter values:`, filter.value);
+                        params[`filter[${filterIndex}][field]`] = field;
+                        params[`filter[${filterIndex}][type]`] = "function";
+                        filter.value.forEach((val, valIndex) => {
+                            params[`filter[${filterIndex}][value][${valIndex}]`] = val;
+                        });
+                        filterIndex++;
+                    } else if (typeof filter.value === 'string' && filter.value.trim() !== '') {
+                        // Text input filter (like item_name, sku, description)
+                        console.log(`Found ${field} filter value:`, filter.value);
+                        params[`filter[${filterIndex}][field]`] = field;
+                        params[`filter[${filterIndex}][type]`] = "like";
+                        params[`filter[${filterIndex}][value]`] = filter.value;
+                        filterIndex++;
+                    }
+                }
+            });
+        }
+        
+        // Add filters from the original method as fallback
+        if (currentFilters && currentFilters.length > 0) {
+            currentFilters.forEach((filter, index) => {
+                const actualIndex = filterIndex + index;
+                params[`filter[${actualIndex}][field]`] = filter.field;
+                params[`filter[${actualIndex}][type]`] = filter.type;
+                
+                // Handle different filter value types
+                if (Array.isArray(filter.value)) {
+                    filter.value.forEach((val, valIndex) => {
+                        params[`filter[${actualIndex}][value][${valIndex}]`] = val;
+                    });
+                } else {
+                    params[`filter[${actualIndex}][value]`] = filter.value;
+                }
+            });
+        }
+        
+        // Build URL with parameters
+        const queryString = new URLSearchParams(params).toString();
+        const exportUrl = `/items/export?format=xlsx&${queryString}`;
+        
+        console.log("Export URL:", exportUrl);
+        console.log("Export parameters:", params);
+        
+        // Fetch the export data and trigger download
+        fetch(exportUrl)
+            .then(response => {
+                console.log("Export response received");
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    console.error("Export error:", data.error);
+                    alert("Export failed: " + data.error);
+                    return;
+                }
+                
+                console.log("Export data received:", data.total, "items");
+                
+                // Convert data to worksheet format
+                const worksheet = XLSX.utils.json_to_sheet(data.data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Items Inventory");
+                
+                // Generate filename with timestamp
+                const now = new Date();
+                const timestamp = now.toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `items_export_${timestamp}.xlsx`;
+                
+                // Download the file
+                XLSX.writeFile(workbook, filename);
+                console.log("Export completed:", filename);
+            })
+            .catch(error => {
+                console.error("Export error:", error);
+                alert("Export failed. Please try again.");
+            });
     });
+
+    // Global Search functionality
+    let globalSearchTimeout;
+    const globalSearchInput = document.getElementById("global-search");
+    
+    if (globalSearchInput) {
+        globalSearchInput.addEventListener("input", function() {
+            // Clear existing timeout
+            clearTimeout(globalSearchTimeout);
+            
+            // Debounce the search to avoid too many requests
+            globalSearchTimeout = setTimeout(function() {
+                const searchTerm = globalSearchInput.value.trim();
+                
+                // Update the AJAX URL with the search parameter
+                let newUrl = "/items/data";
+                if (searchTerm) {
+                    newUrl += "?global_search=" + encodeURIComponent(searchTerm);
+                }
+                
+                // Update table's AJAX URL and refresh data
+                table.setData(newUrl);
+            }, 300); // 300ms delay
+        });
+        
+        // Clear search on Escape key
+        globalSearchInput.addEventListener("keydown", function(event) {
+            if (event.key === "Escape") {
+                globalSearchInput.value = "";
+                table.setData("/items/data");
+            }
+        });
+    }
 
     // Initialize Lucide icons
     lucide.createIcons();

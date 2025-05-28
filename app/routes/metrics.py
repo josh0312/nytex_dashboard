@@ -8,11 +8,10 @@ from ..models.operating_season import OperatingSeason
 from ..models.order import Order
 from ..logger import logger
 from ..routes.dashboard import get_cached_seasonal_sales
-from fastapi.templating import Jinja2Templates
 from ..services.season_service import SeasonService
+from ..templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/seasonal_sales")
 async def get_seasonal_sales(request: Request):
