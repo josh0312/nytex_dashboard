@@ -1,0 +1,142 @@
+{% extends "reports/base_report.html" %}
+
+{% block title %}{{ report_title }} - NyTex Fireworks{% endblock %}
+
+{% block report_content %}
+<div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg">
+    <!-- Report Header with Toggle -->
+    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ report_title }}</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Items with inventory levels below 15% of case quantity
+                </p>
+            </div>
+            
+            <!-- View Toggle Switch -->
+            <div class="flex items-center space-x-4">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">View:</span>
+                <div class="relative inline-flex items-center">
+                    <div class="flex rounded-lg border border-gray-300 dark:border-gray-600 p-1 bg-gray-50 dark:bg-gray-700">
+                        <button 
+                            type="button"
+                            class="toggle-btn px-4 py-2 text-sm font-medium rounded-md transition-colors"
+                            data-view="total"
+                            data-active="{{ 'true' if view == 'total' else 'false' }}"
+                        >
+                            NyTex Inventory
+                        </button>
+                        <button 
+                            type="button"
+                            class="toggle-btn px-4 py-2 text-sm font-medium rounded-md transition-colors"
+                            data-view="location"
+                            data-active="{{ 'true' if view == 'location' else 'false' }}"
+                        >
+                            Location Inventory
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Report Statistics -->
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
+                <div class="flex items-center">
+                    <div class="p-2 bg-red-100 dark:bg-red-800 rounded-lg">
+                        <i data-lucide="alert-triangle" class="h-5 w-5 text-red-600 dark:text-red-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-red-800 dark:text-red-200">Low Stock Items</p>
+                        <p class="text-xl font-bold text-red-900 dark:text-red-100">{{ total_items }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <div class="flex items-center">
+                    <div class="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg">
+                        <i data-lucide="users" class="h-5 w-5 text-blue-600 dark:text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-blue-800 dark:text-blue-200">Vendors Affected</p>
+                        <p class="text-xl font-bold text-blue-900 dark:text-blue-100">{{ vendors|length }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            {% if view == "location" and location_stats %}
+            <div class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+                <div class="flex items-center">
+                    <div class="p-2 bg-orange-100 dark:bg-orange-800 rounded-lg">
+                        <i data-lucide="map-pin" class="h-5 w-5 text-orange-600 dark:text-orange-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-orange-800 dark:text-orange-200">Locations w/ Issues</p>
+                        <p class="text-xl font-bold text-orange-900 dark:text-orange-100">{{ location_stats.values() | select('>', 0) | list | length }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                <div class="flex items-center">
+                    <div class="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg">
+                        <i data-lucide="percent" class="h-5 w-5 text-gray-600 dark:text-gray-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Threshold</p>
+                        <p class="text-xl font-bold text-gray-900 dark:text-gray-100">15%</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Container -->
+    <div id="table-container">
+        {% include "reports/inventory/low_stock_table.html" %}
+    </div>
+</div>
+
+<!-- Custom styles for toggle switch -->
+<style>
+.toggle-btn[data-active="true"] {
+    background-color: rgb(59 130 246);
+    color: white;
+}
+.toggle-btn[data-active="false"] {
+    background-color: transparent;
+    color: rgb(107 114 128);
+}
+.toggle-btn[data-active="false"]:hover {
+    background-color: rgb(243 244 246);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle toggle switch
+    const toggleButtons = document.querySelectorAll('.toggle-btn');
+    
+    toggleButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const view = this.dataset.view;
+            const currentUrl = new URL(window.location);
+            currentUrl.searchParams.set('view', view);
+            currentUrl.searchParams.delete('sort');  // Reset sorting when changing views
+            currentUrl.searchParams.delete('direction');
+            
+            // Update the page
+            window.location.href = currentUrl.toString();
+        });
+    });
+    
+    // Initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+});
+</script>
+{% endblock %} 

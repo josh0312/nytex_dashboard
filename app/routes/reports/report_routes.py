@@ -300,4 +300,114 @@ async def missing_vendor_info_report(
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load Missing Vendor Info Report: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to load Missing Vendor Info Report: {str(e)}")
+
+@router.get("/inventory/low-stock", response_class=HTMLResponse)
+async def low_stock_report(
+    request: Request,
+    sort: str = None,
+    direction: str = "asc",
+    view: str = Query("total", description="View type: total or location")
+):
+    """Render the Low Stock Report page with toggle between total and location views."""
+    try:
+        # Define columns based on view type
+        if view == "location":
+            columns = [
+                {"key": "item_name", "label": "Item Name", "sortable": True},
+                {"key": "sku", "label": "SKU", "sortable": True},
+                {"key": "vendor_name", "label": "Vendor", "sortable": True},
+                {"key": "units_per_case", "label": "Units/Case", "sortable": True},
+                {"key": "low_stock_threshold", "label": "Low Stock Threshold", "sortable": True},
+                {"key": "aubrey_qty", "label": "Aubrey", "sortable": True, "type": "location"},
+                {"key": "bridgefarmer_qty", "label": "Bridgefarmer", "sortable": True, "type": "location"},
+                {"key": "building_qty", "label": "Building", "sortable": True, "type": "location"},
+                {"key": "flomo_qty", "label": "FloMo", "sortable": True, "type": "location"},
+                {"key": "justin_qty", "label": "Justin", "sortable": True, "type": "location"},
+                {"key": "quinlan_qty", "label": "Quinlan", "sortable": True, "type": "location"},
+                {"key": "terrell_qty", "label": "Terrell", "sortable": True, "type": "location"},
+                {"key": "locations_with_low_stock", "label": "Low Stock Locations", "sortable": True},
+            ]
+        else:  # total view
+            columns = [
+                {"key": "item_name", "label": "Item Name", "sortable": True},
+                {"key": "sku", "label": "SKU", "sortable": True},
+                {"key": "vendor_name", "label": "Vendor", "sortable": True},
+                {"key": "units_per_case", "label": "Units/Case", "sortable": True},
+                {"key": "low_stock_threshold", "label": "Low Stock Threshold", "sortable": True},
+                {"key": "total_qty", "label": "Total Quantity", "sortable": True},
+                {"key": "case_percentage", "label": "% of Case", "sortable": True},
+                {"key": "price", "label": "Price", "sortable": True},
+                {"key": "cost", "label": "Cost", "sortable": True},
+            ]
+        
+        # Use QueryExecutor to run the query
+        executor = QueryExecutor()
+        df = await executor.execute_query_to_df("low_stock_inventory")
+        
+        # Filter data based on view type
+        if view == "location":
+            # Show items that have low stock at any location
+            df = df[df['has_location_low_stock'] == True]
+        else:
+            # Show items that have low stock in total inventory
+            df = df[df['is_low_stock_total'] == True]
+        
+        # Apply sorting if requested and direction is not "none"
+        if sort and sort in df.columns and direction != "none":
+            ascending = direction.lower() == "asc"
+            df = df.sort_values(by=sort, ascending=ascending)
+        # If direction is "none", keep original order (no sorting)
+        
+        # Convert DataFrame to list of dicts
+        items = df.to_dict('records')
+        
+        # Common template variables
+        template_vars = {
+            "request": request,
+            "items": items,
+            "columns": columns,
+            "sort": sort if direction != "none" else None,
+            "direction": direction,
+            "view": view
+        }
+        
+        # If this is an HTMX request, return only the table
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "reports/inventory/low_stock_table.html",
+                template_vars
+            )
+        
+        # Calculate statistics for the full page
+        total_low_stock_items = len(items)
+        unique_vendors = sorted(set(item["vendor_name"] for item in items if item["vendor_name"]))
+        
+        if view == "location":
+            # Calculate location statistics
+            location_stats = {}
+            locations = ['aubrey', 'bridgefarmer', 'building', 'flomo', 'justin', 'quinlan', 'terrell']
+            for location in locations:
+                low_stock_col = f"{location}_low_stock"
+                if low_stock_col in df.columns:
+                    location_stats[location.title()] = int(df[low_stock_col].sum())
+                else:
+                    location_stats[location.title()] = 0
+        else:
+            location_stats = {}
+        
+        # Otherwise return the full page
+        return templates.TemplateResponse(
+            "reports/inventory/low_stock.html",
+            {
+                **template_vars,
+                "report_title": "Low Stock Report",
+                "report_name": "low_stock_inventory",
+                "total_items": total_low_stock_items,
+                "vendors": unique_vendors,
+                "location_stats": location_stats,
+                "view_type": "NyTex Inventory" if view == "total" else "Location Inventory"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load Low Stock Report: {str(e)}") 
