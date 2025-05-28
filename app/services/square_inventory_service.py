@@ -130,9 +130,14 @@ class SquareInventoryService:
             await session.execute(delete(CatalogInventory))
             await session.flush()
             
-            # Insert new inventory data
+            # Deduplicate inventory data before insertion
+            # Use a dictionary to keep only the latest entry for each (variation_id, location_id) pair
+            unique_inventory = {}
+            total_raw_items = 0
+            
             for location_id, inventory_items in location_inventory.items():
                 for item in inventory_items:
+                    total_raw_items += 1
                     catalog_object_id = item.get('catalog_object_id')
                     quantity = item.get('quantity', '0')
                     calculated_at = item.get('calculated_at')
@@ -148,21 +153,43 @@ class SquareInventoryService:
                     if calculated_at:
                         try:
                             calculated_datetime = datetime.fromisoformat(calculated_at.replace('Z', '+00:00'))
+                            # Convert to timezone-naive UTC for database storage
+                            if calculated_datetime.tzinfo is not None:
+                                calculated_datetime = calculated_datetime.astimezone(timezone.utc).replace(tzinfo=None)
                         except ValueError:
-                            calculated_datetime = datetime.now(timezone.utc)
+                            calculated_datetime = datetime.now(timezone.utc).replace(tzinfo=None)
                     else:
-                        calculated_datetime = datetime.now(timezone.utc)
+                        calculated_datetime = datetime.now(timezone.utc).replace(tzinfo=None)
                     
-                    # Only create inventory record if we have a matching variation
-                    if catalog_object_id in catalog_to_variation:
-                        inventory_record = CatalogInventory(
-                            variation_id=catalog_object_id,
-                            location_id=location_id,
-                            quantity=quantity_int,
-                            calculated_at=calculated_datetime
-                        )
-                        session.add(inventory_record)
-                        total_updated += 1
+                    # Only process if we have a matching variation and valid catalog object ID
+                    if catalog_object_id and catalog_object_id in catalog_to_variation:
+                        # Create unique key for deduplication
+                        unique_key = (catalog_object_id, location_id)
+                        
+                        # If this combination doesn't exist or has a newer timestamp, update it
+                        if (unique_key not in unique_inventory or 
+                            (calculated_datetime and 
+                             unique_inventory[unique_key]['calculated_datetime'] < calculated_datetime)):
+                            
+                            unique_inventory[unique_key] = {
+                                'variation_id': catalog_object_id,
+                                'location_id': location_id,
+                                'quantity': quantity_int,
+                                'calculated_datetime': calculated_datetime
+                            }
+            
+            logger.info(f"Processed {total_raw_items} raw inventory items, deduplicated to {len(unique_inventory)} unique records")
+            
+            # Insert deduplicated inventory data
+            for inventory_data in unique_inventory.values():
+                inventory_record = CatalogInventory(
+                    variation_id=inventory_data['variation_id'],
+                    location_id=inventory_data['location_id'],
+                    quantity=inventory_data['quantity'],
+                    calculated_at=inventory_data['calculated_datetime']
+                )
+                session.add(inventory_record)
+                total_updated += 1
             
             await session.commit()
             
@@ -225,10 +252,10 @@ class SquareInventoryService:
             last_update_iso = None
             if latest_update:
                 if latest_update.tzinfo is None:
-                    # Assume UTC if no timezone info
+                    # Database stores timezone-naive UTC, so add UTC timezone for display
                     utc_update = latest_update.replace(tzinfo=timezone.utc)
                 else:
-                    utc_update = latest_update
+                    utc_update = latest_update.astimezone(timezone.utc)
                 last_update_iso = utc_update.isoformat()
             
             return {
