@@ -306,7 +306,9 @@ async def missing_vendor_info_report(
 @router.get("/inventory/low-stock", response_class=HTMLResponse)
 async def low_stock_report(
     request: Request, 
-    view: str = "total"
+    view: str = "total",
+    sort: str = None,
+    direction: str = "asc"
 ):
     """Render the Low Item Stock Report page with toggle between total and location views."""
     try:
@@ -343,6 +345,12 @@ async def low_stock_report(
         # Get the data
         executor = QueryExecutor()
         df = await executor.execute_query_to_df("low_stock_inventory")
+        
+        # Apply sorting if requested and direction is not "none"
+        if sort and sort in df.columns and direction != "none":
+            ascending = direction.lower() == "asc"
+            df = df.sort_values(by=sort, ascending=ascending)
+        # If direction is "none", keep original order (no sorting)
         
         # Filter based on view
         if view == "location":
@@ -396,6 +404,8 @@ async def low_stock_report(
             "view": view,
             "columns": columns,
             "items": items,
+            "sort": sort if direction != "none" else None,
+            "direction": direction,
         }
         
         # Return appropriate template based on request type
