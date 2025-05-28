@@ -44,7 +44,7 @@ The dashboard uses Tailwind CSS with Alpine.js for dark mode functionality. Here
    - Total Sales (indigo theme)
    - Total Orders (blue theme)
    - Seasonal Sales (green theme)
-   - Low Stock Items (red theme)
+   - Low Item Stock Items (red theme)
 
 2. **Bottom Section**
    - Location Sales Table (left column)

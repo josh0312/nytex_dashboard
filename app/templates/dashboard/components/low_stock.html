@@ -1,3 +1,8 @@
+{# 
+Low Item Stock Items Component
+Usage: Include with: {% include 'dashboard/components/low_stock.html' %}
+#}
+
 <div class="bg-red-100 dark:bg-red-800 rounded-lg shadow-sm">
     <div class="p-4">
         <div class="flex items-center justify-between">
@@ -5,7 +10,7 @@
                 <i data-lucide="package" class="w-6 h-6 text-red-600 dark:text-red-300"></i>
             </div>
             <div>
-                <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Low Stock Items</p>
+                <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Low Item Stock Items</p>
                 <p class="text-2xl font-semibold text-red-600 dark:text-red-300">{{ low_stock_items }}</p>
             </div>
             <div class="w-6"></div>

@@ -12,8 +12,8 @@ The easiest way to create consistent statistics cards is using the shared compon
 <!-- Basic usage -->
 {% set theme = "red" %}
 {% set icon = "alert-triangle" %}
-{% set label = "Low Stock Items" %}
-{% set value = "7" %}
+{% set label = "Low Item Stock Items" %}
+{% set value = 7 %}
 {% include 'components/shared/stat_card.html' %}
 
 <!-- Clickable card -->
@@ -43,7 +43,7 @@ If you prefer to build cards manually, use these CSS classes:
             <i data-lucide="alert-triangle" class="icon-red stat-icon-lg"></i>
         </div>
         <div class="stat-text">
-            <p class="stat-label">Low Stock Items</p>
+            <p class="stat-label">Low Item Stock Items</p>
             <p class="stat-value-red">7</p>
         </div>
     </div>
@@ -57,7 +57,7 @@ Each theme is designed for specific types of content:
 
 | Theme | Usage | Example |
 |-------|-------|---------|
-| `red` | Alerts, Low Stock, Critical Items | Low stock warnings, system errors |
+| `red` | Alerts, Low Item Stock, Critical Items | Low item stock warnings, system errors |
 | `blue` | Inventory, Data, Orders | Total orders, inventory counts |
 | `indigo` | Sales, Revenue, Primary Metrics | Total sales, main KPIs |
 | `green` | Success, Customers, Positive Metrics | Customer count, completed orders |
@@ -138,7 +138,7 @@ For smaller status indicators, use these badge classes:
     
     {% set theme = "red" %}
     {% set icon = "alert-triangle" %}
-    {% set label = "Low Stock" %}
+    {% set label = "Low Item Stock Items" %}
     {% set value = "7" %}
     {% set href = "/reports/inventory/low-stock" %}
     {% include 'components/shared/stat_card.html' %}
@@ -202,7 +202,7 @@ Replace manual Tailwind classes with design system classes:
             <i data-lucide="alert-triangle" class="h-6 w-6 text-red-600 dark:text-red-300"></i>
         </div>
         <div class="ml-4">
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Low Stock Items</p>
+            <p class="text-sm font-medium text-gray-600 dark:text-gray-300">Low Item Stock Items</p>
             <p class="text-2xl font-semibold text-red-600 dark:text-red-300">7</p>
         </div>
     </div>
@@ -213,8 +213,8 @@ Replace manual Tailwind classes with design system classes:
 ```html
 {% set theme = "red" %}
 {% set icon = "alert-triangle" %}
-{% set label = "Low Stock Items" %}
-{% set value = "7" %}
+{% set label = "Low Item Stock Items" %}
+{% set value = 7 %}
 {% include 'components/shared/stat_card.html' %}
 ```
 

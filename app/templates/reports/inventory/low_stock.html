@@ -3,8 +3,8 @@
 {% block title %}{{ report_title }} - NyTex Fireworks{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-4" id="low-stock-content">
-    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg" id="low-stock-inner">
+<div class="container mx-auto px-4 py-4" id="low-item-stock-content">
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg" id="low-item-stock-inner">
         <!-- Report Header with Toggle -->
         <div class="p-6 border-b border-gray-200 dark:border-gray-700">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
@@ -22,22 +22,22 @@
                         <div class="flex rounded-lg border border-gray-300 dark:border-gray-600 p-1 bg-gray-50 dark:bg-gray-700">
                             <button 
                                 type="button"
-                                class="low-stock-toggle-btn toggle-btn px-4 py-2 text-sm font-medium rounded-md transition-colors"
+                                class="low-item-stock-toggle-btn toggle-btn px-4 py-2 text-sm font-medium rounded-md transition-colors"
                                 data-view="total"
                                 data-active="{{ 'true' if view == 'total' else 'false' }}"
                                 hx-get="/reports/inventory/low-stock?view=total"
-                                hx-target="#low-stock-inner"
+                                hx-target="#low-item-stock-inner"
                                 hx-push-url="true"
                             >
                                 NyTex Inventory
                             </button>
                             <button 
                                 type="button"
-                                class="low-stock-toggle-btn toggle-btn px-4 py-2 text-sm font-medium rounded-md transition-colors"
+                                class="low-item-stock-toggle-btn toggle-btn px-4 py-2 text-sm font-medium rounded-md transition-colors"
                                 data-view="location"
                                 data-active="{{ 'true' if view == 'location' else 'false' }}"
                                 hx-get="/reports/inventory/low-stock?view=location"
-                                hx-target="#low-stock-inner"
+                                hx-target="#low-item-stock-inner"
                                 hx-push-url="true"
                             >
                                 Location Inventory
@@ -51,7 +51,7 @@
             <div class="stat-grid mt-6">
                 {% set theme = "red" %}
                 {% set icon = "alert-triangle" %}
-                {% set label = "Low Stock Items" %}
+                {% set label = "Low Item Stock Items" %}
                 {% set value = total_items %}
                 {% include 'components/shared/stat_card.html' %}
                 
@@ -86,32 +86,32 @@
 
 <!-- Custom styles for toggle switch -->
 <style>
-.low-stock-toggle-btn[data-active="true"] {
+.low-item-stock-toggle-btn[data-active="true"] {
     background-color: rgb(59 130 246);
     color: white;
 }
-.low-stock-toggle-btn[data-active="false"] {
+.low-item-stock-toggle-btn[data-active="false"] {
     background-color: transparent;
 }
-.low-stock-toggle-btn[data-active="false"]:hover {
+.low-item-stock-toggle-btn[data-active="false"]:hover {
     background-color: rgb(243 244 246);
 }
 
 /* Dark mode styles */
 @media (prefers-color-scheme: dark) {
-    .low-stock-toggle-btn[data-active="false"] {
+    .low-item-stock-toggle-btn[data-active="false"] {
         color: rgb(156 163 175);
     }
-    .low-stock-toggle-btn[data-active="false"]:hover {
+    .low-item-stock-toggle-btn[data-active="false"]:hover {
         background-color: rgb(55 65 81);
     }
 }
 
 /* Dark mode when class is applied */
-.dark .low-stock-toggle-btn[data-active="false"] {
+.dark .low-item-stock-toggle-btn[data-active="false"] {
     color: rgb(156 163 175);
 }
-.dark .low-stock-toggle-btn[data-active="false"]:hover {
+.dark .low-item-stock-toggle-btn[data-active="false"]:hover {
     background-color: rgb(55 65 81);
 }
 </style>

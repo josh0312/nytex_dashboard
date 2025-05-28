@@ -163,7 +163,7 @@ To maintain consistency with the dashboard, we follow these design patterns:
 ### Inventory Reports
 Reports focused on inventory management, stock levels, and SKU integrity:
 - Missing/Generated SKU Report
-- Low Stock Report
+- Low Item Stock Report
 - Dead Stock Report
 - Inventory Discrepancy Report
 

@@ -305,129 +305,112 @@ async def missing_vendor_info_report(
 
 @router.get("/inventory/low-stock", response_class=HTMLResponse)
 async def low_stock_report(
-    request: Request,
-    sort: str = None,
-    direction: str = "asc",
-    view: str = Query("total", description="View type: total or location")
+    request: Request, 
+    view: str = "total"
 ):
-    """Render the Low Stock Report page with toggle between total and location views."""
+    """Render the Low Item Stock Report page with toggle between total and location views."""
     try:
-        # Define columns based on view type
+        # Define columns for different views
+        total_columns = [
+            {"key": "item_name", "label": "Item Name", "sortable": True},
+            {"key": "vendor_name", "label": "Vendor", "sortable": True},
+            {"key": "total_quantity", "label": "Total Qty", "sortable": True},
+            {"key": "units_per_case", "label": "Units/Case", "sortable": True},
+            {"key": "low_item_stock_threshold", "label": "Low Item Stock Threshold", "sortable": True},
+        ]
+        
+        location_columns = [
+            {"key": "item_name", "label": "Item Name", "sortable": True},
+            {"key": "vendor_name", "label": "Vendor", "sortable": True},
+            {"key": "total_quantity", "label": "Total Qty", "sortable": True},
+            {"key": "units_per_case", "label": "Units/Case", "sortable": True},
+            {"key": "locations_with_low_item_stock", "label": "Low Item Stock Locations", "sortable": True},
+        ]
+        
+        # Add location-specific columns for location view
         if view == "location":
-            columns = [
-                {"key": "item_name", "label": "Item Name", "sortable": True},
-                {"key": "sku", "label": "SKU", "sortable": True},
-                {"key": "vendor_name", "label": "Vendor", "sortable": True},
-                {"key": "units_per_case", "label": "Units/Case", "sortable": True},
-                {"key": "low_stock_threshold", "label": "Low Stock Threshold", "sortable": True},
-                {"key": "aubrey_qty", "label": "Aubrey", "sortable": True, "type": "location"},
-                {"key": "bridgefarmer_qty", "label": "Bridgefarmer", "sortable": True, "type": "location"},
-                {"key": "building_qty", "label": "Building", "sortable": True, "type": "location"},
-                {"key": "flomo_qty", "label": "FloMo", "sortable": True, "type": "location"},
-                {"key": "justin_qty", "label": "Justin", "sortable": True, "type": "location"},
-                {"key": "quinlan_qty", "label": "Quinlan", "sortable": True, "type": "location"},
-                {"key": "terrell_qty", "label": "Terrell", "sortable": True, "type": "location"},
-                {"key": "locations_with_low_stock", "label": "Low Stock Locations", "sortable": True},
-            ]
-        else:  # total view
-            columns = [
-                {"key": "item_name", "label": "Item Name", "sortable": True},
-                {"key": "sku", "label": "SKU", "sortable": True},
-                {"key": "vendor_name", "label": "Vendor", "sortable": True},
-                {"key": "units_per_case", "label": "Units/Case", "sortable": True},
-                {"key": "low_stock_threshold", "label": "Low Stock Threshold", "sortable": True},
-                {"key": "total_qty", "label": "Total Quantity", "sortable": True},
-                {"key": "case_percentage", "label": "% of Case", "sortable": True},
-                {"key": "price", "label": "Price", "sortable": True},
-                {"key": "cost", "label": "Cost", "sortable": True},
+            columns = location_columns
+        else:
+            columns = total_columns + [
+                {"key": "low_item_stock_threshold", "label": "Low Item Stock Threshold", "sortable": True},
             ]
         
-        # Use QueryExecutor to run the query
+        # Get the data
         executor = QueryExecutor()
         df = await executor.execute_query_to_df("low_stock_inventory")
         
-        # Filter data based on view type
+        # Filter based on view
         if view == "location":
-            # Show items that have low stock at any location
+            # Show items that have low item stock at any location
             df = df[df['has_location_low_stock'] == True]
         else:
-            # Show items that have low stock in total inventory
+            # Show items that have low item stock in total inventory
             df = df[df['is_low_stock_total'] == True]
         
-        # Apply sorting if requested and direction is not "none"
-        if sort and sort in df.columns and direction != "none":
-            ascending = direction.lower() == "asc"
-            df = df.sort_values(by=sort, ascending=ascending)
-        # If direction is "none", keep original order (no sorting)
+        # Convert to list of dictionaries for template
+        items = df.to_dict('records') if not df.empty else []
         
-        # Convert DataFrame to list of dicts
-        items = df.to_dict('records')
+        # Calculate statistics
+        total_low_item_stock_items = len(items)
         
-        # Calculate statistics for the full page
-        total_low_stock_items = len(items)
+        # Get unique vendors
+        vendors = df['vendor_name'].unique().tolist() if not df.empty else []
         
-        # Convert generator to list to avoid potential recursion issues
-        unique_vendors = []
-        for item in items:
-            if item.get("vendor_name"):
-                unique_vendors.append(item["vendor_name"])
-        unique_vendors = sorted(set(unique_vendors))
+        # Calculate location statistics for location view
+        location_stats = {}
+        locations_with_issues = 0
         
-        if view == "location":
-            # Calculate location statistics (but do it in Python, not template)
-            location_stats = {}
-            locations_with_issues = 0
-            locations = ['aubrey', 'bridgefarmer', 'building', 'flomo', 'justin', 'quinlan', 'terrell']
-            for location in locations:
-                low_stock_col = f"{location}_low_stock"
-                if low_stock_col in df.columns:
-                    count = int(df[low_stock_col].sum())
-                    location_stats[location.title()] = count
+        if view == "location" and not df.empty:
+            # Get all location columns (those ending with '_low_stock')
+            location_columns_in_df = [col for col in df.columns if col.endswith('_low_stock')]
+            
+            for col in location_columns_in_df:
+                location = col.replace('_low_stock', '')
+                low_item_stock_col = f"{location}_low_stock"
+                if low_item_stock_col in df.columns:
+                    count = int(df[low_item_stock_col].sum())
                     if count > 0:
+                        location_stats[location] = count
                         locations_with_issues += 1
-                else:
-                    location_stats[location.title()] = 0
-        else:
-            location_stats = {}
-            locations_with_issues = 0
         
-        # Common template variables
-        template_vars = {
+        # Calculate locations_with_issues for total view as well
+        if view == "total" and not df.empty:
+            location_columns_in_df = [col for col in df.columns if col.endswith('_low_stock')]
+            for col in location_columns_in_df:
+                if df[col].sum() > 0:
+                    locations_with_issues += 1
+        
+        context = {
             "request": request,
-            "items": items,
-            "columns": columns,
-            "sort": sort if direction != "none" else None,
-            "direction": direction,
-            "view": view,
-            "report_title": "Low Stock Report",
+            "report_title": "Low Item Stock Report",
             "report_name": "low_stock_inventory",
-            "total_items": total_low_stock_items,
-            "vendors": unique_vendors,
+            "total_items": total_low_item_stock_items,
+            "vendors": vendors,
             "location_stats": location_stats,
             "locations_with_issues": locations_with_issues,
-            "view_type": "NyTex Inventory" if view == "total" else "Location Inventory"
+            "view": view,
+            "columns": columns,
+            "items": items,
         }
         
-        # If this is an HTMX request, determine the type of request
+        # Return appropriate template based on request type
         if request.headers.get("HX-Request"):
-            # Check if this is a toggle request (has view parameter but no sort)
-            if not sort:
-                # Toggle request - return full content with header and statistics
-                return templates.TemplateResponse(
-                    "reports/inventory/low_stock_content.html",
-                    template_vars
-                )
-            else:
-                # Sorting request - return only the table
+            if request.headers.get("HX-Target") == "table-container":
                 return templates.TemplateResponse(
                     "reports/inventory/low_stock_table.html",
-                    template_vars
+                    context
                 )
-        
-        # Return the template with test template for now
-        return templates.TemplateResponse(
-            "reports/inventory/low_stock.html",
-            template_vars
-        )
+            else:
+                return templates.TemplateResponse(
+                    "reports/inventory/low_stock_content.html",
+                    context
+                )
+        else:
+            return templates.TemplateResponse(
+                "reports/inventory/low_stock.html",
+                context
+            )
+            
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load Low Stock Report: {str(e)}") 
+        logger.error(f"Error in low_stock_report: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to load Low Item Stock Report: {str(e)}") 

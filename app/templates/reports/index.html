@@ -33,8 +33,15 @@
                         <p class="text-sm text-gray-500 dark:text-gray-400">Identify items with missing vendor information</p>
                     </a>
                     <a href="/reports/inventory/low-stock" class="block p-4 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-700 transition-colors">
-                        <div class="font-medium text-gray-900 dark:text-white">Low Stock Report</div>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">View items with low inventory levels based on Units Per Case</p>
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i data-lucide="alert-triangle" class="h-6 w-6 text-red-500"></i>
+                            </div>
+                            <div class="ml-3">
+                                <div class="font-medium text-gray-900 dark:text-white">Low Item Stock Report</div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">Items below 15% of case quantity</div>
+                            </div>
+                        </div>
                     </a>
                     <a href="#" class="block p-4 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-700 transition-colors">
                         <div class="font-medium text-gray-900 dark:text-white">Inventory Valuation</div>
