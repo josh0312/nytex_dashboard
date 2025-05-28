@@ -18,3 +18,8 @@ class Config:
     
     # External Services
     SQUARE_CATALOG_EXPORT_URL = os.environ.get('SQUARE_CATALOG_EXPORT_URL', 'http://localhost:5000')
+    
+    # Square API Configuration
+    SQUARE_ACCESS_TOKEN = os.environ.get('SQUARE_ACCESS_TOKEN')
+    SQUARE_APPLICATION_ID = os.environ.get('SQUARE_APPLICATION_ID')
+    SQUARE_ENVIRONMENT = os.environ.get('SQUARE_ENVIRONMENT', 'production')
