@@ -1,15 +1,14 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.templating import Jinja2Templates
 import os
 from app.services.reports.query_executor import QueryExecutor
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import text
 from pathlib import Path
+from app.templates_config import templates
 
 router = APIRouter(prefix="/reports", tags=["reports"])
-templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/", response_class=HTMLResponse)
 async def reports_index(request: Request):
@@ -98,4 +97,185 @@ async def missing_sku_report(
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load Missing SKU Report: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to load Missing SKU Report: {str(e)}")
+
+@router.get("/inventory/missing-category", response_class=HTMLResponse)
+async def missing_category_report(
+    request: Request,
+    sort: str = None,
+    direction: str = "asc"
+):
+    """Render the Missing Category Report page."""
+    try:
+        # Define columns in one place - easy to modify
+        columns = [
+            {"key": "item_name", "label": "Item Name", "sortable": True},
+            {"key": "vendor_name", "label": "Vendor", "sortable": True},
+            {"key": "price", "label": "Price", "sortable": True},
+            {"key": "quantity", "label": "Quantity", "sortable": True},
+            {"key": "category_status", "label": "Category Status", "sortable": True},
+        ]
+        
+        # Use QueryExecutor to run the query
+        executor = QueryExecutor()
+        df = await executor.execute_query_to_df("missing_category_inventory")
+        
+        # Apply sorting if requested and direction is not "none"
+        if sort and sort in df.columns and direction != "none":
+            ascending = direction.lower() == "asc"
+            df = df.sort_values(by=sort, ascending=ascending)
+        # If direction is "none", keep original order (no sorting)
+        
+        # Convert DataFrame to list of dicts
+        items = df.to_dict('records')
+        
+        # Common template variables
+        template_vars = {
+            "request": request,
+            "items": items,
+            "columns": columns,  # Pass columns to template
+            "sort": sort if direction != "none" else None,  # Clear sort when returning to original order
+            "direction": direction
+        }
+        
+        # If this is an HTMX request, return only the table
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "reports/inventory/missing_category_table.html",
+                template_vars
+            )
+        
+        # Otherwise return the full page
+        return templates.TemplateResponse(
+            "reports/inventory/missing_category.html",
+            {
+                **template_vars,
+                "report_title": "Missing Category Report",
+                "total_items": len(items),
+                "vendors": sorted(set(item["vendor_name"] for item in items if item["vendor_name"])),
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load Missing Category Report: {str(e)}")
+
+@router.get("/inventory/missing-description", response_class=HTMLResponse)
+async def missing_description_report(
+    request: Request,
+    sort: str = None,
+    direction: str = "asc"
+):
+    """Render the Missing Description Report page."""
+    try:
+        # Define columns in one place - easy to modify
+        columns = [
+            {"key": "item_name", "label": "Item Name", "sortable": True},
+            {"key": "vendor_name", "label": "Vendor", "sortable": True},
+            {"key": "category_name", "label": "Category", "sortable": True},
+            {"key": "price", "label": "Price", "sortable": True},
+            {"key": "quantity", "label": "Quantity", "sortable": True},
+        ]
+        
+        # Use QueryExecutor to run the query
+        executor = QueryExecutor()
+        df = await executor.execute_query_to_df("missing_description_inventory")
+        
+        # Filter to only the columns we want to display (remove debugging columns)
+        display_columns = [col["key"] for col in columns]
+        df = df[display_columns]
+        
+        # Apply sorting if requested and direction is not "none"
+        if sort and sort in df.columns and direction != "none":
+            ascending = direction.lower() == "asc"
+            df = df.sort_values(by=sort, ascending=ascending)
+        # If direction is "none", keep original order (no sorting)
+        
+        # Convert DataFrame to list of dicts
+        items = df.to_dict('records')
+        
+        # Common template variables
+        template_vars = {
+            "request": request,
+            "items": items,
+            "columns": columns,  # Pass columns to template
+            "sort": sort if direction != "none" else None,  # Clear sort when returning to original order
+            "direction": direction
+        }
+        
+        # If this is an HTMX request, return only the table
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "reports/inventory/missing_description_table.html",
+                template_vars
+            )
+        
+        # Otherwise return the full page
+        return templates.TemplateResponse(
+            "reports/inventory/missing_description.html",
+            {
+                **template_vars,
+                "report_title": "Missing Description Report",
+                "total_items": len(items),
+                "vendors": sorted(set(item["vendor_name"] for item in items if item["vendor_name"])),
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load Missing Description Report: {str(e)}")
+
+@router.get("/inventory/missing-vendor-info", response_class=HTMLResponse)
+async def missing_vendor_info_report(
+    request: Request,
+    sort: str = None,
+    direction: str = "asc"
+):
+    """Render the Missing Vendor Info Report page."""
+    try:
+        # Define columns in one place - easy to modify
+        columns = [
+            {"key": "item_name", "label": "Item Name", "sortable": True},
+            {"key": "price", "label": "Price", "sortable": True},
+            {"key": "vendor_name", "label": "Vendor", "sortable": True},
+            {"key": "vendor_sku", "label": "Vendor Code", "sortable": True},
+            {"key": "unit_cost", "label": "Unit Cost", "sortable": True},
+        ]
+        
+        # Use QueryExecutor to run the query
+        executor = QueryExecutor()
+        df = await executor.execute_query_to_df("missing_vendor_info_inventory")
+        
+        # Apply sorting if requested and direction is not "none"
+        if sort and sort in df.columns and direction != "none":
+            ascending = direction.lower() == "asc"
+            df = df.sort_values(by=sort, ascending=ascending)
+        # If direction is "none", keep original order (no sorting)
+        
+        # Convert DataFrame to list of dicts
+        items = df.to_dict('records')
+        
+        # Common template variables
+        template_vars = {
+            "request": request,
+            "items": items,
+            "columns": columns,  # Pass columns to template
+            "sort": sort if direction != "none" else None,  # Clear sort when returning to original order
+            "direction": direction
+        }
+        
+        # If this is an HTMX request, return only the table
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "reports/inventory/missing_vendor_info_table.html",
+                template_vars
+            )
+        
+        # Otherwise return the full page
+        return templates.TemplateResponse(
+            "reports/inventory/missing_vendor_info.html",
+            {
+                **template_vars,
+                "report_title": "Missing Vendor Info Report",
+                "total_items": len(items),
+                "vendors": sorted(set(item["vendor_name"] for item in items if item["vendor_name"] and item["vendor_name"] != "No Vendor")),
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load Missing Vendor Info Report: {str(e)}") 
