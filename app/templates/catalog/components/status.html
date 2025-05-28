@@ -1,0 +1,170 @@
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 status-card">
+    <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Export Status</h2>
+        {% if status.has_data %}
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                <i data-lucide="check-circle" class="h-3 w-3 mr-1"></i>
+                Data Available
+            </span>
+        {% else %}
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                <i data-lucide="alert-circle" class="h-3 w-3 mr-1"></i>
+                No Data
+            </span>
+        {% endif %}
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Total Items -->
+        <div class="text-center">
+            <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {{ "{:,}".format(status.total_items) }}
+            </div>
+            <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                Total Items
+            </div>
+        </div>
+        
+        <!-- Last Export -->
+        <div class="text-center">
+            {% if status.last_export %}
+                <div class="text-sm font-semibold text-gray-900 dark:text-white" 
+                     data-export-time="{{ status.last_export }}" 
+                     id="export-date">
+                    Loading...
+                </div>
+                <div class="text-xs text-gray-600 dark:text-gray-400 mt-1" 
+                     id="export-time">
+                    Loading...
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-500 mt-1" 
+                     id="export-timezone">
+                    Last Export
+                </div>
+            {% else %}
+                <div class="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                    Never
+                </div>
+                <div class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                    Last Export
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Status Indicator -->
+        <div class="text-center">
+            {% if status.has_data %}
+                <div class="inline-flex items-center justify-center w-10 h-10 bg-green-100 dark:bg-green-900 rounded-full mb-2">
+                    <i data-lucide="database" class="h-5 w-5 text-green-600 dark:text-green-400"></i>
+                </div>
+                <div class="text-xs text-gray-600 dark:text-gray-400">
+                    Database Ready
+                </div>
+            {% else %}
+                <div class="inline-flex items-center justify-center w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-full mb-2">
+                    <i data-lucide="database" class="h-5 w-5 text-gray-400"></i>
+                </div>
+                <div class="text-xs text-gray-600 dark:text-gray-400">
+                    No Data
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if status.error %}
+        <div class="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div class="flex items-center">
+                <i data-lucide="alert-triangle" class="h-4 w-4 text-red-500 mr-2"></i>
+                <span class="text-sm font-medium text-red-800 dark:text-red-200">Error:</span>
+            </div>
+            <p class="text-sm text-red-700 dark:text-red-300 mt-1">{{ status.error }}</p>
+        </div>
+    {% endif %}
+    
+    {% if status.has_data %}
+        <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                <span>Database table: <code class="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-xs">square_item_library_export</code></span>
+                <span>Ready for queries</span>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    function formatExportTime() {
+        const exportDateElement = document.getElementById('export-date');
+        const exportTimeElement = document.getElementById('export-time');
+        const exportTimezoneElement = document.getElementById('export-timezone');
+        
+        if (exportDateElement && exportTimeElement && exportTimezoneElement) {
+            const exportTimeString = exportDateElement.getAttribute('data-export-time');
+            
+            if (exportTimeString) {
+                try {
+                    console.log('Original UTC time string:', exportTimeString);
+                    
+                    // Parse the UTC ISO string (should now have proper timezone info)
+                    const exportDate = new Date(exportTimeString);
+                    
+                    console.log('Parsed date object:', exportDate);
+                    console.log('Local time string:', exportDate.toString());
+                    
+                    // Get user's timezone abbreviation
+                    const timezoneAbbr = exportDate.toLocaleTimeString('en-US', { 
+                        timeZoneName: 'short' 
+                    }).split(' ').pop();
+                    
+                    // Format date in local timezone
+                    const formattedDate = exportDate.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+                    
+                    // Format time in local timezone
+                    const formattedTime = exportDate.toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    
+                    console.log('Formatted date:', formattedDate);
+                    console.log('Formatted time:', formattedTime);
+                    console.log('Timezone abbr:', timezoneAbbr);
+                    
+                    // Update the elements
+                    exportDateElement.textContent = formattedDate;
+                    exportTimeElement.textContent = formattedTime;
+                    exportTimezoneElement.textContent = `Last Export (${timezoneAbbr})`;
+                    
+                } catch (error) {
+                    console.error('Error formatting export time:', error);
+                    console.error('Original time string:', exportTimeString);
+                    exportDateElement.textContent = 'Invalid Date';
+                    exportTimeElement.textContent = '';
+                    exportTimezoneElement.textContent = 'Last Export';
+                }
+            }
+        }
+    }
+    
+    // Re-initialize Lucide icons after HTMX swap
+    document.addEventListener('htmx:afterSwap', function(event) {
+        if (event.target.id === 'status-container') {
+            lucide.createIcons();
+            // Format export time after HTMX swap
+            setTimeout(formatExportTime, 10);
+        }
+    });
+    
+    // Initialize icons and format time on load
+    lucide.createIcons();
+    
+    // Format export time when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', formatExportTime);
+    } else {
+        formatExportTime();
+    }
+</script> 
