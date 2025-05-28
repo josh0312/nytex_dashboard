@@ -7,6 +7,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import text
 from pathlib import Path
 from app.templates_config import templates
+import logging
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -362,6 +363,34 @@ async def low_stock_report(
         # Convert DataFrame to list of dicts
         items = df.to_dict('records')
         
+        # Calculate statistics for the full page
+        total_low_stock_items = len(items)
+        
+        # Convert generator to list to avoid potential recursion issues
+        unique_vendors = []
+        for item in items:
+            if item.get("vendor_name"):
+                unique_vendors.append(item["vendor_name"])
+        unique_vendors = sorted(set(unique_vendors))
+        
+        if view == "location":
+            # Calculate location statistics (but do it in Python, not template)
+            location_stats = {}
+            locations_with_issues = 0
+            locations = ['aubrey', 'bridgefarmer', 'building', 'flomo', 'justin', 'quinlan', 'terrell']
+            for location in locations:
+                low_stock_col = f"{location}_low_stock"
+                if low_stock_col in df.columns:
+                    count = int(df[low_stock_col].sum())
+                    location_stats[location.title()] = count
+                    if count > 0:
+                        locations_with_issues += 1
+                else:
+                    location_stats[location.title()] = 0
+        else:
+            location_stats = {}
+            locations_with_issues = 0
+        
         # Common template variables
         template_vars = {
             "request": request,
@@ -369,45 +398,36 @@ async def low_stock_report(
             "columns": columns,
             "sort": sort if direction != "none" else None,
             "direction": direction,
-            "view": view
+            "view": view,
+            "report_title": "Low Stock Report",
+            "report_name": "low_stock_inventory",
+            "total_items": total_low_stock_items,
+            "vendors": unique_vendors,
+            "location_stats": location_stats,
+            "locations_with_issues": locations_with_issues,
+            "view_type": "NyTex Inventory" if view == "total" else "Location Inventory"
         }
         
-        # If this is an HTMX request, return only the table
+        # If this is an HTMX request, determine the type of request
         if request.headers.get("HX-Request"):
-            return templates.TemplateResponse(
-                "reports/inventory/low_stock_table.html",
-                template_vars
-            )
+            # Check if this is a toggle request (has view parameter but no sort)
+            if not sort:
+                # Toggle request - return full content with header and statistics
+                return templates.TemplateResponse(
+                    "reports/inventory/low_stock_content.html",
+                    template_vars
+                )
+            else:
+                # Sorting request - return only the table
+                return templates.TemplateResponse(
+                    "reports/inventory/low_stock_table.html",
+                    template_vars
+                )
         
-        # Calculate statistics for the full page
-        total_low_stock_items = len(items)
-        unique_vendors = sorted(set(item["vendor_name"] for item in items if item["vendor_name"]))
-        
-        if view == "location":
-            # Calculate location statistics
-            location_stats = {}
-            locations = ['aubrey', 'bridgefarmer', 'building', 'flomo', 'justin', 'quinlan', 'terrell']
-            for location in locations:
-                low_stock_col = f"{location}_low_stock"
-                if low_stock_col in df.columns:
-                    location_stats[location.title()] = int(df[low_stock_col].sum())
-                else:
-                    location_stats[location.title()] = 0
-        else:
-            location_stats = {}
-        
-        # Otherwise return the full page
+        # Return the template with test template for now
         return templates.TemplateResponse(
             "reports/inventory/low_stock.html",
-            {
-                **template_vars,
-                "report_title": "Low Stock Report",
-                "report_name": "low_stock_inventory",
-                "total_items": total_low_stock_items,
-                "vendors": unique_vendors,
-                "location_stats": location_stats,
-                "view_type": "NyTex Inventory" if view == "total" else "Location Inventory"
-            }
+            template_vars
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load Low Stock Report: {str(e)}") 

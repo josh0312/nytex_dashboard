@@ -1,0 +1,43 @@
+{# 
+Statistics Card Component
+Usage: Include with: {% include 'components/shared/stat_card.html' with context %}
+
+Required variables:
+  - theme: red|blue|indigo|green|yellow|orange|purple|gray
+  - icon: lucide icon name (e.g., 'alert-triangle', 'users', 'dollar-sign')
+  - label: Display text for the statistic
+  - value: The numeric or text value to display
+  
+Optional variables:
+  - clickable: true/false (adds hover effects)
+  - href: URL to link to (makes card clickable)
+#}
+
+{% set card_class = "stat-card-" + theme %}
+{% set icon_container_class = "stat-icon-" + theme %}
+{% set icon_class = "icon-" + theme + " stat-icon-lg" %}
+{% set value_class = "stat-value-" + theme %}
+
+{% if href %}
+<a href="{{ href }}" class="{{ card_class }} {% if clickable %}cursor-pointer transition-colors{% endif %}">
+{% elif clickable %}
+<div class="{{ card_class }} cursor-pointer transition-colors">
+{% else %}
+<div class="{{ card_class }}">
+{% endif %}
+
+    <div class="stat-content">
+        <div class="{{ icon_container_class }}">
+            <i data-lucide="{{ icon }}" class="{{ icon_class }}"></i>
+        </div>
+        <div class="stat-text">
+            <p class="stat-label">{{ label }}</p>
+            <p class="{{ value_class }}">{{ value }}</p>
+        </div>
+    </div>
+
+{% if href %}
+</a>
+{% else %}
+</div>
+{% endif %} 
