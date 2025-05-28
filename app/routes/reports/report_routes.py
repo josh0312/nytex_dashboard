@@ -324,16 +324,20 @@ async def low_stock_report(
             {"key": "vendor_name", "label": "Vendor", "sortable": True},
             {"key": "total_qty", "label": "Total Qty", "sortable": True},
             {"key": "units_per_case", "label": "Units/Case", "sortable": True},
-            {"key": "locations_with_low_stock", "label": "Low Item Stock Locations", "sortable": True},
+            {"key": "aubrey_qty", "label": "Aubrey", "sortable": True},
+            {"key": "bridgefarmer_qty", "label": "Bridgefarmer", "sortable": True},
+            {"key": "building_qty", "label": "Building", "sortable": True},
+            {"key": "flomo_qty", "label": "FloMo", "sortable": True},
+            {"key": "justin_qty", "label": "Justin", "sortable": True},
+            {"key": "quinlan_qty", "label": "Quinlan", "sortable": True},
+            {"key": "terrell_qty", "label": "Terrell", "sortable": True},
         ]
         
-        # Add location-specific columns for location view
+        # Select columns based on view
         if view == "location":
             columns = location_columns
         else:
-            columns = total_columns + [
-                {"key": "low_stock_threshold", "label": "Low Item Stock Threshold", "sortable": True},
-            ]
+            columns = total_columns
         
         # Get the data
         executor = QueryExecutor()
