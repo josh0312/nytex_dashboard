@@ -1,6 +1,6 @@
 -- Items Inventory Query with Location Quantities
 -- This query retrieves comprehensive item data from Square including actual inventory quantities by location
--- Last updated: 2025-05-27
+-- Last updated: 2025-05-28
 
 SELECT DISTINCT
     -- Basic item information

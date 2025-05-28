@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.logger import logger
 import os
+from decimal import Decimal
+from datetime import datetime, date
 
 class ItemsService:
     """Service for handling items data operations"""
@@ -46,42 +48,102 @@ class ItemsService:
             query = '\n'.join(query_lines).strip()
             
             # Build WHERE conditions
-            where_conditions = ["archived != 'Y'"]
+            where_conditions = ["sile.archived != 'Y'"]
             
             # Add global search if provided
             if search and search.strip():
                 # Escape single quotes in search term
                 escaped_search = search.replace("'", "''")
                 search_condition = f"""
-                (LOWER(item_name) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(sku, '')) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(description, '')) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(categories, '')) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(default_vendor_name, '')) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(default_vendor_code, '')) LIKE LOWER('%{escaped_search}%'))
+                (LOWER(sile.item_name) LIKE LOWER('%{escaped_search}%') OR
+                 LOWER(COALESCE(sile.sku, '')) LIKE LOWER('%{escaped_search}%') OR
+                 LOWER(COALESCE(sile.description, '')) LIKE LOWER('%{escaped_search}%') OR
+                 LOWER(COALESCE(sile.categories, '')) LIKE LOWER('%{escaped_search}%') OR
+                 LOWER(COALESCE(sile.default_vendor_name, '')) LIKE LOWER('%{escaped_search}%') OR
+                 LOWER(COALESCE(sile.default_vendor_code, '')) LIKE LOWER('%{escaped_search}%'))
                 """
                 where_conditions.append(search_condition)
             
             # Add column-specific filters if provided
             if filters:
                 for column, value in filters.items():
-                    if value and value.strip():
-                        # Escape single quotes in filter value
-                        escaped_value = value.replace("'", "''")
-                        
-                        # Map display column names to actual column names
-                        column_mapping = {
-                            'item_name': 'item_name',
-                            'sku': 'sku',
-                            'description': 'description',
-                            'category': 'categories',
-                            'vendor_name': 'default_vendor_name',
-                            'vendor_code': 'default_vendor_code'
-                        }
-                        
-                        actual_column = column_mapping.get(column, column)
-                        filter_condition = f"LOWER(COALESCE({actual_column}, '')) LIKE LOWER('%{escaped_value}%')"
-                        where_conditions.append(filter_condition)
+                    if value and value != '' and value != []:
+                        # Handle both single values (strings) and multi-select values (arrays)
+                        if isinstance(value, list) and len(value) > 0:
+                            # Filter out empty values from the array
+                            non_empty_values = [item for item in value if item and str(item).strip()]
+                            if non_empty_values:
+                                # Map display column names to actual column names with proper table aliases
+                                column_mapping = {
+                                    'item_name': 'sile.item_name',
+                                    'sku': 'sile.sku',
+                                    'description': 'sile.description',
+                                    'category': 'sile.categories',
+                                    'vendor_name': 'sile.default_vendor_name',
+                                    'vendor_code': 'sile.default_vendor_code',
+                                    'price': 'sile.price',
+                                    'cost': 'sile.default_unit_cost'
+                                }
+                                
+                                actual_column = column_mapping.get(column, f'sile.{column}')
+                                
+                                # Handle numeric fields (price/cost) vs text fields differently
+                                if column in ['price', 'cost']:
+                                    # For numeric fields, use exact value matching with IN clause
+                                    numeric_values = []
+                                    for val in non_empty_values:
+                                        try:
+                                            numeric_values.append(float(val))
+                                        except (ValueError, TypeError):
+                                            continue
+                                    
+                                    if numeric_values:
+                                        # Create IN clause for exact numeric matches
+                                        values_str = ','.join([str(v) for v in numeric_values])
+                                        filter_condition = f"{actual_column} IN ({values_str})"
+                                        where_conditions.append(filter_condition)
+                                else:
+                                    # For text fields, use LIKE for partial matching
+                                    escaped_values = [str(item).replace("'", "''") for item in non_empty_values]
+                                    or_conditions = [f"LOWER(COALESCE({actual_column}, '')) LIKE LOWER('%{val}%')" for val in escaped_values]
+                                    filter_condition = f"({' OR '.join(or_conditions)})"
+                                    where_conditions.append(filter_condition)
+                        elif isinstance(value, str) and value.strip():
+                            # Single value: handle numeric vs text filters differently
+                            escaped_value = value.replace("'", "''").strip()
+                            
+                            # Map display column names to actual column names with proper table aliases
+                            column_mapping = {
+                                'item_name': 'sile.item_name',
+                                'sku': 'sile.sku',
+                                'description': 'sile.description',
+                                'category': 'sile.categories',
+                                'vendor_name': 'sile.default_vendor_name',
+                                'vendor_code': 'sile.default_vendor_code',
+                                'price': 'sile.price',
+                                'cost': 'sile.default_unit_cost'
+                            }
+                            
+                            actual_column = column_mapping.get(column, f'sile.{column}')
+                            
+                            # Handle numeric fields differently
+                            if column in ['price', 'cost']:
+                                # For numeric fields, use >= comparison and validate the input
+                                try:
+                                    numeric_value = float(escaped_value)
+                                    # Only add filter if value is >= 0 (negative prices/costs don't make sense)
+                                    if numeric_value >= 0:
+                                        filter_condition = f"{actual_column} >= {numeric_value}"
+                                        where_conditions.append(filter_condition)
+                                except ValueError:
+                                    # If not a valid number, skip this filter
+                                    logger.warning(f"Invalid numeric value for {column}: {escaped_value}")
+                                    continue
+                            else:
+                                # For text fields, use LIKE only if value is not empty
+                                if escaped_value:
+                                    filter_condition = f"LOWER(COALESCE({actual_column}, '')) LIKE LOWER('%{escaped_value}%')"
+                                    where_conditions.append(filter_condition)
             
             # Replace the existing WHERE clause
             if 'WHERE' in query:
@@ -101,27 +163,29 @@ class ItemsService:
             
             # Add sorting if specified
             if sort:
-                # Map display column names to query column aliases
+                # Map display column names to query column aliases with proper table qualification
                 sort_mapping = {
-                    'item_name': 'item_name',
-                    'sku': 'sku',
-                    'description': 'description',
-                    'category': 'category',
-                    'price': 'price',
-                    'vendor_name': 'vendor_name',
-                    'vendor_code': 'vendor_code',
-                    'profit_margin_percent': 'profit_margin_percent',
-                    'total_qty': 'total_qty',
-                    'aubrey_qty': 'aubrey_qty',
-                    'bridgefarmer_qty': 'bridgefarmer_qty',
-                    'building_qty': 'building_qty',
-                    'flomo_qty': 'flomo_qty',
-                    'justin_qty': 'justin_qty',
-                    'quinlan_qty': 'quinlan_qty',
-                    'terrell_qty': 'terrell_qty'
+                    'item_name': 'sile.item_name',
+                    'sku': 'sile.sku',
+                    'description': 'sile.description',
+                    'category': 'category',  # This is aliased in SELECT
+                    'price': 'price',        # This is aliased in SELECT
+                    'vendor_name': 'vendor_name',  # This is aliased in SELECT
+                    'vendor_code': 'vendor_code',  # This is aliased in SELECT
+                    'profit_margin_percent': 'profit_margin_percent',  # This is aliased in SELECT
+                    'total_qty': 'total_qty',      # This is aliased in SELECT
+                    'aubrey_qty': 'aubrey_qty',    # This is aliased in SELECT
+                    'bridgefarmer_qty': 'bridgefarmer_qty',  # This is aliased in SELECT
+                    'building_qty': 'building_qty',  # This is aliased in SELECT
+                    'flomo_qty': 'flomo_qty',      # This is aliased in SELECT
+                    'justin_qty': 'justin_qty',    # This is aliased in SELECT
+                    'quinlan_qty': 'quinlan_qty',  # This is aliased in SELECT
+                    'terrell_qty': 'terrell_qty',  # This is aliased in SELECT
+                    'item_type': 'sile.item_type',
+                    'cost': 'cost'  # This is aliased in SELECT
                 }
                 
-                actual_sort_column = sort_mapping.get(sort, 'item_name')
+                actual_sort_column = sort_mapping.get(sort, 'sile.item_name')
                 
                 # Remove existing ORDER BY and add new one
                 if 'ORDER BY' in query:
@@ -129,7 +193,7 @@ class ItemsService:
                 
                 query += f' ORDER BY {actual_sort_column} {direction.upper()}'
             elif 'ORDER BY' not in query:
-                query += ' ORDER BY item_name ASC'
+                query += ' ORDER BY sile.item_name ASC'
             
             logger.info(f"Executing items query with sort={sort}, direction={direction}, search={search}")
             
@@ -138,12 +202,19 @@ class ItemsService:
             rows = result.fetchall()
             columns = result.keys()
             
-            # Convert to list of dictionaries
+            # Convert to list of dictionaries with proper JSON serialization
             items = []
             for row in rows:
                 item_dict = {}
                 for i, column in enumerate(columns):
-                    item_dict[column] = row[i]
+                    value = row[i]
+                    # Convert non-JSON-serializable objects
+                    if isinstance(value, Decimal):
+                        item_dict[column] = float(value)
+                    elif isinstance(value, (datetime, date)):
+                        item_dict[column] = value.isoformat() if value else None
+                    else:
+                        item_dict[column] = value
                 items.append(item_dict)
             
             logger.info(f"Retrieved {len(items)} items")
@@ -169,15 +240,32 @@ class ItemsService:
             filter_queries = {
                 'categories': "SELECT DISTINCT categories FROM square_item_library_export WHERE archived != 'Y' AND categories IS NOT NULL ORDER BY categories",
                 'vendors': "SELECT DISTINCT default_vendor_name FROM square_item_library_export WHERE archived != 'Y' AND default_vendor_name IS NOT NULL ORDER BY default_vendor_name",
-                'item_types': "SELECT DISTINCT item_type FROM square_item_library_export WHERE archived != 'Y' AND item_type IS NOT NULL ORDER BY item_type"
+                'item_types': "SELECT DISTINCT item_type FROM square_item_library_export WHERE archived != 'Y' AND item_type IS NOT NULL ORDER BY item_type",
+                'prices': "SELECT DISTINCT price FROM square_item_library_export WHERE archived != 'Y' AND price IS NOT NULL ORDER BY price",
+                'costs': "SELECT DISTINCT default_unit_cost FROM square_item_library_export WHERE archived != 'Y' AND default_unit_cost IS NOT NULL ORDER BY default_unit_cost"
             }
             
             filter_options = {}
             
             for key, query in filter_queries.items():
                 result = await session.execute(text(query))
-                values = [row[0] for row in result.fetchall() if row[0]]
-                filter_options[key] = sorted(set(values))
+                if key in ['prices', 'costs']:
+                    # For price and cost, convert to float for sorting and format for display
+                    values = []
+                    for row in result.fetchall():
+                        if row[0] is not None:
+                            try:
+                                # Convert to float for proper sorting
+                                numeric_value = float(row[0])
+                                values.append(numeric_value)
+                            except (ValueError, TypeError):
+                                continue
+                    # Sort numerically and keep as numbers (Tabulator will format them)
+                    filter_options[key] = sorted(list(set(values)))
+                else:
+                    # For text fields, keep as strings
+                    values = [row[0] for row in result.fetchall() if row[0]]
+                    filter_options[key] = sorted(set(values))
             
             return filter_options
             

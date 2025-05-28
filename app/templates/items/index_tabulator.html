@@ -1,0 +1,766 @@
+{% extends "base.html" %}
+
+{% block title %}Items - NyTex Fireworks{% endblock %}
+
+{% block head %}
+<!-- Tabulator CSS -->
+<link href="{{ url_for('static', path='css/tabulator_bootstrap5.min.css') }}" rel="stylesheet">
+<style>
+    :root {
+        /* Light mode colors */
+        --tabulator-bg: #ffffff;
+        --tabulator-border: #e5e7eb;
+        --tabulator-header-bg: #f9fafb;
+        --tabulator-header-hover: #f3f4f6;
+        --tabulator-header-text: #374151;
+        --tabulator-row-bg: #ffffff;
+        --tabulator-row-alt: #f9fafb;
+        --tabulator-row-hover: #f3f4f6;
+        --tabulator-row-border: #f3f4f6;
+        --tabulator-text: #1f2937;
+        --tabulator-text-muted: #6b7280;
+        --tabulator-input-bg: #ffffff;
+        --tabulator-input-border: #d1d5db;
+        --tabulator-input-text: #374151;
+        --tabulator-selection-bg: #dbeafe;
+    }
+
+    /* Dark mode colors */
+    [data-theme="dark"], 
+    .dark,
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --tabulator-bg: #1f2937;
+            --tabulator-border: #374151;
+            --tabulator-header-bg: #374151;
+            --tabulator-header-hover: #4b5563;
+            --tabulator-header-text: #f3f4f6;
+            --tabulator-row-bg: #1f2937;
+            --tabulator-row-alt: #111827;
+            --tabulator-row-hover: #374151;
+            --tabulator-row-border: #374151;
+            --tabulator-text: #f3f4f6;
+            --tabulator-text-muted: #9ca3af;
+            --tabulator-input-bg: #374151;
+            --tabulator-input-border: #4b5563;
+            --tabulator-input-text: #f3f4f6;
+            --tabulator-selection-bg: #1e40af;
+        }
+    }
+
+    /* Apply dark mode when html has dark class or system prefers dark */
+    html.dark {
+        --tabulator-bg: #1f2937;
+        --tabulator-border: #374151;
+        --tabulator-header-bg: #374151;
+        --tabulator-header-hover: #4b5563;
+        --tabulator-header-text: #f3f4f6;
+        --tabulator-row-bg: #1f2937;
+        --tabulator-row-alt: #111827;
+        --tabulator-row-hover: #374151;
+        --tabulator-row-border: #374151;
+        --tabulator-text: #f3f4f6;
+        --tabulator-text-muted: #9ca3af;
+        --tabulator-input-bg: #374151;
+        --tabulator-input-border: #4b5563;
+        --tabulator-input-text: #f3f4f6;
+        --tabulator-selection-bg: #1e40af;
+    }
+
+    /* Tabulator base styling */
+    .tabulator {
+        background-color: var(--tabulator-bg) !important;
+        border: 1px solid var(--tabulator-border) !important;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        color: var(--tabulator-text) !important;
+    }
+    
+    /* Header styling */
+    .tabulator .tabulator-header {
+        background-color: var(--tabulator-header-bg) !important;
+        border-bottom: 1px solid var(--tabulator-border) !important;
+    }
+    
+    .tabulator .tabulator-col {
+        background-color: var(--tabulator-header-bg) !important;
+        border-right: 1px solid var(--tabulator-border) !important;
+        color: var(--tabulator-header-text) !important;
+    }
+    
+    .tabulator .tabulator-col:hover {
+        background-color: var(--tabulator-header-hover) !important;
+    }
+    
+    .tabulator .tabulator-col .tabulator-col-content {
+        color: var(--tabulator-header-text) !important;
+    }
+    
+    .tabulator .tabulator-col .tabulator-col-title {
+        color: var(--tabulator-header-text) !important;
+        font-weight: 600;
+    }
+    
+    /* Sort arrows */
+    .tabulator .tabulator-col .tabulator-col-sorter {
+        color: var(--tabulator-text-muted) !important;
+    }
+    
+    .tabulator .tabulator-col.tabulator-sortable .tabulator-col-sorter .tabulator-arrow {
+        border-bottom-color: var(--tabulator-text-muted) !important;
+        border-top-color: var(--tabulator-text-muted) !important;
+    }
+    
+    /* Row styling */
+    .tabulator .tabulator-tableholder .tabulator-table {
+        background-color: var(--tabulator-bg) !important;
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-row {
+        background-color: var(--tabulator-row-bg) !important;
+        border-bottom: 1px solid var(--tabulator-row-border) !important;
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-row:hover {
+        background-color: var(--tabulator-row-hover) !important;
+    }
+    
+    .tabulator .tabulator-row.tabulator-row-even {
+        background-color: var(--tabulator-row-bg) !important;
+    }
+    
+    .tabulator .tabulator-row.tabulator-row-odd {
+        background-color: var(--tabulator-row-alt) !important;
+    }
+    
+    .tabulator .tabulator-row.tabulator-row-even:hover,
+    .tabulator .tabulator-row.tabulator-row-odd:hover {
+        background-color: var(--tabulator-row-hover) !important;
+    }
+    
+    .tabulator .tabulator-row .tabulator-cell {
+        color: var(--tabulator-text) !important;
+        border-right: 1px solid var(--tabulator-row-border) !important;
+    }
+    
+    /* Selected rows */
+    .tabulator .tabulator-row.tabulator-selected {
+        background-color: var(--tabulator-selection-bg) !important;
+    }
+    
+    /* Filter input styling */
+    .tabulator .tabulator-header-filter input,
+    .tabulator .tabulator-header-filter select {
+        background-color: var(--tabulator-input-bg) !important;
+        border: 1px solid var(--tabulator-input-border) !important;
+        border-radius: 0.375rem;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        color: var(--tabulator-input-text) !important;
+    }
+    
+    .tabulator .tabulator-header-filter input::placeholder {
+        color: var(--tabulator-text-muted) !important;
+    }
+    
+    .tabulator .tabulator-header-filter input:focus,
+    .tabulator .tabulator-header-filter select:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+        border-color: #3b82f6;
+    }
+    
+    /* Multi-select filter dropdown styling */
+    .tabulator .tabulator-header-filter .tabulator-list {
+        background-color: var(--tabulator-input-bg) !important;
+        border: 1px solid var(--tabulator-input-border) !important;
+        border-radius: 0.375rem;
+        color: var(--tabulator-input-text) !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+    }
+    
+    .tabulator .tabulator-header-filter .tabulator-list-item {
+        background-color: var(--tabulator-input-bg) !important;
+        color: var(--tabulator-input-text) !important;
+        padding: 0.5rem;
+        border-bottom: 1px solid var(--tabulator-row-border) !important;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+    }
+    
+    .tabulator .tabulator-header-filter .tabulator-list-item:hover {
+        background-color: var(--tabulator-row-hover) !important;
+    }
+    
+    .tabulator .tabulator-header-filter .tabulator-list-item.active {
+        background-color: var(--tabulator-selection-bg) !important;
+        color: white !important;
+    }
+    
+    .tabulator .tabulator-header-filter .tabulator-list-item input[type="checkbox"] {
+        margin-right: 0.5rem;
+        accent-color: #3b82f6;
+    }
+    
+    /* Filter button styling */
+    .tabulator .tabulator-header-filter .tabulator-header-filter-list-select {
+        background-color: var(--tabulator-input-bg) !important;
+        border: 1px solid var(--tabulator-input-border) !important;
+        border-radius: 0.375rem;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        color: var(--tabulator-input-text) !important;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 32px;
+    }
+    
+    .tabulator .tabulator-header-filter .tabulator-header-filter-list-select:hover {
+        background-color: var(--tabulator-row-hover) !important;
+    }
+    
+    .tabulator .tabulator-header-filter .tabulator-header-filter-list-select:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+        border-color: #3b82f6;
+    }
+    
+    /* Clear button in filters */
+    .tabulator .tabulator-header-filter .tabulator-header-filter-list-select .tabulator-clear {
+        background: none;
+        border: none;
+        color: var(--tabulator-text-muted) !important;
+        cursor: pointer;
+        padding: 0 0.25rem;
+        font-size: 1rem;
+        line-height: 1;
+    }
+    
+    .tabulator .tabulator-header-filter .tabulator-header-filter-list-select .tabulator-clear:hover {
+        color: var(--tabulator-text) !important;
+    }
+    
+    /* Dropdown arrow */
+    .tabulator .tabulator-header-filter .tabulator-header-filter-list-select:after {
+        content: "▼";
+        color: var(--tabulator-text-muted) !important;
+        font-size: 0.75rem;
+        margin-left: 0.5rem;
+    }
+    
+    /* Filter badge for selected items */
+    .tabulator .tabulator-header-filter .tabulator-header-filter-list-badge {
+        background-color: #3b82f6 !important;
+        color: white !important;
+        border-radius: 9999px;
+        padding: 0.125rem 0.5rem;
+        font-size: 0.75rem;
+        margin-left: 0.25rem;
+        font-weight: 500;
+    }
+    
+    /* Pagination styling */
+    .tabulator .tabulator-footer {
+        background-color: var(--tabulator-header-bg) !important;
+        border-top: 1px solid var(--tabulator-border) !important;
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-paginator {
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-paginator .tabulator-page {
+        background-color: var(--tabulator-input-bg) !important;
+        border: 1px solid var(--tabulator-input-border) !important;
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-paginator .tabulator-page:hover {
+        background-color: var(--tabulator-row-hover) !important;
+    }
+    
+    .tabulator .tabulator-paginator .tabulator-page.active {
+        background-color: #3b82f6 !important;
+        border-color: #3b82f6 !important;
+        color: white !important;
+    }
+    
+    /* Loading and empty state */
+    .tabulator .tabulator-loader {
+        background-color: var(--tabulator-bg) !important;
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-placeholder {
+        color: var(--tabulator-text-muted) !important;
+    }
+    
+    /* Responsive collapse styling */
+    .tabulator .tabulator-responsive-collapse {
+        background-color: var(--tabulator-row-alt) !important;
+        border-top: 1px solid var(--tabulator-border) !important;
+    }
+    
+    .tabulator .tabulator-responsive-collapse-toggle {
+        background-color: var(--tabulator-header-bg) !important;
+        color: var(--tabulator-text) !important;
+        border: 1px solid var(--tabulator-border) !important;
+    }
+    
+    /* Export button styling */
+    .export-buttons {
+        margin-bottom: 1rem;
+    }
+    
+    .export-buttons button {
+        margin-right: 0.5rem;
+        padding: 0.25rem 0.75rem;
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: background-color 0.2s;
+    }
+    
+    .export-buttons button:hover {
+        background-color: #2563eb;
+    }
+    
+    .export-buttons button:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+    }
+    
+    /* Ensure icons work in both modes */
+    .tabulator .tabulator-col .tabulator-col-sorter .tabulator-arrow {
+        opacity: 0.6;
+    }
+    
+    .tabulator .tabulator-col.tabulator-sortable:hover .tabulator-col-sorter .tabulator-arrow {
+        opacity: 1;
+    }
+    
+    /* Scrollbar styling for dark mode */
+    .tabulator .tabulator-tableholder::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-track {
+        background: var(--tabulator-row-alt);
+    }
+    
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb {
+        background: var(--tabulator-text-muted);
+        border-radius: 4px;
+    }
+    
+    .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
+        background: var(--tabulator-text);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <!-- Combined Header and Controls -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-4 border border-gray-200 dark:border-gray-600">
+        <!-- Title row with export buttons -->
+        <div class="flex justify-between items-start mb-2">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Items Inventory</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <span id="last-refresh">Loading...</span>
+                </p>
+            </div>
+            <div class="export-buttons flex-shrink-0">
+                <button id="download-xlsx" type="button">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4 inline mr-1"></i>
+                    Excel
+                </button>
+            </div>
+        </div>
+        
+        <!-- Table info row -->
+        <div class="flex justify-end">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+                <span id="table-info">Loading items...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabulator Table Container -->
+    <div id="items-table" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-600"></div>
+</div>
+
+<!-- Tabulator JavaScript -->
+<script src="{{ url_for('static', path='js/vendor/tabulator.min.js') }}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+// Initialize Tabulator Table
+let table;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Get filter options for dropdowns
+    const filterOptions = {{ filter_options | tojson }};
+    
+    // Function to update last refresh time
+    function updateLastRefresh() {
+        const now = new Date();
+        const timeString = now.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+        document.getElementById('last-refresh').textContent = `Last refreshed: ${timeString}`;
+    }
+    
+    // Create Tabulator with full configuration
+    table = new Tabulator("#items-table", {
+        // Data fetching
+        ajaxURL: "/items/data",
+        ajaxConfig: "GET",
+        ajaxContentType: "json",
+        
+        // Pagination
+        pagination: "remote",
+        paginationMode: "remote", 
+        paginationSize: 50,
+        paginationSizeSelector: [25, 50, 100, 200],
+        paginationCounter: "rows",
+        
+        // Filtering and sorting
+        filterMode: "remote",
+        sortMode: "remote",
+        
+        // Layout
+        height: "600px",
+        layout: "fitColumns",
+        responsiveLayout: "collapse",
+        placeholder: "No items found",
+        tooltipsHeader: true,
+        
+        // Selection and interaction
+        selectable: true,
+        selectableRangeMode: "click",
+        
+        // Performance
+        virtualDom: true,
+        virtualDomBuffer: 300,
+        
+        // Columns configuration with grouped quantity columns
+        columns: [
+            // Fixed left columns
+            {
+                title: "Item Name", 
+                field: "item_name", 
+                width: 250, 
+                frozen: true,
+                sorter: "string",
+                headerFilter: "input",
+                headerFilterPlaceholder: "Search names...",
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue) return true;
+                    return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
+                },
+                tooltip: function(cell) {
+                    return cell.getValue();
+                }
+            },
+            {
+                title: "SKU", 
+                field: "sku", 
+                width: 120, 
+                frozen: true,
+                sorter: "string",
+                headerFilter: "input",
+                headerFilterPlaceholder: "Search SKUs...",
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue) return true;
+                    return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
+                }
+            },
+            {
+                title: "Description", 
+                field: "description", 
+                width: 200,
+                sorter: "string",
+                headerFilter: "input",
+                headerFilterPlaceholder: "Search descriptions...",
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue) return true;
+                    return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
+                },
+                tooltip: function(cell) {
+                    return cell.getValue();
+                }
+            },
+            {
+                title: "Category", 
+                field: "category", 
+                width: 150,
+                sorter: "string",
+                headerFilter: "list",
+                headerFilterParams: {
+                    values: filterOptions.categories,
+                    multiselect: true,
+                    clearable: true,
+                    emptyValue: null
+                },
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue || headerValue.length === 0) return true;
+                    return headerValue.includes(rowValue);
+                }
+            },
+            {
+                title: "Vendor", 
+                field: "vendor_name", 
+                width: 150,
+                sorter: "string",
+                headerFilter: "list",
+                headerFilterParams: {
+                    values: filterOptions.vendors,
+                    multiselect: true,
+                    clearable: true,
+                    emptyValue: null
+                },
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue || headerValue.length === 0) return true;
+                    return headerValue.includes(rowValue);
+                }
+            },
+            {
+                title: "Vendor Code", 
+                field: "vendor_code", 
+                width: 120,
+                sorter: "string",
+                headerFilter: "input",
+                headerFilterPlaceholder: "Search codes...",
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue) return true;
+                    return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
+                }
+            },
+            {
+                title: "Price", 
+                field: "price", 
+                width: 100, 
+                sorter: "number", 
+                formatter: "money", 
+                formatterParams: {symbol: "$", precision: 2},
+                headerFilter: "list",
+                headerFilterParams: {
+                    values: filterOptions.prices,
+                    multiselect: true,
+                    clearable: true,
+                    emptyValue: null
+                },
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue || headerValue.length === 0) return true;
+                    return headerValue.includes(rowValue);
+                }
+            },
+            {
+                title: "Cost", 
+                field: "cost", 
+                width: 100, 
+                sorter: "number", 
+                formatter: "money", 
+                formatterParams: {symbol: "$", precision: 2},
+                headerFilter: "list",
+                headerFilterParams: {
+                    values: filterOptions.costs,
+                    multiselect: true,
+                    clearable: true,
+                    emptyValue: null
+                },
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue || headerValue.length === 0) return true;
+                    return headerValue.includes(rowValue);
+                }
+            },
+            {
+                title: "Profit %", 
+                field: "profit_margin_percent", 
+                width: 100, 
+                sorter: "number",
+                formatter: function(cell, formatterParams) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) return "";
+                    return value.toFixed(1) + "%";
+                }
+            },
+            
+            // Grouped Quantity Columns
+            {
+                title: "Quantity",
+                columns: [
+                    {
+                        title: "A", 
+                        field: "aubrey_qty", 
+                        width: 80, 
+                        sorter: "number",
+                        hozAlign: "center",
+                        tooltip: "Aubrey Location"
+                    },
+                    {
+                        title: "BF", 
+                        field: "bridgefarmer_qty", 
+                        width: 80, 
+                        sorter: "number",
+                        hozAlign: "center",
+                        tooltip: "Bridgefarmer Location"
+                    },
+                    {
+                        title: "B", 
+                        field: "building_qty", 
+                        width: 80, 
+                        sorter: "number",
+                        hozAlign: "center",
+                        tooltip: "Building Location"
+                    },
+                    {
+                        title: "F", 
+                        field: "flomo_qty", 
+                        width: 80, 
+                        sorter: "number",
+                        hozAlign: "center",
+                        tooltip: "FloMo Location"
+                    },
+                    {
+                        title: "J", 
+                        field: "justin_qty", 
+                        width: 80, 
+                        sorter: "number",
+                        hozAlign: "center",
+                        tooltip: "Justin Location"
+                    },
+                    {
+                        title: "Q", 
+                        field: "quinlan_qty", 
+                        width: 80, 
+                        sorter: "number",
+                        hozAlign: "center",
+                        tooltip: "Quinlan Location"
+                    },
+                    {
+                        title: "T", 
+                        field: "terrell_qty", 
+                        width: 80, 
+                        sorter: "number",
+                        hozAlign: "center",
+                        tooltip: "Terrell Location"
+                    },
+                    {
+                        title: "Total", 
+                        field: "total_qty", 
+                        width: 100, 
+                        sorter: "number",
+                        hozAlign: "center",
+                        formatter: function(cell, formatterParams) {
+                            const value = cell.getValue();
+                            if (value === 0) return "0";
+                            if (value > 0) return `<span style="color: #059669; font-weight: 600;">${value}</span>`;
+                            return `<span style="color: #dc2626; font-weight: 600;">${value}</span>`;
+                        }
+                    }
+                ]
+            }
+        ],
+        
+        // Initial sort
+        initialSort: [
+            {column: "item_name", dir: "asc"}
+        ],
+        
+        // Event handlers
+        ajaxResponse: function(url, params, response) {
+            // Update last refresh time
+            updateLastRefresh();
+            
+            // Update table info
+            const info = document.getElementById('table-info');
+            if (info && response.last_row) {
+                const shown = response.data ? response.data.length : 0;
+                const total = response.last_row;
+                const hasFilters = Object.keys(params).some(key => key.startsWith('filter'));
+                
+                if (hasFilters) {
+                    info.textContent = `Showing ${shown} of ${total} items (filtered)`;
+                } else {
+                    info.textContent = `Showing ${shown} of ${total} items`;
+                }
+            }
+            return response;
+        },
+        
+        ajaxError: function(error) {
+            console.error("AJAX Error:", error);
+            document.getElementById('table-info').textContent = "Error loading data";
+        },
+        
+        dataFiltered: function(filters, rows) {
+            const info = document.getElementById('table-info');
+            if (filters.length === 0) {
+                info.textContent = `Showing all ${rows.length} items`;
+            } else {
+                info.textContent = `Showing ${rows.length} items (${filters.length} filter${filters.length > 1 ? 's' : ''} applied)`;
+            }
+        },
+        
+        // Handle filter clearing
+        headerFilterClearButtonClicked: function(column) {
+            setTimeout(() => {
+                table.refreshFilter();
+            }, 10);
+        }
+    });
+
+    // Export functionality
+    document.getElementById("download-xlsx").addEventListener("click", function() {
+        table.download("xlsx", "items_export.xlsx", {sheetName: "Items Inventory"});
+    });
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+    
+    // Watch for theme changes and update table styling
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                // Theme changed, redraw table to apply new CSS variables
+                if (table) {
+                    table.redraw(true);
+                }
+            }
+        });
+    });
+    
+    // Observe changes to the html element's class attribute for dark mode
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class']
+    });
+});
+
+// Reinitialize icons when content updates
+document.addEventListener('htmx:afterSwap', function() {
+    lucide.createIcons();
+});
+</script>
+{% endblock %} 
