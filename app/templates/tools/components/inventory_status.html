@@ -1,0 +1,118 @@
+{% if status.has_data %}
+    <!-- Status with data -->
+    <div class="space-y-4">
+        <!-- Main Statistics -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-blue-50 dark:bg-blue-900 rounded-lg p-3">
+                <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                    {{ status.total_records | default(0) }}
+                </div>
+                <div class="text-sm text-blue-600 dark:text-blue-400">
+                    Inventory Records
+                </div>
+            </div>
+            <div class="bg-green-50 dark:bg-green-900 rounded-lg p-3">
+                <div class="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {{ status.location_stats | length | default(0) }}
+                </div>
+                <div class="text-sm text-green-600 dark:text-green-400">
+                    Active Locations
+                </div>
+            </div>
+        </div>
+        
+        <!-- Last Update Info -->
+        <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+            <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                <i data-lucide="clock" class="h-4 w-4 mr-2"></i>
+                <span>Last Updated:</span>
+            </div>
+            {% if status.last_update %}
+                <div class="text-sm font-medium text-gray-900 dark:text-white mt-1">
+                    <span id="last-update-time" data-timestamp="{{ status.last_update }}">
+                        {{ status.last_update }}
+                    </span>
+                </div>
+            {% else %}
+                <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Never updated
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Status Indicator -->
+        <div class="flex items-center">
+            <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+                Inventory data available
+            </span>
+        </div>
+    </div>
+    
+    <script>
+        // Format the timestamp for better display
+        document.addEventListener('DOMContentLoaded', function() {
+            const timeElement = document.getElementById('last-update-time');
+            if (timeElement) {
+                const timestamp = timeElement.getAttribute('data-timestamp');
+                if (timestamp) {
+                    try {
+                        const date = new Date(timestamp);
+                        const now = new Date();
+                        const diffMs = now - date;
+                        const diffMins = Math.floor(diffMs / 60000);
+                        const diffHours = Math.floor(diffMins / 60);
+                        const diffDays = Math.floor(diffHours / 24);
+                        
+                        let timeAgo;
+                        if (diffMins < 1) {
+                            timeAgo = 'Just now';
+                        } else if (diffMins < 60) {
+                            timeAgo = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+                        } else if (diffHours < 24) {
+                            timeAgo = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                        } else {
+                            timeAgo = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+                        }
+                        
+                        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        timeElement.innerHTML = `${formattedDate} <span class="text-gray-500">(${timeAgo})</span>`;
+                    } catch (e) {
+                        // Keep original timestamp if parsing fails
+                    }
+                }
+            }
+        });
+    </script>
+
+{% else %}
+    <!-- No data state -->
+    <div class="text-center py-8">
+        <div class="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
+            <i data-lucide="package" class="h-6 w-6 text-gray-400"></i>
+        </div>
+        <div class="text-gray-900 dark:text-white font-medium mb-2">
+            No Inventory Data
+        </div>
+        <div class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            No inventory records found in the database.
+        </div>
+        
+        <!-- Status Indicator -->
+        <div class="flex items-center justify-center">
+            <div class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+                Ready for first update
+            </span>
+        </div>
+    </div>
+{% endif %}
+
+{% if status.error %}
+    <div class="mt-4 p-3 bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg">
+        <div class="flex items-center">
+            <i data-lucide="alert-circle" class="h-4 w-4 text-red-600 dark:text-red-400 mr-2"></i>
+            <span class="text-sm text-red-600 dark:text-red-400">{{ status.error }}</span>
+        </div>
+    </div>
+{% endif %} 

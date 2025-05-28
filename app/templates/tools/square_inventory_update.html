@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}Square Inventory Update - NyTex Fireworks{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-4">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <div class="flex items-center mb-2">
+            <a href="/tools/" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mr-3">
+                <i data-lucide="arrow-left" class="h-5 w-5"></i>
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Square Inventory Update</h1>
+        </div>
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            Fetch current inventory quantities from Square API and update the database.
+        </p>
+    </div>
+
+    <!-- Status and Controls -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Current Status Card -->
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-600">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Current Status</h2>
+                    <button 
+                        onclick="refreshStatus()" 
+                        class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                        title="Refresh Status">
+                        <i data-lucide="refresh-cw" class="h-4 w-4"></i>
+                    </button>
+                </div>
+                
+                <!-- Status Container for HTMX updates -->
+                <div id="status-container" 
+                     hx-get="/tools/square-inventory-update/status/component" 
+                     hx-trigger="load, refresh from:body"
+                     hx-swap="innerHTML">
+                    {% include "tools/components/inventory_status.html" %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Update Controls Card -->
+        <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-600">
+            <div class="p-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Update Controls</h2>
+                
+                <div class="space-y-4">
+                    <!-- Update Button -->
+                    <button 
+                        id="update-btn"
+                        onclick="startInventoryUpdate()" 
+                        class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center">
+                        <i data-lucide="download" class="h-4 w-4 mr-2"></i>
+                        Update Inventory
+                    </button>
+                    
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                        <p class="mb-2"><strong>What this does:</strong></p>
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>Fetches current inventory quantities from Square API</li>
+                            <li>Updates database inventory records for all active locations</li>
+                            <li>Ensures items page shows real-time stock levels</li>
+                            <li>Replaces existing inventory data with fresh data</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location Statistics -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-600 mb-6" id="location-stats">
+        <div class="p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Inventory by Location</h2>
+            
+            {% if status.location_stats %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for location in status.location_stats %}
+                <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-medium text-gray-900 dark:text-white">{{ location.location }}</h3>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Location</span>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600 dark:text-gray-400">Items:</span>
+                            <span class="font-medium text-gray-900 dark:text-white">{{ location.item_count }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-600 dark:text-gray-400">Total Qty:</span>
+                            <span class="font-medium text-gray-900 dark:text-white">{{ location.total_quantity }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i data-lucide="package" class="h-12 w-12 text-gray-400 mx-auto mb-3"></i>
+                <p class="text-gray-500 dark:text-gray-400">No inventory data available</p>
+                <p class="text-sm text-gray-400 dark:text-gray-500">Run an inventory update to populate location statistics</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="bg-white dark:bg-gray-800 shadow-sm rounded-lg border border-gray-200 dark:border-gray-600">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Activity Log</h2>
+                <button 
+                    onclick="clearLog()" 
+                    class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                    Clear Log
+                </button>
+            </div>
+            
+            <div id="activity-log" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 h-64 overflow-y-auto font-mono text-sm">
+                <div class="text-gray-600 dark:text-gray-400">Activity log will appear here...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification Container -->
+<div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+<!-- Initialize Lucide Icons and Setup -->
+{% block scripts %}
+<script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+    
+    // Global variables
+    let updateInProgress = false;
+    
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        
+        const bgColor = {
+            'success': 'bg-green-500',
+            'error': 'bg-red-500',
+            'warning': 'bg-yellow-500',
+            'info': 'bg-blue-500'
+        }[type] || 'bg-blue-500';
+        
+        toast.className = `${bgColor} text-white px-6 py-3 rounded-lg shadow-lg flex items-center max-w-sm transform translate-x-full transition-transform duration-300`;
+        toast.innerHTML = `
+            <span class="flex-1">${message}</span>
+            <button onclick="this.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                <i data-lucide="x" class="h-4 w-4"></i>
+            </button>
+        `;
+        
+        toastContainer.appendChild(toast);
+        lucide.createIcons();
+        
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full');
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toast.remove(), 300);
+            }
+        }, 5000);
+    }
+    
+    // Add log entry function
+    function addLogEntry(message, type = 'info') {
+        const log = document.getElementById('activity-log');
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = document.createElement('div');
+        
+        const color = {
+            'success': 'text-green-600 dark:text-green-400',
+            'error': 'text-red-600 dark:text-red-400',
+            'warning': 'text-yellow-600 dark:text-yellow-400',
+            'info': 'text-blue-600 dark:text-blue-400'
+        }[type] || 'text-gray-600 dark:text-gray-400';
+        
+        entry.className = `mb-1 ${color}`;
+        entry.innerHTML = `[${timestamp}] ${message}`;
+        
+        log.appendChild(entry);
+        log.scrollTop = log.scrollHeight;
+    }
+    
+    // Clear log function
+    function clearLog() {
+        const log = document.getElementById('activity-log');
+        log.innerHTML = '<div class="text-gray-600 dark:text-gray-400">Activity log cleared...</div>';
+    }
+    
+    // Start inventory update function
+    async function startInventoryUpdate() {
+        if (updateInProgress) {
+            showToast('Update already in progress', 'warning');
+            return;
+        }
+
+        updateInProgress = true;
+        const updateBtn = document.getElementById('update-btn');
+        const originalText = updateBtn.innerHTML;
+        
+        // Update button state
+        updateBtn.innerHTML = '<i data-lucide="loader-2" class="h-4 w-4 mr-2 animate-spin"></i>Starting...';
+        updateBtn.disabled = true;
+        
+        // Reinitialize icons
+        lucide.createIcons();
+        
+        addLogEntry('Starting Square inventory update...', 'info');
+        
+        try {
+            const response = await fetch('/tools/square-inventory-update/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                addLogEntry(result.message, 'success');
+                showToast(result.message, 'success');
+                
+                // Refresh status after successful update
+                setTimeout(() => {
+                    refreshStatus();
+                }, 2000);
+            } else {
+                addLogEntry(`Update failed: ${result.error || result.message}`, 'error');
+                showToast(`Update failed: ${result.error || result.message}`, 'error');
+            }
+        } catch (error) {
+            const errorMsg = `Network error: ${error.message}`;
+            addLogEntry(errorMsg, 'error');
+            showToast(errorMsg, 'error');
+        } finally {
+            updateInProgress = false;
+            updateBtn.innerHTML = originalText;
+            updateBtn.disabled = false;
+            lucide.createIcons();
+        }
+    }
+
+    function refreshStatus() {
+        addLogEntry('Refreshing status...', 'info');
+        htmx.trigger('#status-container', 'refresh');
+    }
+
+    // Page load actions
+    document.addEventListener('DOMContentLoaded', function() {
+        addLogEntry('Square Inventory Update tool loaded', 'info');
+    });
+</script>
+{% endblock %}
+{% endblock %} 
