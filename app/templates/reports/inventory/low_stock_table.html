@@ -44,8 +44,8 @@
                             <div class="text-gray-500 dark:text-gray-400 font-mono text-xs">{{ item.sku }}</div>
                         {% elif column.key == "units_per_case" %}
                             <div class="text-gray-900 dark:text-gray-300">{{ item.units_per_case }}</div>
-                        {% elif column.key == "total_quantity" %}
-                            <div class="text-gray-900 dark:text-gray-300">{{ item.total_quantity }}</div>
+                        {% elif column.key == "total_qty" %}
+                            <div class="text-gray-900 dark:text-gray-300">{{ item.total_qty }}</div>
                         {% elif column.key == "case_percentage" %}
                             <div class="text-gray-900 dark:text-gray-300">{{ "%.1f"|format(item.case_percentage) }}%</div>
                         {% elif column.key == "price" %}
@@ -56,11 +56,11 @@
                             <!-- Location quantity columns -->
                             {% set location_name = column.key.replace("_qty", "") %}
                             {% set qty_value = item.get(column.key, 0) %}
-                            {% set low_item_stock_key = location_name + "_low_stock" %}
-                            {% set is_low_item_stock = item.get(low_item_stock_key, False) %}
+                            {% set low_stock_key = location_name + "_low_stock" %}
+                            {% set is_low_stock = item.get(low_stock_key, False) %}
                             
                             <div class="text-center">
-                                {% if is_low_item_stock %}
+                                {% if is_low_stock %}
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                                         {{ qty_value }}
                                     </span>
@@ -68,22 +68,22 @@
                                     <span class="text-gray-900 dark:text-gray-300">{{ qty_value }}</span>
                                 {% endif %}
                             </div>
-                        {% elif column.key == "locations_with_low_item_stock" %}
-                            {% set low_item_stock_locations = [] %}
+                        {% elif column.key == "locations_with_low_stock" %}
+                            {% set low_stock_locations = [] %}
                             {% for location in ['aubrey', 'bridgefarmer', 'building', 'flomo', 'justin', 'quinlan', 'terrell'] %}
-                                {% set low_item_stock_key = location + "_low_stock" %}
-                                {% if item.get(low_item_stock_key, False) %}
-                                    {% set _ = low_item_stock_locations.append(location.title()) %}
+                                {% set low_stock_key = location + "_low_stock" %}
+                                {% if item.get(low_stock_key, False) %}
+                                    {% set _ = low_stock_locations.append(location.title()) %}
                                 {% endif %}
                             {% endfor %}
                             <div class="text-gray-900 dark:text-gray-300">
-                                {% if low_item_stock_locations %}
-                                    {{ low_item_stock_locations|join(", ") }}
+                                {% if low_stock_locations %}
+                                    {{ low_stock_locations|join(", ") }}
                                 {% else %}
                                     None
                                 {% endif %}
                             </div>
-                        {% elif column.key == "is_low_item_stock_total" %}
+                        {% elif column.key == "is_low_stock_total" %}
                             {% if item.is_low_stock_total %}
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                                     Yes
@@ -91,8 +91,8 @@
                             {% else %}
                                 <span class="text-gray-500 dark:text-gray-400">No</span>
                             {% endif %}
-                        {% elif column.key == "low_item_stock_threshold" %}
-                            <div class="text-gray-900 dark:text-gray-300">{{ item.low_item_stock_threshold }}</div>
+                        {% elif column.key == "low_stock_threshold" %}
+                            <div class="text-gray-900 dark:text-gray-300">{{ item.low_stock_threshold }}</div>
                         {% else %}
                             <div class="text-gray-900 dark:text-gray-300">{{ item.get(column.key, '') }}</div>
                         {% endif %}

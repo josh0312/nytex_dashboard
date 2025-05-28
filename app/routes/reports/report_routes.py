@@ -314,17 +314,17 @@ async def low_stock_report(
         total_columns = [
             {"key": "item_name", "label": "Item Name", "sortable": True},
             {"key": "vendor_name", "label": "Vendor", "sortable": True},
-            {"key": "total_quantity", "label": "Total Qty", "sortable": True},
+            {"key": "total_qty", "label": "Total Qty", "sortable": True},
             {"key": "units_per_case", "label": "Units/Case", "sortable": True},
-            {"key": "low_item_stock_threshold", "label": "Low Item Stock Threshold", "sortable": True},
+            {"key": "low_stock_threshold", "label": "Low Item Stock Threshold", "sortable": True},
         ]
         
         location_columns = [
             {"key": "item_name", "label": "Item Name", "sortable": True},
             {"key": "vendor_name", "label": "Vendor", "sortable": True},
-            {"key": "total_quantity", "label": "Total Qty", "sortable": True},
+            {"key": "total_qty", "label": "Total Qty", "sortable": True},
             {"key": "units_per_case", "label": "Units/Case", "sortable": True},
-            {"key": "locations_with_low_item_stock", "label": "Low Item Stock Locations", "sortable": True},
+            {"key": "locations_with_low_stock", "label": "Low Item Stock Locations", "sortable": True},
         ]
         
         # Add location-specific columns for location view
@@ -332,7 +332,7 @@ async def low_stock_report(
             columns = location_columns
         else:
             columns = total_columns + [
-                {"key": "low_item_stock_threshold", "label": "Low Item Stock Threshold", "sortable": True},
+                {"key": "low_stock_threshold", "label": "Low Item Stock Threshold", "sortable": True},
             ]
         
         # Get the data
