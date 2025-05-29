@@ -1,41 +1,56 @@
-# Scripts Directory
+# NYTex Dashboard Scripts
 
-This directory contains utility scripts for database maintenance, verification, and administrative tasks.
+This directory contains operational scripts for the NYTex Dashboard system.
 
-## Scripts
+## Core Operational Scripts
 
-### `final_verification.py`
-**Purpose**: Verification script for the Missing SKU report
-- Checks the final state of Missing SKU report
-- Verifies that specific items (Big Win and Pyro Supply) are included
-- Provides detailed logging and analysis of the data
+### `daily_sync.py`
+The main Square data synchronization script. Runs daily to sync new orders, inventory, and catalog data.
 
-**Usage**:
-```bash
-python scripts/final_verification.py
-```
+### `sync_catalog_from_square.py`
+Dedicated script for syncing catalog data from Square API.
+
+### `sync_inventory_only.py`
+Inventory-specific sync script for updating stock levels.
 
 ### `update_seasons.py`
-**Purpose**: Database maintenance script for updating operating seasons
-- Updates all July 4th seasons to run from June 24th to July 4th
-- Modifies season dates and rule descriptions
-- Logs all changes made
+Updates operating seasons data for sales reporting.
 
-**Usage**:
+### `check_production_health.sh`
+Health check script for monitoring production database status.
+
+### `setup_monitoring.sh`
+Sets up monitoring and alerting for the sync system.
+
+## Additional Directories
+
+### `operational/`
+Scripts that might be used occasionally for system maintenance:
+- Production verification tools
+- Testing utilities  
+- Error handling scripts
+- Scheduler configuration
+
+### `archive/`
+Historical scripts from the Square data sync modernization project (May 2025). These accomplished their purpose and should not be run again. See `archive/README.md` for details.
+
+## Usage
+
+Most scripts are designed to be run from the project root directory:
+
 ```bash
-python scripts/update_seasons.py
+# Run daily sync
+python scripts/daily_sync.py
+
+# Check production health
+./scripts/check_production_health.sh
+
+# Sync catalog data
+python scripts/sync_catalog_from_square.py
 ```
 
-## Running Scripts
+## Notes
 
-All scripts should be run from the project root directory to ensure proper path resolution:
-
-```bash
-# From the project root
-cd /path/to/nytex_dashboard
-python scripts/script_name.py
-```
-
-## Note
-
-These scripts are designed for administrative use and should be run with caution, especially those that modify database records. Always backup your database before running maintenance scripts. 
+- All scripts use the application's logging configuration
+- Scripts assume proper environment variables are set
+- Production scripts require appropriate database credentials 
