@@ -230,10 +230,7 @@ class SquareInventoryService:
                     'updated_time': datetime.now(timezone.utc).isoformat()
                 }
             
-            # First, sync catalog data (Units Per Case)
-            catalog_updates = await self.fetch_catalog_updates_from_square(session)
-            
-            # Get all active locations
+            # Check for locations first (outside transaction to avoid transaction issues)
             locations_result = await session.execute(
                 select(Location).where(Location.status == 'ACTIVE')
             )
@@ -242,12 +239,26 @@ class SquareInventoryService:
             if not locations:
                 return {
                     'success': False,
-                    'error': 'No active locations found',
+                    'error': 'No active locations found - please sync locations first',
                     'updated_time': datetime.now(timezone.utc).isoformat(),
-                    'catalog_updates': catalog_updates
+                    'catalog_updates': {'items_updated': 0, 'variations_updated': 0, 'items_with_units': 0, 'variations_with_units': 0}
                 }
             
             logger.info(f"Found {len(locations)} active locations")
+            
+            # Remove the transaction management here since session is managed by caller
+            # First, sync catalog data (Units Per Case)
+            try:
+                catalog_updates = await self.fetch_catalog_updates_from_square(session)
+            except Exception as e:
+                logger.error(f"Error during catalog updates sync: {str(e)}")
+                catalog_updates = {
+                    'items_updated': 0,
+                    'variations_updated': 0,
+                    'items_with_units': 0,
+                    'variations_with_units': 0,
+                    'error': str(e)
+                }
             
             # Get all catalog variations to map SKUs to variation IDs
             variations_result = await session.execute(
@@ -382,8 +393,6 @@ class SquareInventoryService:
                 session.add(inventory_record)
                 total_updated += 1
             
-            await session.commit()
-            
             logger.info(f"Successfully updated {total_updated} inventory records")
             logger.info("=== Completed Square inventory and catalog sync ===")
             
@@ -397,7 +406,6 @@ class SquareInventoryService:
             
         except Exception as e:
             logger.error(f"Error during inventory sync: {str(e)}", exc_info=True)
-            await session.rollback()
             return {
                 'success': False,
                 'error': str(e),

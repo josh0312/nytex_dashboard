@@ -14,6 +14,8 @@ from app.database.models.catalog import (  # noqa: F401
     CatalogVendorInfo, CatalogLocationAvailability, CatalogInventory
 )
 from app.database.models.inventory_count import InventoryCount  # noqa: F401
+from app.database.models.vendor import Vendor  # noqa: F401
+from app.database.models.transaction import Transaction  # noqa: F401
 
 # Import other models as needed
 __all__ = [
@@ -21,5 +23,5 @@ __all__ = [
     'OrderFulfillment', 'OrderReturn', 'OrderRefund', 'Payment',
     'SquareSale', 'CatalogCategory', 'CatalogItem', 'CatalogVariation',
     'CatalogVendorInfo', 'CatalogLocationAvailability', 'CatalogInventory',
-    'InventoryCount'
+    'InventoryCount', 'Vendor', 'Transaction'
 ]

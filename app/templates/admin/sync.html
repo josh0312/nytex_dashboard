@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}Data Sync Administration{% endblock %}
+
+{% block head %}
+<style>
+    .sync-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 24px;
+        margin-bottom: 20px;
+    }
+    
+    .sync-btn {
+        background: #4F46E5;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .sync-btn:hover {
+        background: #4338CA;
+    }
+    
+    .sync-btn:disabled {
+        background: #9CA3AF;
+        cursor: not-allowed;
+    }
+    
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    
+    .status-ready { background: #10B981; }
+    .status-running { background: #F59E0B; animation: pulse 2s infinite; }
+    .status-error { background: #EF4444; }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    .log-output {
+        background: #1F2937;
+        color: #F9FAFB;
+        padding: 16px;
+        border-radius: 6px;
+        font-family: monospace;
+        font-size: 14px;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 16px;
+        white-space: pre-wrap;
+    }
+    
+    .hidden { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-center justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Data Sync Administration</h1>
+                <p class="text-gray-600 mt-2">Sync data from Square to populate your production database</p>
+            </div>
+            <a href="/" class="text-blue-600 hover:text-blue-800">← Back to Dashboard</a>
+        </div>
+
+        <!-- Configuration Check -->
+        <div class="sync-card">
+            <h2 class="text-xl font-semibold mb-4">🔧 Configuration Status</h2>
+            <div id="config-status">
+                <div class="flex items-center">
+                    <span class="status-indicator status-ready"></span>
+                    <span>Production Environment Ready</span>
+                </div>
+                <div class="flex items-center mt-2">
+                    <span class="status-indicator" id="square-status"></span>
+                    <span id="square-text">Checking Square API configuration...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Sync -->
+        <div class="sync-card">
+            <h2 class="text-xl font-semibold mb-4">📍 Location Data Sync</h2>
+            <p class="text-gray-600 mb-4">
+                Syncs store locations from Square. This must be completed before inventory sync.
+                Locations are required for inventory tracking across different stores.
+            </p>
+            <div class="flex items-center gap-4">
+                <button id="location-sync-btn" class="sync-btn" onclick="runLocationSync()">
+                    <span id="location-btn-text">Start Location Sync</span>
+                </button>
+                <div id="location-status" class="flex items-center">
+                    <span class="status-indicator status-ready"></span>
+                    <span>Ready to sync</span>
+                </div>
+            </div>
+            <div id="location-log" class="log-output hidden"></div>
+        </div>
+
+        <!-- Inventory Sync -->
+        <div class="sync-card">
+            <h2 class="text-xl font-semibold mb-4">📦 Inventory Data Sync</h2>
+            <p class="text-gray-600 mb-4">
+                Syncs inventory quantities, catalog items, and variations from Square. 
+                This is the main sync that populates your reports with current data.
+                <strong>Note:</strong> Locations must be synced first.
+            </p>
+            <div class="flex items-center gap-4">
+                <button id="inventory-sync-btn" class="sync-btn" onclick="runInventorySync()">
+                    <span id="inventory-btn-text">Start Inventory Sync</span>
+                </button>
+                <div id="inventory-status" class="flex items-center">
+                    <span class="status-indicator status-ready"></span>
+                    <span>Ready to sync</span>
+                </div>
+            </div>
+            <div id="inventory-log" class="log-output hidden"></div>
+        </div>
+
+        <!-- System Status -->
+        <div class="sync-card">
+            <h2 class="text-xl font-semibold mb-4">📊 Current Data Status</h2>
+            <div id="data-status">
+                <p class="text-gray-600">Loading current database status...</p>
+            </div>
+            <button onclick="refreshDataStatus()" class="sync-btn mt-4">Refresh Status</button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="sync-card">
+            <h2 class="text-xl font-semibold mb-4">⚡ Quick Actions</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onclick="openReportsPage()" class="sync-btn">
+                    View Low Item Stock Report
+                </button>
+                <button onclick="viewLogs()" class="sync-btn">
+                    View Production Logs
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let syncInProgress = false;
+
+// Check configuration on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkSquareConfig();
+    refreshDataStatus();
+});
+
+async function checkSquareConfig() {
+    try {
+        const response = await fetch('/inventory/sync', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        const statusEl = document.getElementById('square-status');
+        const textEl = document.getElementById('square-text');
+        
+        if (result.message && result.message.includes('Square access token not configured')) {
+            statusEl.className = 'status-indicator status-error';
+            textEl.textContent = 'Square access token not configured';
+            textEl.innerHTML += '<br><small>Contact admin to configure SQUARE_ACCESS_TOKEN</small>';
+        } else {
+            statusEl.className = 'status-indicator status-ready';
+            textEl.textContent = 'Square API configured';
+        }
+    } catch (error) {
+        const statusEl = document.getElementById('square-status');
+        const textEl = document.getElementById('square-text');
+        statusEl.className = 'status-indicator status-error';
+        textEl.textContent = 'Unable to check configuration';
+    }
+}
+
+async function runLocationSync() {
+    if (syncInProgress) return;
+    
+    syncInProgress = true;
+    const btn = document.getElementById('location-sync-btn');
+    const btnText = document.getElementById('location-btn-text');
+    const status = document.getElementById('location-status');
+    const log = document.getElementById('location-log');
+    
+    // Update UI
+    btn.disabled = true;
+    btnText.textContent = 'Syncing...';
+    status.innerHTML = '<span class="status-indicator status-running"></span><span>Sync in progress...</span>';
+    log.className = 'log-output';
+    log.textContent = 'Starting location sync...\n';
+    
+    try {
+        const response = await fetch('/locations/sync', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            log.textContent += '✅ Location sync completed successfully!\n';
+            log.textContent += `📋 ${result.message}\n`;
+            
+            if (result.data) {
+                const data = result.data;
+                log.textContent += `📍 Total locations: ${data.total_locations || 'unknown'}\n`;
+                log.textContent += `➕ Created: ${data.locations_created || 0}\n`;
+                log.textContent += `📝 Updated: ${data.locations_updated || 0}\n`;
+            }
+            
+            status.innerHTML = '<span class="status-indicator status-ready"></span><span>Sync completed</span>';
+            
+            // Refresh data status
+            setTimeout(refreshDataStatus, 2000);
+        } else {
+            log.textContent += `❌ Location sync failed: ${result.message}\n`;
+            status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync failed</span>';
+        }
+    } catch (error) {
+        log.textContent += `❌ Error: ${error.message}\n`;
+        status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync error</span>';
+    } finally {
+        syncInProgress = false;
+        btn.disabled = false;
+        btnText.textContent = 'Start Location Sync';
+    }
+}
+
+async function runInventorySync() {
+    if (syncInProgress) return;
+    
+    syncInProgress = true;
+    const btn = document.getElementById('inventory-sync-btn');
+    const btnText = document.getElementById('inventory-btn-text');
+    const status = document.getElementById('inventory-status');
+    const log = document.getElementById('inventory-log');
+    
+    // Update UI
+    btn.disabled = true;
+    btnText.textContent = 'Syncing...';
+    status.innerHTML = '<span class="status-indicator status-running"></span><span>Sync in progress...</span>';
+    log.className = 'log-output';
+    log.textContent = 'Starting inventory sync...\n';
+    
+    try {
+        const response = await fetch('/inventory/sync', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            log.textContent += '✅ Sync completed successfully!\n';
+            log.textContent += `📋 ${result.message}\n`;
+            
+            if (result.data) {
+                const data = result.data;
+                log.textContent += `📦 Inventory records: ${data.total_inventory_updated || 'unknown'}\n`;
+                
+                if (data.catalog_updates) {
+                    const catalog = data.catalog_updates;
+                    log.textContent += `📋 Catalog items updated: ${catalog.items_updated || 0}\n`;
+                    log.textContent += `🔧 Variations updated: ${catalog.variations_updated || 0}\n`;
+                }
+            }
+            
+            status.innerHTML = '<span class="status-indicator status-ready"></span><span>Sync completed</span>';
+            
+            // Refresh data status
+            setTimeout(refreshDataStatus, 2000);
+        } else {
+            log.textContent += `❌ Sync failed: ${result.message}\n`;
+            status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync failed</span>';
+        }
+    } catch (error) {
+        log.textContent += `❌ Error: ${error.message}\n`;
+        status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync error</span>';
+    } finally {
+        syncInProgress = false;
+        btn.disabled = false;
+        btnText.textContent = 'Start Inventory Sync';
+    }
+}
+
+async function refreshDataStatus() {
+    const statusEl = document.getElementById('data-status');
+    statusEl.innerHTML = '<p class="text-gray-600">Loading...</p>';
+    
+    try {
+        // Try to get data from catalog status endpoint
+        const response = await fetch('/catalog/status');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+            const data = result.data;
+            statusEl.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded">
+                        <h4 class="font-semibold text-blue-900">Total Items</h4>
+                        <p class="text-2xl font-bold text-blue-600">${data.total_items || 0}</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded">
+                        <h4 class="font-semibold text-green-900">Last Export</h4>
+                        <p class="text-green-600">${data.last_export ? new Date(data.last_export).toLocaleDateString() : 'Never'}</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded">
+                        <h4 class="font-semibold text-purple-900">Status</h4>
+                        <p class="text-purple-600">${data.has_data ? 'Data Available' : 'No Data'}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            statusEl.innerHTML = '<p class="text-yellow-600">Unable to load data status</p>';
+        }
+    } catch (error) {
+        statusEl.innerHTML = '<p class="text-red-600">Error loading status</p>';
+    }
+}
+
+function openReportsPage() {
+    window.open('/reports/inventory/low-stock', '_blank');
+}
+
+function viewLogs() {
+    alert('To view production logs, run:\ngcloud run services logs read nytex-dashboard --region us-central1');
+}
+</script>
+{% endblock %} 

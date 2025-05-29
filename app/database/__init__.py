@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from contextlib import asynccontextmanager
 from app.config import Config
 from typing import AsyncGenerator
+import logging
 
 Base = declarative_base()
 
@@ -37,22 +38,44 @@ def init_models():
     # Import catalog export model
     from app.database.models.square_catalog_export import SquareItemLibraryExport
 
-engine = create_async_engine(
-    Config.SQLALCHEMY_DATABASE_URI,
-    echo=Config.DEBUG,
-    pool_size=5,
-    max_overflow=10,
-    pool_timeout=30,
-    pool_recycle=1800
-)
+# Create engine only if database URL is available
+engine = None
+async_session = None
 
-async_session = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
+def get_engine():
+    global engine
+    if engine is None and Config.SQLALCHEMY_DATABASE_URI:
+        try:
+            engine = create_async_engine(
+                Config.SQLALCHEMY_DATABASE_URI,
+                echo=Config.DEBUG,
+                pool_size=5,
+                max_overflow=10,
+                pool_timeout=30,
+                pool_recycle=1800
+            )
+        except Exception as e:
+            logging.error(f"Failed to create database engine: {e}")
+            engine = None
+    return engine
+
+def get_async_session():
+    global async_session
+    if async_session is None:
+        engine = get_engine()
+        if engine:
+            async_session = sessionmaker(
+                engine, class_=AsyncSession, expire_on_commit=False
+            )
+    return async_session
 
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session() as session:
+    session_maker = get_async_session()
+    if session_maker is None:
+        raise RuntimeError("Database not configured")
+    
+    async with session_maker() as session:
         try:
             yield session
         finally:

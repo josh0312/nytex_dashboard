@@ -7,6 +7,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import text
 from pathlib import Path
 from app.templates_config import templates
+from app.logger import logger
 import logging
 
 router = APIRouter(prefix="/reports", tags=["reports"])

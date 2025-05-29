@@ -16,6 +16,10 @@ async def sync_inventory(request: Request, background_tasks: BackgroundTasks):
         async with get_session() as session:
             inventory_service = SquareInventoryService()
             result = await inventory_service.fetch_inventory_from_square(session)
+            
+            # Explicitly commit the transaction if the sync was successful
+            if result['success']:
+                await session.commit()
         
         if result['success']:
             inventory_updated = result.get('total_inventory_updated', 0)
