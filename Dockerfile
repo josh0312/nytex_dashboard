@@ -19,6 +19,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Ensure CSS dist directory exists and has proper permissions
+RUN mkdir -p app/static/css/dist && \
+    chmod -R 755 app/static
+
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
 USER app
