@@ -93,6 +93,31 @@
             </div>
         </div>
 
+        <!-- Complete Sync -->
+        <div class="sync-card" style="border: 2px solid #10B981; background: linear-gradient(135deg, #F0FDF4 0%, #ECFDF5 100%);">
+            <h2 class="text-xl font-semibold mb-4">🚀 Complete Production Sync</h2>
+            <p class="text-gray-700 mb-4">
+                <strong>Recommended:</strong> Run this comprehensive sync to ensure production has all necessary data.
+                This syncs locations, catalog data, and inventory in the proper order.
+                <br><br>
+                <strong>What it does:</strong>
+                <br>• Step 1: Syncs all locations from Square
+                <br>• Step 2: Syncs catalog data (categories, items, variations)
+                <br>• Step 3: Syncs current inventory quantities
+                <br>• Step 4: Ensures all data relationships are correct
+            </p>
+            <div class="flex items-center gap-4">
+                <button id="complete-sync-btn" class="sync-btn" style="background: #10B981; font-size: 16px; padding: 16px 32px;" onclick="runCompleteSync()">
+                    <span id="complete-btn-text">🚀 Start Complete Sync</span>
+                </button>
+                <div id="complete-status" class="flex items-center">
+                    <span class="status-indicator status-ready"></span>
+                    <span>Ready to sync all data</span>
+                </div>
+            </div>
+            <div id="complete-log" class="log-output hidden"></div>
+        </div>
+
         <!-- Location Sync -->
         <div class="sync-card">
             <h2 class="text-xl font-semibold mb-4">📍 Location Data Sync</h2>
@@ -294,6 +319,61 @@ async function runInventorySync() {
         syncInProgress = false;
         btn.disabled = false;
         btnText.textContent = 'Start Inventory Sync';
+    }
+}
+
+async function runCompleteSync() {
+    if (syncInProgress) return;
+    
+    syncInProgress = true;
+    const btn = document.getElementById('complete-sync-btn');
+    const btnText = document.getElementById('complete-btn-text');
+    const status = document.getElementById('complete-status');
+    const log = document.getElementById('complete-log');
+    
+    // Update UI
+    btn.disabled = true;
+    btnText.textContent = '🚀 Running Complete Sync...';
+    status.innerHTML = '<span class="status-indicator status-running"></span><span>Complete sync in progress...</span>';
+    log.className = 'log-output';
+    log.textContent = 'Starting complete production sync...\n';
+    log.textContent += 'This will sync all data in the proper order:\n';
+    log.textContent += '1. Locations\n';
+    log.textContent += '2. Catalog data (categories, items, variations)\n';
+    log.textContent += '3. Inventory quantities\n';
+    log.textContent += '4. Data validation\n\n';
+    
+    try {
+        const response = await fetch('/admin/complete-sync', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            log.textContent += '🎉 Complete sync finished successfully!\n';
+            log.textContent += `📋 ${result.message}\n`;
+            log.textContent += '\n✅ Production database now has all necessary data\n';
+            log.textContent += '✅ Reports should display actual data\n';
+            log.textContent += '✅ All data relationships are correct\n';
+            
+            status.innerHTML = '<span class="status-indicator status-ready"></span><span>Complete sync successful</span>';
+            
+            // Refresh data status
+            setTimeout(refreshDataStatus, 3000);
+        } else {
+            log.textContent += `❌ Complete sync failed: ${result.error}\n`;
+            log.textContent += '\nPlease check the error above and try again.\n';
+            log.textContent += 'You can also try running individual syncs if needed.\n';
+            status.innerHTML = '<span class="status-indicator status-error"></span><span>Complete sync failed</span>';
+        }
+    } catch (error) {
+        log.textContent += `❌ Error: ${error.message}\n`;
+        log.textContent += '\nNetwork or server error occurred.\n';
+        status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync error</span>';
+    } finally {
+        syncInProgress = false;
+        btn.disabled = false;
+        btnText.textContent = '🚀 Start Complete Sync';
     }
 }
 
