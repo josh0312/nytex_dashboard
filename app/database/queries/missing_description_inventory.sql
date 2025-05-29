@@ -64,7 +64,7 @@ missing_descriptions AS (
     )
     AND catalog_variations.is_deleted = false
     AND catalog_items.is_deleted = false
-    AND catalog_items.is_archived = false
+    AND (catalog_items.is_archived = false OR catalog_items.is_archived IS NULL)
 ),
 
 -- Aggregate inventory across all locations for each variation

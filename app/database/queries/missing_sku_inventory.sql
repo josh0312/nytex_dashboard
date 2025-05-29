@@ -47,7 +47,7 @@ missing_skus AS (
     )
     AND catalog_variations.is_deleted = false
     AND catalog_items.is_deleted = false
-    AND catalog_items.is_archived = false
+    AND (catalog_items.is_archived = false OR catalog_items.is_archived IS NULL)
 )
 
 -- Main query to get inventory levels by location
@@ -83,7 +83,7 @@ ORDER BY location_names.name, item_name, quantity DESC;  -- Added quantity DESC 
 -- 1. Items with Square-generated SKUs (exactly 7 characters)
 -- 2. Items with missing SKUs (null or empty)
 -- 3. Only non-zero inventory levels
--- 4. Only active (non-archived, non-deleted) items
+-- 4. Only active (non-archived, non-deleted) items (handles NULL is_archived values)
 -- 5. Inventory grouped by location and sorted by item name 
 -- 6. Only one entry per item name per location (highest quantity variant)
 -- 7. Vendor information when available (vendor name from vendors table) 
