@@ -10,6 +10,43 @@ A FastAPI-based dashboard for monitoring sales data across NYTEX Fireworks locat
 - Interactive charts using Chart.js
 - Responsive design with Tailwind CSS
 - **Comprehensive reporting system with real-time data**
+- **Automated daily data synchronization from Square**
+
+## Data Synchronization
+
+The dashboard maintains current data through an automated synchronization process that runs daily at 6:00 AM Central Time.
+
+### Complete Sync Process
+
+The **Complete Sync** (`/admin/complete-sync`) is a comprehensive 3-step process that ensures all data is current:
+
+1. **Step 1: Locations** - Syncs store locations from Square API
+2. **Step 2: Catalog Data** - Syncs categories, items, and variations  
+3. **Step 3: Inventory** - Syncs current stock quantities for all locations
+
+> **📖 Detailed Documentation**: See [`docs/COMPLETE_SYNC_PROCESS.md`](docs/COMPLETE_SYNC_PROCESS.md) for complete technical details including:
+> - Step-by-step process flow
+> - Database tables affected at each step
+> - Square API endpoints used
+> - Error handling and troubleshooting
+> - Performance characteristics
+> - Monitoring and alerting
+
+### Quick Sync Operations
+
+**Manual Sync**: Visit the [Admin Sync Page](https://nytex-dashboard-932676587025.us-central1.run.app/admin/sync) or run:
+```bash
+curl -X POST "https://nytex-dashboard-932676587025.us-central1.run.app/admin/complete-sync"
+```
+
+**Health Check**: Monitor sync status anytime:
+```bash
+./scripts/check_production_health.sh
+```
+
+**Automated Schedule**: 
+- **Daily**: 6:00 AM Central Time via Google Cloud Scheduler
+- **Monitoring**: Every 4 hours via automated health checks
 
 ## Reports System
 

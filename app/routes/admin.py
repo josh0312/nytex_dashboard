@@ -8,9 +8,11 @@ from app.database import get_session
 from app.config import Config
 from app.templates_config import templates
 from app.logger import logger
+from app.services.incremental_sync_service import IncrementalSyncService
 from sqlalchemy import text
 import aiohttp
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from typing import List, Dict
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -185,6 +187,349 @@ async def complete_sync(request: Request):
             "error": f"Complete sync error: {str(e)}",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }, status_code=500)
+
+@router.post("/incremental-sync")
+async def incremental_sync_api(request: Request):
+    """API endpoint for incremental sync operations"""
+    try:
+        logger.info("🔄 Starting incremental sync via API")
+        
+        sync_service = IncrementalSyncService()
+        
+        async with get_session() as session:
+            result = await sync_service.run_incremental_sync(session)
+            await session.commit()
+            
+            if result['success']:
+                logger.info(f"✅ Incremental sync completed: {result['total_changes']} changes applied")
+                return JSONResponse({
+                    "success": True,
+                    "message": f"Incremental sync completed successfully - {result['total_changes']} changes applied",
+                    "total_changes": result['total_changes'],
+                    "results": result['results'],
+                    "timestamp": result['timestamp']
+                })
+            else:
+                logger.error(f"❌ Incremental sync failed: {result['error']}")
+                return JSONResponse({
+                    "success": False,
+                    "error": result['error'],
+                    "timestamp": result['timestamp']
+                }, status_code=500)
+        
+    except Exception as e:
+        logger.error(f"❌ Error during incremental sync API: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": f"Incremental sync API error: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
+
+@router.post("/foundation-sync")
+async def foundation_sync_api(request: Request):
+    """API endpoint to establish foundation data for incremental syncing"""
+    try:
+        logger.info("🚀 Starting foundation sync via API")
+        
+        # Run the existing complete sync but with enhanced logging
+        sync_service = IncrementalSyncService()
+        
+        async with get_session() as session:
+            # First ensure sync state table exists
+            await sync_service._ensure_sync_state_table(session)
+            
+            # Run foundation sync (use the existing complete sync for now)
+            result = await complete_sync(request)
+            
+            if hasattr(result, 'status_code') and result.status_code == 200:
+                # If successful, initialize sync state tracking
+                await sync_service._update_sync_status(session, 'foundation_sync', 0)
+                await session.commit()
+                
+                logger.info("✅ Foundation sync completed successfully")
+                return JSONResponse({
+                    "success": True,
+                    "message": "Foundation sync completed - baseline data established for incremental syncing",
+                    "timestamp": datetime.now(timezone.utc).isoformat()
+                })
+            else:
+                return result
+        
+    except Exception as e:
+        logger.error(f"❌ Error during foundation sync API: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": f"Foundation sync API error: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
+
+@router.get("/sync-status")
+async def get_sync_status_api():
+    """Get detailed sync status and metrics"""
+    try:
+        logger.info("📊 Getting sync status via API")
+        
+        sync_service = IncrementalSyncService()
+        
+        async with get_session() as session:
+            status = await sync_service.get_sync_status(session)
+            
+            # Also get table counts for comparison
+            table_counts = {}
+            tables_to_check = [
+                'locations', 'catalog_categories', 'catalog_items', 
+                'catalog_variations', 'catalog_inventory', 'vendors'
+            ]
+            
+            for table in tables_to_check:
+                try:
+                    result = await session.execute(text(f'SELECT COUNT(*) FROM {table}'))
+                    count = result.scalar()
+                    table_counts[table] = count
+                except Exception as e:
+                    table_counts[table] = f"Error: {str(e)}"
+            
+            return JSONResponse({
+                "success": True,
+                "sync_status": status,
+                "table_counts": table_counts,
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting sync status: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": f"Sync status API error: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
+
+@router.post("/table-migration")
+async def migrate_missing_tables():
+    """Create missing table schemas in production"""
+    try:
+        logger.info("🔧 Starting table migration for missing schemas")
+        
+        from app.database import get_engine, Base, init_models
+        
+        # Initialize models to register all tables
+        init_models()
+        
+        # Get engine
+        engine = get_engine()
+        if not engine:
+            return JSONResponse({
+                "success": False,
+                "message": "Database engine not available"
+            }, status_code=500)
+        
+        # Create all tables (only missing ones will be created)
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        
+        logger.info("✅ Table migration completed successfully")
+        return JSONResponse({
+            "success": True,
+            "message": "Table migration completed - all missing schemas created",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error during table migration: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "message": f"Table migration error: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
+
+@router.post("/bulk-data-sync")
+async def bulk_data_sync_api(request: Request):
+    """API endpoint for bulk data synchronization from local to production"""
+    try:
+        logger.info("🚛 Starting bulk data sync from local database")
+        
+        # Tables to sync in priority order
+        sync_tables = [
+            'orders',
+            'order_line_items', 
+            'payments',
+            'tenders',
+            'operating_seasons',
+            'catalog_location_availability',
+            'catalog_vendor_info',
+            'inventory_counts',
+            'square_item_library_export'
+        ]
+        
+        total_synced = 0
+        sync_results = {}
+        
+        async with get_session() as session:
+            for table_name in sync_tables:
+                logger.info(f"🔄 Syncing table: {table_name}")
+                
+                try:
+                    # Get count first
+                    count_result = await session.execute(text(f'SELECT COUNT(*) FROM "{table_name}"'))
+                    total_count = count_result.scalar()
+                    
+                    if total_count == 0:
+                        logger.info(f"⏭️ Skipping {table_name} - no data")
+                        sync_results[table_name] = {"status": "skipped", "records": 0}
+                        continue
+                    
+                    # For large tables, use batching
+                    batch_size = 1000 if total_count > 10000 else total_count
+                    synced_count = 0
+                    
+                    for offset in range(0, total_count, batch_size):
+                        # Get batch of data
+                        data_result = await session.execute(text(f"""
+                            SELECT * FROM "{table_name}" 
+                            ORDER BY (SELECT NULL) 
+                            LIMIT {batch_size} OFFSET {offset}
+                        """))
+                        
+                        batch_data = data_result.fetchall()
+                        columns = data_result.keys()
+                        
+                        if not batch_data:
+                            break
+                        
+                        # Convert to dict format
+                        batch_records = []
+                        for row in batch_data:
+                            record = {}
+                            for i, col in enumerate(columns):
+                                value = row[i]
+                                # Handle JSON columns
+                                if isinstance(value, dict) or isinstance(value, list):
+                                    record[col] = json.dumps(value)
+                                elif value is not None:
+                                    record[col] = value
+                                else:
+                                    record[col] = None
+                            batch_records.append(record)
+                        
+                        # Apply batch using upsert
+                        batch_synced = await apply_bulk_upsert(session, table_name, batch_records, columns)
+                        synced_count += batch_synced
+                        
+                        logger.info(f"  📦 Batch {offset//batch_size + 1}: {batch_synced} records")
+                    
+                    await session.commit()
+                    sync_results[table_name] = {"status": "completed", "records": synced_count}
+                    total_synced += synced_count
+                    logger.info(f"✅ {table_name}: {synced_count:,} records synced")
+                    
+                except Exception as e:
+                    await session.rollback()
+                    error_msg = str(e)[:100]
+                    logger.error(f"❌ Error syncing {table_name}: {error_msg}")
+                    sync_results[table_name] = {"status": "error", "error": error_msg}
+        
+        logger.info(f"🎉 Bulk sync completed: {total_synced:,} total records")
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Bulk data sync completed successfully",
+            "total_records_synced": total_synced,
+            "table_results": sync_results,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error during bulk data sync: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": f"Bulk sync error: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
+
+@router.post("/import-table-data")
+async def import_table_data_api(request: Request):
+    """API endpoint to import table data from JSON export"""
+    try:
+        # Get JSON data from request
+        import_data = await request.json()
+        
+        table_name = import_data.get('table')
+        columns = import_data.get('columns', [])
+        data_records = import_data.get('data', [])
+        
+        if not table_name or not data_records:
+            return JSONResponse({
+                "success": False,
+                "error": "Invalid import data - missing table name or data"
+            }, status_code=400)
+        
+        logger.info(f"📥 Importing {len(data_records):,} records into {table_name}")
+        
+        async with get_session() as session:
+            # Process in batches for large datasets
+            batch_size = 1000
+            total_imported = 0
+            
+            for i in range(0, len(data_records), batch_size):
+                batch = data_records[i:i + batch_size]
+                batch_imported = await apply_bulk_upsert(session, table_name, batch, columns)
+                total_imported += batch_imported
+                
+                logger.info(f"  📦 Batch {i//batch_size + 1}: {batch_imported} records imported")
+            
+            await session.commit()
+            
+        logger.info(f"✅ Import completed: {total_imported:,} records imported into {table_name}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": f"Successfully imported {total_imported:,} records into {table_name}",
+            "table": table_name,
+            "records_imported": total_imported,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error importing table data: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": f"Import error: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
+
+async def apply_bulk_upsert(session: AsyncSession, table_name: str, records: List[Dict], columns: List[str]) -> int:
+    """Apply bulk upsert for any table"""
+    if not records:
+        return 0
+    
+    # Build dynamic upsert query
+    columns_list = list(columns)
+    placeholders = ', '.join([f':{col}' for col in columns_list])
+    columns_str = ', '.join([f'"{col}"' for col in columns_list])
+    
+    # Determine primary key (assume first column or 'id')
+    pk_column = 'id' if 'id' in columns_list else columns_list[0]
+    
+    # Build UPDATE SET clause (exclude primary key)
+    update_columns = [col for col in columns_list if col != pk_column]
+    update_set = ', '.join([f'"{col}" = EXCLUDED."{col}"' for col in update_columns])
+    
+    query = f"""
+        INSERT INTO "{table_name}" ({columns_str})
+        VALUES ({placeholders})
+        ON CONFLICT ("{pk_column}") DO UPDATE SET
+        {update_set}
+    """
+    
+    changes = 0
+    for record in records:
+        try:
+            await session.execute(text(query), record)
+            changes += 1
+        except Exception as e:
+            logger.warning(f"Failed to upsert record in {table_name}: {str(e)[:50]}")
+    
+    return changes
 
 async def sync_locations_direct(access_token, base_url, db_url):
     """Sync locations directly"""

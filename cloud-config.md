@@ -26,10 +26,10 @@
 ### Database Connection
 ```
 # Cloud SQL connection string format
-DATABASE_URL=postgresql+asyncpg://nytex_user:NytexSecure2024!@/nytex_dashboard?host=/cloudsql/nytex-business-systems:us-central1-f:nytex-main-db
+DATABASE_URL=postgresql+asyncpg://nytex_user:NytexSecure2024!@/nytex_dashboard?host=/cloudsql/nytex-business-systems:us-central1:nytex-main-db
 
 # Alternative format for Cloud Run
-CLOUD_SQL_CONNECTION_NAME=nytex-business-systems:us-central1-f:nytex-main-db
+CLOUD_SQL_CONNECTION_NAME=nytex-business-systems:us-central1:nytex-main-db
 DB_USER=nytex_user
 DB_PASS=NytexSecure2024!
 DB_NAME=nytex_dashboard
