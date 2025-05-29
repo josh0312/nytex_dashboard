@@ -130,22 +130,38 @@ class AuthService:
     async def authenticate_manual_user(self, email: str, password: str, db: AsyncSession) -> Optional[UserResponse]:
         """Authenticate manual user with email and password"""
         try:
+            logger.info(f"Starting manual authentication for email: {email}")
+            
             stmt = select(User).where(User.email == email, User.is_active == True)
             result = await db.execute(stmt)
             user = result.scalar_one_or_none()
             
-            if not user or user.is_o365_user or not user.verify_password(password):
+            if not user:
+                logger.warning(f"No user found for email: {email}")
                 return None
+                
+            if user.is_o365_user:
+                logger.warning(f"User {email} is an O365 user, cannot use manual login")
+                return None
+            
+            logger.info(f"User found for {email}, verifying password")
+            
+            if not user.verify_password(password):
+                logger.warning(f"Password verification failed for user: {email}")
+                return None
+            
+            logger.info(f"Password verification successful for user: {email}")
             
             # Update last login
             user.last_login = func.now()
             await db.commit()
             await db.refresh(user)
             
+            logger.info(f"Manual authentication completed successfully for user: {email}")
             return UserResponse.from_orm(user)
             
         except Exception as e:
-            logger.error(f"Error in manual authentication: {str(e)}")
+            logger.error(f"Error in manual authentication for {email}: {str(e)}")
             return None
     
     async def create_session(self, user_id: int, db: AsyncSession, user_agent: str = None) -> str:

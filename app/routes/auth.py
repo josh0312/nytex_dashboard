@@ -8,10 +8,12 @@ from ..database.schemas.auth import LoginRequest, UserCreate
 from ..middleware.auth_middleware import get_current_user
 import logging
 import os
+from sqlalchemy import text
+from passlib.context import CryptContext
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter(tags=["authentication"])
 templates = Jinja2Templates(directory="app/templates")
 auth_service = AuthService()
 
@@ -43,14 +45,19 @@ async def manual_login(
 ):
     """Handle manual user login"""
     try:
+        logger.info(f"Login attempt for email: {email}")
+        
         # Authenticate user
         user = await auth_service.authenticate_manual_user(email, password, db)
         
         if not user:
+            logger.warning(f"Authentication failed for email: {email}")
             return RedirectResponse(
                 url="/auth/login?error=Invalid credentials",
                 status_code=302
             )
+        
+        logger.info(f"Authentication successful for email: {email}")
         
         # Create session
         user_agent = request.headers.get("user-agent", "")
@@ -67,10 +74,11 @@ async def manual_login(
             samesite="lax"
         )
         
+        logger.info(f"Session created and redirecting to dashboard for user: {email}")
         return response
         
     except Exception as e:
-        logger.error(f"Error in manual login: {str(e)}")
+        logger.error(f"Error in manual login for {email}: {str(e)}")
         return RedirectResponse(
             url="/auth/login?error=Login failed",
             status_code=302

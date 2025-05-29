@@ -8,7 +8,7 @@ from app.logger import logger
 from app.templates_config import templates
 from app.middleware.auth_middleware import get_current_user
 
-router = APIRouter(prefix="/dashboard")
+router = APIRouter()
 
 async def get_cached_seasonal_sales():
     """Get cached seasonal sales data"""

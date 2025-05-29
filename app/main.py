@@ -30,7 +30,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="NyTex Dashboard")
+app = FastAPI(title="NyTex Dashboard", version="1.0.0")
 
 # Initialize models
 init_models()
@@ -43,11 +43,11 @@ app.add_middleware(TemplateMonitorMiddleware)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Include routers (auth first, then all others)
-app.include_router(auth_router)
-app.include_router(dashboard_router)
-app.include_router(metrics_router)
-app.include_router(reports_router)
-app.include_router(catalog_router)
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
+app.include_router(metrics_router, prefix="/metrics", tags=["metrics"])
+app.include_router(reports_router, prefix="/reports", tags=["reports"])
+app.include_router(catalog_router, prefix="/catalog", tags=["catalog"])
 app.include_router(tools_router, prefix="/tools")
 app.include_router(items_router, prefix="/items")
 app.include_router(inventory_router, prefix="/inventory")

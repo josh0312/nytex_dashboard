@@ -15,7 +15,17 @@
     <title>{% block title %}NyTex Fireworks{% endblock %}</title>
     
     <!-- Compiled Tailwind CSS -->
-    <link rel="stylesheet" href="/static/css/dist/styles.css">
+    <!-- <link rel="stylesheet" href="/static/css/dist/styles.css"> -->
+    <!-- Temporary CDN fallback for production -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
     
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
