@@ -27,12 +27,17 @@ Sets up monitoring and alerting for the sync system.
 ### `operational/`
 Scripts that might be used occasionally for system maintenance:
 - Production verification tools
-- Testing utilities  
 - Error handling scripts
 - Scheduler configuration
 
 ### `archive/`
 Historical scripts from the Square data sync modernization project (May 2025). These accomplished their purpose and should not be run again. See `archive/README.md` for details.
+
+### `../tests/`
+Unit tests and integration test scripts for the system:
+- Application unit tests
+- API endpoint tests
+- Sync functionality tests
 
 ## Usage
 
@@ -47,6 +52,9 @@ python scripts/daily_sync.py
 
 # Sync catalog data
 python scripts/sync_catalog_from_square.py
+
+# Run tests
+python -m pytest tests/
 ```
 
 ## Notes

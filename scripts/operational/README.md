@@ -21,17 +21,6 @@ Configures the daily sync schedule and monitoring
 ### `update_scheduler_to_incremental.sh`
 Updates Google Cloud Scheduler to use the new incremental sync
 
-## Testing & Debugging
-
-### `test_incremental_sync.py`
-Tests the incremental sync functionality
-
-### `test_square_api_endpoints.py`
-Tests Square API connectivity and endpoints
-
-### `test_square_custom_fields.py`
-Tests custom field handling in Square API
-
 ## Error Handling
 
 ### `delete_erroneous_sale.py`
@@ -58,4 +47,5 @@ python scripts/operational/delete_erroneous_sale.py
 
 - Always test scripts in development first
 - Some scripts modify production data - use with extreme caution
-- Review script output carefully before confirming destructive operations 
+- Review script output carefully before confirming destructive operations
+- For testing scripts, see the `tests/` directory 
