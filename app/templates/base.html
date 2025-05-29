@@ -238,7 +238,29 @@
 
     <!-- Initialize Lucide Icons -->
     <script>
-        lucide.createIcons();
+        // Initialize icons when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            lucide.createIcons();
+        });
+        
+        // Reinitialize icons after HTMX content swaps
+        document.addEventListener('htmx:afterSwap', function() {
+            lucide.createIcons();
+        });
+        
+        // Also reinitialize after Alpine.js runs
+        document.addEventListener('alpine:init', function() {
+            setTimeout(() => lucide.createIcons(), 100);
+        });
+        
+        // Initial call in case DOMContentLoaded already fired
+        if (document.readyState === 'loading') {
+            // Document still loading
+            document.addEventListener('DOMContentLoaded', lucide.createIcons);
+        } else {
+            // Document already loaded
+            lucide.createIcons();
+        }
     </script>
 
     {% block scripts %}{% endblock %}

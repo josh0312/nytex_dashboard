@@ -80,4 +80,15 @@ class Config:
     
     # App settings
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
-    SECRET_KEY = os.getenv("SECRET_KEY") or "dev-key-change-this-in-production" 
+    SECRET_KEY = os.getenv("SECRET_KEY") or "dev-key-change-this-in-production"
+    
+    # Authentication settings
+    AZURE_CLIENT_ID = os.getenv("AZURE_CLIENT_ID")
+    AZURE_CLIENT_SECRET = os.getenv("AZURE_CLIENT_SECRET")
+    AZURE_TENANT_ID = os.getenv("AZURE_TENANT_ID")
+    AZURE_REDIRECT_URI = os.getenv("AZURE_REDIRECT_URI", "https://your-domain.com/auth/callback")
+    
+    # Manual user settings
+    MANUAL_USER_EMAIL = os.getenv("MANUAL_USER_EMAIL")
+    MANUAL_USER_PASSWORD = os.getenv("MANUAL_USER_PASSWORD")
+    MANUAL_USER_NAME = os.getenv("MANUAL_USER_NAME", "Guest User") 

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NyTex Dashboard - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+        <!-- Logo and Title -->
+        <div class="text-center mb-8">
+            <div class="mx-auto h-12 w-12 bg-indigo-600 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-chart-line text-white text-xl"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-gray-900">NyTex Dashboard</h2>
+            <p class="text-gray-600 mt-2">Sign in to your account</p>
+        </div>
+
+        <!-- Error Message -->
+        {% if error %}
+        <div class="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                {{ error }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- O365 Login Button -->
+        {% if o365_enabled and o365_auth_url %}
+        <div class="mb-6">
+            <a href="{{ o365_auth_url }}" 
+               class="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm bg-blue-600 text-white font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                <svg class="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M12.27 2.48L2.73 7.52C2.28 7.76 2 8.24 2 8.77V15.23C2 15.76 2.28 16.24 2.73 16.48L12.27 21.52C12.7 21.75 13.3 21.75 13.73 21.52L23.27 16.48C23.72 16.24 24 15.76 24 15.23V8.77C24 8.24 23.72 7.76 23.27 7.52L13.73 2.48C13.3 2.25 12.7 2.25 12.27 2.48M12 4.94L20.5 9L12 13.06L3.5 9L12 4.94Z"/>
+                </svg>
+                Sign in with Microsoft 365
+            </a>
+        </div>
+
+        <!-- Divider -->
+        <div class="relative mb-6">
+            <div class="absolute inset-0 flex items-center">
+                <div class="w-full border-t border-gray-300"></div>
+            </div>
+            <div class="relative flex justify-center text-sm">
+                <span class="px-2 bg-white text-gray-500">Or continue with</span>
+            </div>
+        </div>
+        {% else %}
+        <!-- No O365 configured - just a note -->
+        <div class="mb-6 bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg">
+            <div class="flex items-center">
+                <i class="fas fa-info-circle mr-2"></i>
+                Manual login only (Microsoft 365 integration not configured)
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Manual Login Form -->
+        <form method="POST" action="/auth/login" class="space-y-6">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                    Email address
+                </label>
+                <input id="email" 
+                       name="email" 
+                       type="email" 
+                       autocomplete="email" 
+                       required 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="Enter your email">
+            </div>
+
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                    Password
+                </label>
+                <input id="password" 
+                       name="password" 
+                       type="password" 
+                       autocomplete="current-password" 
+                       required 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="Enter your password">
+            </div>
+
+            <div>
+                <button type="submit" 
+                        class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+                    <i class="fas fa-sign-in-alt mr-2"></i>
+                    Sign in
+                </button>
+            </div>
+        </form>
+
+        <!-- Footer -->
+        <div class="mt-8 text-center">
+            <p class="text-xs text-gray-500">
+                Protected by enterprise-grade security
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Auto-focus on email field
+        document.getElementById('email').focus();
+        
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (!email || !password) {
+                e.preventDefault();
+                alert('Please fill in all fields');
+            }
+        });
+    </script>
+</body>
+</html> 

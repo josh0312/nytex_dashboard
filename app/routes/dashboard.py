@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from app.services.square_service import SquareService
 from app.services.weather_service import WeatherService
 from app.services.current_season import get_current_season
@@ -6,8 +6,9 @@ from app.services.season_service import SeasonService
 from app.database import get_session
 from app.logger import logger
 from app.templates_config import templates
+from app.middleware.auth_middleware import get_current_user
 
-router = APIRouter()
+router = APIRouter(prefix="/dashboard")
 
 async def get_cached_seasonal_sales():
     """Get cached seasonal sales data"""
@@ -36,7 +37,7 @@ async def get_cached_seasonal_sales():
         return None, None
 
 @router.get("/")
-async def index(request: Request):
+async def index(request: Request, current_user = Depends(get_current_user)):
     """Dashboard index page"""
     try:
         logger.info("Loading dashboard index page")
@@ -57,7 +58,8 @@ async def index(request: Request):
             "current_season": current_season,
             "dates": dates,
             "amounts": amounts,
-            "transactions": transactions
+            "transactions": transactions,
+            "current_user": current_user
         })
     except Exception as e:
         logger.error(f"Error loading dashboard: {str(e)}", exc_info=True)
@@ -68,7 +70,7 @@ async def index(request: Request):
         })
 
 @router.get("/metrics")
-async def get_metrics(request: Request):
+async def get_metrics(request: Request, current_user = Depends(get_current_user)):
     """Get metrics page"""
     try:
         logger.info("Loading metrics page")
@@ -113,7 +115,8 @@ async def get_metrics(request: Request):
             "dates": dates,
             "amounts": amounts,
             "transactions": transactions,
-            "location_sales": location_sales
+            "location_sales": location_sales,
+            "current_user": current_user
         })
     except Exception as e:
         logger.error(f"Error loading metrics: {str(e)}", exc_info=True)
@@ -124,7 +127,7 @@ async def get_metrics(request: Request):
         })
 
 @router.get("/metrics/locations")
-async def get_locations(request: Request):
+async def get_locations(request: Request, current_user = Depends(get_current_user)):
     """Get location sales table"""
     try:
         square_service = SquareService()
@@ -164,7 +167,7 @@ async def get_locations(request: Request):
         })
 
 @router.get("/metrics/total_sales")
-async def get_total_sales(request: Request):
+async def get_total_sales(request: Request, current_user = Depends(get_current_user)):
     """Get total sales component"""
     try:
         logger.info("=== Starting total sales component fetch ===")
@@ -208,7 +211,7 @@ async def get_total_sales(request: Request):
         })
 
 @router.get("/metrics/total_orders")
-async def get_total_orders(request: Request):
+async def get_total_orders(request: Request, current_user = Depends(get_current_user)):
     """Get total orders component"""
     try:
         logger.info("=== Starting total orders component fetch ===")
@@ -230,4 +233,24 @@ async def get_total_orders(request: Request):
             "request": request,
             "title": "Total Orders",
             "message": "Unable to load total orders"
+        })
+
+@router.get("/metrics/annual_sales_comparison")
+async def get_annual_sales_comparison(request: Request, current_user = Depends(get_current_user)):
+    """Get annual sales comparison data for the chart"""
+    try:
+        async with get_session() as session:
+            season_service = SeasonService(session)
+            totals = await season_service.get_yearly_season_totals()
+            
+            return templates.TemplateResponse("dashboard/components/annual_sales_comparison.html", {
+                "request": request,
+                "season_totals": totals
+            })
+    except Exception as e:
+        logger.error(f"Error fetching annual sales comparison: {str(e)}", exc_info=True)
+        return templates.TemplateResponse("dashboard/components/error.html", {
+            "request": request,
+            "title": "Annual Sales Comparison",
+            "message": "Unable to load annual sales comparison"
         }) 

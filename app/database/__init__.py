@@ -9,6 +9,9 @@ Base = declarative_base()
 
 def init_models():
     """Initialize all models in the correct order to handle dependencies."""
+    # Import authentication models first
+    from app.database.models.auth import User, Session
+    
     # Import base models first (no dependencies)
     from app.database.models.operating_season import OperatingSeason
     from app.database.models.location import Location

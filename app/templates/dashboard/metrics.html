@@ -2,7 +2,7 @@
 <!-- Top row metrics -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
     <!-- Total Sales -->
-    <div hx-get="/metrics/total_sales"
+    <div hx-get="/dashboard/metrics/total_sales"
          hx-trigger="load"
          hx-swap="innerHTML">
         <!-- Loading state -->
@@ -12,7 +12,7 @@
     </div>
 
     <!-- Total Orders -->
-    <div hx-get="/metrics/total_orders"
+    <div hx-get="/dashboard/metrics/total_orders"
          hx-trigger="load"
          hx-swap="innerHTML">
         <!-- Loading state -->
@@ -32,7 +32,7 @@
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <!-- Location sales table -->
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4"
-         hx-get="/metrics/locations"
+         hx-get="/dashboard/metrics/locations"
          hx-trigger="load"
          hx-swap="innerHTML">
         <!-- Loading state -->
@@ -46,7 +46,7 @@
 
     <!-- Annual Sales Comparison -->
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4"
-         hx-get="/metrics/annual_sales_comparison"
+         hx-get="/dashboard/metrics/annual_sales_comparison"
          hx-trigger="load"
          hx-swap="innerHTML">
         <!-- Loading state -->

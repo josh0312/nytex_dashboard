@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - NyTex Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto">
+            <!-- Header -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="h-12 w-12 bg-indigo-600 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-white text-xl"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h1 class="text-2xl font-bold text-gray-900">User Profile</h1>
+                            <p class="text-gray-600">Manage your account information</p>
+                        </div>
+                    </div>
+                    <a href="/dashboard" class="text-indigo-600 hover:text-indigo-800">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <!-- User Information -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Account Information</h2>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                            <label class="text-sm font-medium text-gray-500">Full Name</label>
+                            <p class="text-lg text-gray-900">{{ user.full_name or 'Not provided' }}</p>
+                        </div>
+                        <i class="fas fa-user text-gray-400"></i>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                            <label class="text-sm font-medium text-gray-500">Email Address</label>
+                            <p class="text-lg text-gray-900">{{ user.email }}</p>
+                        </div>
+                        <i class="fas fa-envelope text-gray-400"></i>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                            <label class="text-sm font-medium text-gray-500">Username</label>
+                            <p class="text-lg text-gray-900">{{ user.username or 'Not set' }}</p>
+                        </div>
+                        <i class="fas fa-at text-gray-400"></i>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                            <label class="text-sm font-medium text-gray-500">Account Type</label>
+                            <p class="text-lg text-gray-900">
+                                {% if user.is_o365_user %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        <i class="fas fa-microsoft mr-1"></i>
+                                        Microsoft 365
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-key mr-1"></i>
+                                        Manual Account
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <i class="fas fa-shield-alt text-gray-400"></i>
+                    </div>
+
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                            <label class="text-sm font-medium text-gray-500">Account Created</label>
+                            <p class="text-lg text-gray-900">{{ user.created_at.strftime('%B %d, %Y') }}</p>
+                        </div>
+                        <i class="fas fa-calendar text-gray-400"></i>
+                    </div>
+
+                    {% if user.last_login %}
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                            <label class="text-sm font-medium text-gray-500">Last Login</label>
+                            <p class="text-lg text-gray-900">{{ user.last_login.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                        </div>
+                        <i class="fas fa-clock text-gray-400"></i>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Account Actions</h2>
+                
+                <div class="space-y-3">
+                    <form method="POST" action="/auth/logout" onsubmit="return confirm('Are you sure you want to log out?')">
+                        <button type="submit" 
+                                class="w-full flex items-center justify-center px-4 py-3 border border-transparent rounded-lg shadow-sm bg-red-600 text-white font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+                            <i class="fas fa-sign-out-alt mr-2"></i>
+                            Sign Out
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 
