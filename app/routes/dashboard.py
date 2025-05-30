@@ -10,6 +10,7 @@ from app.templates_config import templates
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import select, func
 
 router = APIRouter()
 
@@ -324,3 +325,32 @@ async def find_correct_database(request: Request):
             }
     
     return results 
+
+@router.get("/debug/test_models")
+async def test_models(request: Request):
+    """Test basic model querying in production"""
+    try:
+        db = get_db()
+        async with db() as session:
+            # Test OperatingSeason
+            from app.database.models.operating_season import OperatingSeason
+            seasons_query = await session.execute(select(func.count(OperatingSeason.id)))
+            seasons_count = seasons_query.scalar()
+            
+            # Test Order 
+            from app.database.models.order import Order
+            orders_query = await session.execute(select(func.count(Order.id)))
+            orders_count = orders_query.scalar()
+            
+            return {
+                "status": "success",
+                "operating_seasons_count": seasons_count,
+                "orders_count": orders_count,
+                "database_connected": True
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "database_connected": False
+        } 
