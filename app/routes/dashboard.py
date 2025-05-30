@@ -330,8 +330,7 @@ async def find_correct_database(request: Request):
 async def test_models(request: Request):
     """Test basic model querying in production"""
     try:
-        db = get_db()
-        async with db() as session:
+        async with get_db() as session:
             # Test OperatingSeason
             from app.database.models.operating_season import OperatingSeason
             seasons_query = await session.execute(select(func.count(OperatingSeason.id)))
