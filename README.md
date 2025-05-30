@@ -1,248 +1,265 @@
-# NYTEX Dashboard
+# 🧨 NyTex Fireworks Dashboard
 
-A FastAPI-based dashboard for monitoring sales data across NYTEX Fireworks locations.
+> **Enterprise-grade inventory management and business intelligence dashboard for NyTex Fireworks**
 
-## Features
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](./docs/DOCKER_GUIDE.md)
+[![Google Cloud](https://img.shields.io/badge/GCP-Secret_Manager-red?logo=google-cloud)](./docs/SECRETS_GUIDE.md)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Modern-green?logo=fastapi)](https://fastapi.tiangolo.com/)
 
-- Real-time sales metrics from Square API
-- Seasonal sales tracking with daily breakdowns
-- Location-specific sales monitoring
-- Interactive charts using Chart.js
-- Responsive design with Tailwind CSS
-- **Comprehensive reporting system with real-time data**
-- **Automated daily data synchronization from Square**
+## 🚀 Quick Start
 
-## Data Synchronization
-
-The dashboard maintains current data through an automated synchronization process that runs daily at 6:00 AM Central Time.
-
-### Complete Sync Process
-
-The **Complete Sync** (`/admin/complete-sync`) is a comprehensive 3-step process that ensures all data is current:
-
-1. **Step 1: Locations** - Syncs store locations from Square API
-2. **Step 2: Catalog Data** - Syncs categories, items, and variations  
-3. **Step 3: Inventory** - Syncs current stock quantities for all locations
-
-> **📖 Detailed Documentation**: See [`docs/COMPLETE_SYNC_PROCESS.md`](docs/COMPLETE_SYNC_PROCESS.md) for complete technical details including:
-> - Step-by-step process flow
-> - Database tables affected at each step
-> - Square API endpoints used
-> - Error handling and troubleshooting
-> - Performance characteristics
-> - Monitoring and alerting
-
-### Quick Sync Operations
-
-**Manual Sync**: Visit the [Admin Sync Page](https://nytex-dashboard-932676587025.us-central1.run.app/admin/sync) or run:
+### **Option 1: Docker Development (Recommended)**
 ```bash
-curl -X POST "https://nytex-dashboard-932676587025.us-central1.run.app/admin/complete-sync"
+# 1. Initialize secrets and environment
+./scripts/dev-secrets.sh init
+
+# 2. Configure your local secrets
+nano .env.local
+
+# 3. Start development environment
+docker-compose -f docker-compose.simple.yml up --build
+
+# 4. Access the dashboard
+open http://localhost:8080
 ```
 
-**Health Check**: Monitor sync status anytime:
+### **Option 2: Direct Python Development**
 ```bash
-./scripts/check_production_health.sh
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Set up environment
+cp production.env .env.local
+# Edit .env.local with your values
+
+# 3. Run the application
+python run.py
 ```
 
-**Automated Schedule**: 
-- **Daily**: 6:00 AM Central Time via Google Cloud Scheduler
-- **Monitoring**: Every 4 hours via automated health checks
+## ✨ Features
 
-## Reports System
+### 📊 **Business Intelligence**
+- **Real-time Dashboard**: Live sales metrics and inventory status
+- **Seasonal Analytics**: Track performance by fireworks seasons
+- **Customer Insights**: Comprehensive customer behavior analysis
+- **Revenue Tracking**: Detailed financial reporting and trends
 
-The dashboard includes a powerful reporting system that provides real-time insights into inventory and sales data directly from Square.
+### 📦 **Inventory Management**
+- **Square Integration**: Real-time sync with Square POS systems
+- **Automated Categorization**: Smart product classification
+- **Stock Alerts**: Low inventory notifications
+- **Seasonal Tracking**: Track products by fireworks seasons
 
-### Inventory Reports
+### 🔐 **Authentication & Security**
+- **Microsoft 365 Integration**: Enterprise SSO with O365
+- **Manual Authentication**: Fallback guest account system
+- **Google Secret Manager**: Production-grade secrets management
+- **Role-based Access**: Secure user permissions
 
-#### Missing SKU Report
-- **Purpose**: Identifies items with missing or auto-generated SKUs
-- **Columns**: Location, Item Name, Vendor, SKU, Price, Category, Quantity
-- **Features**: Real-time sorting, HTMX updates, Excel export
-- **Access**: `/reports/inventory/missing-sku`
+### 🏗️ **Architecture**
+- **FastAPI Backend**: Modern async Python web framework
+- **PostgreSQL Database**: Robust data persistence
+- **HTMX Frontend**: Dynamic UI without complex JavaScript
+- **Docker Ready**: Complete containerization for development and production
 
-#### Missing Category Report ⭐ *New*
-- **Purpose**: Identifies items with missing categories or orphaned category references
-- **Columns**: Item Name, Vendor, Price, Quantity, Category Status
-- **Features**: 
-  - Real-time sorting on all columns
-  - Color-coded status indicators:
-    - 🔴 Red: No Category Assigned
-    - 🟡 Yellow: Orphaned Category Reference
-    - 🔵 Blue: Vendor information
-    - 🟢 Green: Positive inventory quantities
-  - Inventory aggregated across all locations
-  - HTMX-powered updates for smooth user experience
-  - Excel export capability
-- **Access**: `/reports/inventory/missing-category`
-- **Query**: `app/database/queries/missing_category_inventory.sql`
-
-#### Missing Description Report ⭐ *New*
-- **Purpose**: Identifies items with missing descriptions or incomplete description data
-- **Columns**: Item Name, Vendor, Price, Quantity, Description Status
-- **Features**: 
-  - Real-time sorting on all columns
-  - Color-coded status indicators:
-    - 🔴 Red: No Description (all description fields empty)
-    - 🟡 Yellow: HTML Only (has HTML description but missing main description)
-    - 🟠 Orange: Plain Text Only (has plain text but missing main description)
-    - 🔵 Blue: Vendor information
-    - 🟢 Green: Positive inventory quantities
-  - Checks all Square description fields: `description`, `description_html`, `description_plaintext`
-  - Inventory aggregated across all locations
-  - HTMX-powered updates for smooth user experience
-  - Excel export capability
-- **Access**: `/reports/inventory/missing-description`
-- **Query**: `app/database/queries/missing_description_inventory.sql`
-- **Data Source**: Square Catalog API - checks parent `CatalogItem` objects for description fields
-
-#### Missing Vendor Info Report ⭐ *New*
-- **Purpose**: Identifies items with missing vendor information or incomplete vendor data
-- **Columns**: Item Name, Price, Quantity, Vendor, SKU, Status
-- **Features**: 
-  - Real-time sorting on all columns
-  - Color-coded status indicators:
-    - 🔴 Red: No Vendor & No SKU (critical - missing both)
-    - 🟠 Orange: No Vendor Assigned (missing vendor assignment)
-    - 🟡 Yellow: No SKU (missing SKU information)
-    - 🟣 Purple: Orphaned Vendor ID (vendor ID exists but vendor record missing)
-    - 🔵 Blue: Valid vendor information
-    - 🟢 Green: Positive inventory quantities
-  - Checks vendor assignment and SKU presence (vendor-specific SKU/cost not available in Square API)
-  - Inventory aggregated across all locations
-  - HTMX-powered updates for smooth user experience
-  - Excel export capability
-- **Access**: `/reports/inventory/missing-vendor-info`
-- **Query**: `app/database/queries/missing_vendor_info_inventory.sql`
-- **Data Source**: Square Catalog API - checks `catalog_vendor_info` and `catalog_variations` tables
-- **Note**: Square's Catalog API doesn't store vendor-specific SKUs or costs separately from main item data
-
-### Report Architecture
-
-The reporting system follows a clean, modular architecture:
+## 📁 Project Structure
 
 ```
-app/
-├── database/
-│   └── queries/                    # SQL queries for reports
-│       ├── missing_sku_inventory.sql
-│       ├── missing_category_inventory.sql
-│       ├── missing_description_inventory.sql
-│       └── missing_vendor_info_inventory.sql
-├── services/
-│   └── reports/
-│       └── query_executor.py       # Generic SQL executor service
-├── routes/
-│   └── reports/
-│       └── report_routes.py        # FastAPI route handlers
-└── templates/
-    └── reports/
-        ├── index.html             # Reports landing page
-        ├── base_report.html       # Base template for all reports
-        └── inventory/             # Inventory-specific reports
-            ├── missing_sku.html
-            ├── missing_sku_table.html
-            ├── missing_category.html
-            ├── missing_category_table.html
-            ├── missing_description.html
-            ├── missing_description_table.html
-            ├── missing_vendor_info.html
-            └── missing_vendor_info_table.html
+nytex_dashboard/
+├── app/                        # Main application
+│   ├── database/              # Database models and queries
+│   ├── routes/                # API endpoints and web routes
+│   ├── services/              # Business logic layer
+│   ├── templates/             # Jinja2 HTML templates
+│   └── static/                # CSS, JavaScript, assets
+├── scripts/                    # Automation and utilities
+│   ├── secrets_manager.py     # Google Secret Manager integration
+│   ├── dev-secrets.sh         # Development secrets helper
+│   └── operational/           # Production utilities
+├── docs/                       # Documentation
+│   ├── DOCKER_GUIDE.md       # Docker development guide
+│   ├── SECRETS_GUIDE.md      # Secrets management guide
+│   └── DEPLOYMENT.md         # Production deployment
+├── docker-compose.yml         # Full development environment
+├── docker-compose.simple.yml  # Simplified development
+└── docker-compose.prod.yml    # Production testing
 ```
 
-### Key Features
+## 🛠️ Development
 
-- **Real-time Data**: All reports query live Square data
-- **HTMX Integration**: Smooth, fast updates without page reloads
-- **Sortable Columns**: Click any column header to sort data
-- **Export Functionality**: Download reports to Excel format
-- **Responsive Design**: Works on all screen sizes
-- **Template Inheritance**: Consistent UI across all reports
-- **Modular SQL**: Queries stored in separate files for easy maintenance
+### **Environment Setup**
 
-## Recent Updates
-
-- **Added Missing Vendor Info Report**: New inventory report to identify items without vendor assignments or SKUs (100% vendor coverage found!)
-- **Added Missing Description Report**: New inventory report to identify items without proper descriptions (checks all Square description fields)
-- **Added Missing Category Report**: New inventory report to identify items without proper category assignments
-- Migrated from Flask to FastAPI for improved performance
-- Fixed seasonal sales chart to:
-  - Show all days in the season up to today (including days with zero sales)
-  - Properly handle timezone conversions for date comparisons
-  - Exclude future dates from the chart
-- Improved database model relationships and initialization
-- Added proper error handling and logging
-- Implemented comprehensive reporting system with HTMX
-
-## Setup
-
-1. Create a virtual environment:
+1. **Secrets Management**:
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   # Initialize development environment
+   ./scripts/dev-secrets.sh init
+   
+   # Sync with production secrets
+   ./scripts/dev-secrets.sh pull
+   
+   # Push local changes to production
+   ./scripts/dev-secrets.sh push
    ```
 
-2. Install dependencies:
+2. **Database Setup**:
    ```bash
-   pip install -r requirements.txt
-   npm install  # For Tailwind CSS
+   # Run migrations
+   alembic upgrade head
+   
+   # Create test data
+   python scripts/seed_data.py
    ```
 
-3. Set up environment variables in `.env`:
-   ```
-   DATABASE_URL=postgresql+asyncpg://user:password@localhost/dbname
-   SQUARE_ACCESS_TOKEN=your_square_token
-   SQUARE_ENVIRONMENT=production
-   SECRET_KEY=your_secret_key
-   ```
-
-4. Build CSS (for development):
+3. **Development Modes**:
    ```bash
-   npx tailwindcss -i ./app/static/css/src/main.css -o ./app/static/css/dist/styles.css --watch
+   # Simple local development
+   docker-compose -f docker-compose.simple.yml up
+   
+   # Full development with database
+   docker-compose up
+   
+   # Production-like testing
+   docker-compose -f docker-compose.prod.yml up
    ```
 
-5. Run the application:
-   ```bash
-   python run.py
-   ```
+### **Common Development Tasks**
 
-## Development
-
-- The application uses SQLAlchemy for async database operations
-- Templates are rendered using Jinja2 with HTMX for dynamic updates
-- Static files are served from `app/static`
-- Database models are in `app/database/models`
-- Routes are in `app/routes`
-- Services (business logic) are in `app/services`
-- SQL queries are stored in `app/database/queries`
-
-### Adding New Reports
-
-1. Create SQL query in `app/database/queries/your_report.sql`
-2. Add route handler in `app/routes/reports/report_routes.py`
-3. Create templates in `app/templates/reports/category/`
-4. Add link to `app/templates/reports/index.html`
-5. Test with QueryExecutor: `await executor.execute_query_to_df('your_report')`
-
-## Testing
-
-Run the test suite:
+**View Logs**:
 ```bash
-pytest
+docker-compose logs -f nytex-dashboard
 ```
 
-Test specific reports:
+**Access Database**:
 ```bash
-python test_missing_category.py
-python test_query_executor.py
+# Connect to local database
+psql postgresql://user:pass@localhost:5432/nytex_dashboard
+
+# Or use pgAdmin at http://localhost:8081
 ```
 
-## Contributing
+**Run Tests**:
+```bash
+# Run all tests
+python -m pytest tests/
 
-1. Create a feature branch
-2. Make your changes
-3. Run tests: `pytest`
-4. Submit a pull request
+# Run with coverage
+python -m pytest tests/ --cov=app
+```
 
-## License
+## 🚀 Deployment
 
-Proprietary - All rights reserved 
+### **Production Deployment**
+
+1. **Google Cloud Run** (Recommended):
+   ```bash
+   # Deploy with secrets integration
+   gcloud run deploy nytex-dashboard \
+     --source . \
+     --dockerfile Dockerfile.secrets \
+     --region=us-central1 \
+     --allow-unauthenticated
+   ```
+
+2. **Docker Container**:
+   ```bash
+   # Build production image
+   docker build -f Dockerfile.secrets -t nytex-dashboard .
+   
+   # Run with Secret Manager
+   docker run -p 8080:8080 \
+     -e GOOGLE_CLOUD_PROJECT=nytex-business-systems \
+     nytex-dashboard
+   ```
+
+### **Environment Configuration**
+
+| Environment | Database | Secrets | Authentication |
+|-------------|----------|---------|----------------|
+| **Development** | Local PostgreSQL | `.env.local` file | Manual + O365 |
+| **Staging** | Cloud SQL | Google Secret Manager | Manual + O365 |
+| **Production** | Cloud SQL | Google Secret Manager | O365 Only |
+
+## 🔧 Configuration
+
+### **Required Environment Variables**
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SECRET_KEY` | Application secret key | `your-secret-key-here` |
+| `SQUARE_ACCESS_TOKEN` | Square API token | `EAAAxx...` |
+| `SQUARE_ENVIRONMENT` | Square environment | `sandbox` or `production` |
+| `SQLALCHEMY_DATABASE_URI` | Database connection | `postgresql://user:pass@host/db` |
+| `AZURE_CLIENT_ID` | O365 application ID | `11471949-...` |
+| `AZURE_CLIENT_SECRET` | O365 application secret | `Yrn8Q~...` |
+| `AZURE_TENANT_ID` | O365 tenant ID | `1e478c98-...` |
+
+### **Optional Configuration**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENVIRONMENT` | Application environment | `development` |
+| `DEBUG` | Enable debug mode | `True` |
+| `PORT` | Server port | `8080` |
+| `LOG_LEVEL` | Logging level | `INFO` |
+
+## 📚 Documentation
+
+- **[Docker Development Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and workflow
+- **[Secrets Management Guide](./docs/SECRETS_GUIDE.md)** - Google Secret Manager integration
+- **[Authentication Setup](./docs/AUTHENTICATION.md)** - O365 and manual authentication
+- **[API Documentation](http://localhost:8080/docs)** - Interactive API docs (when running)
+
+## 🔒 Security
+
+- **Secrets Management**: All secrets stored in Google Secret Manager
+- **Authentication**: Microsoft 365 SSO with manual fallback
+- **HTTPS Only**: Force HTTPS in production
+- **Input Validation**: Comprehensive request validation
+- **SQL Injection Protection**: Using SQLAlchemy ORM with parameterized queries
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+python -m pytest
+
+# Run with coverage
+python -m pytest --cov=app --cov-report=html
+
+# Run integration tests
+python -m pytest tests/integration/
+
+# Test specific component
+python -m pytest tests/test_square_api.py -v
+```
+
+## 📊 Monitoring
+
+- **Application Logs**: Structured logging with context
+- **Health Checks**: Built-in health monitoring endpoints
+- **Performance Metrics**: Request timing and resource usage
+- **Error Tracking**: Comprehensive error reporting
+
+## 🤝 Contributing
+
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Set up development environment**: `./scripts/dev-secrets.sh init`
+4. **Make your changes and test thoroughly**
+5. **Commit with clear messages**: `git commit -m 'Add amazing feature'`
+6. **Push to your branch**: `git push origin feature/amazing-feature`
+7. **Open a Pull Request**
+
+## 📄 License
+
+This project is proprietary software for NyTex Fireworks. All rights reserved.
+
+## 🆘 Support
+
+- **Documentation**: Check the `docs/` directory
+- **Issues**: Contact the development team
+- **Emergency**: See `docs/SUPPORT.md` for escalation procedures
+
+---
+
+**Built with ❤️ for NyTex Fireworks** 

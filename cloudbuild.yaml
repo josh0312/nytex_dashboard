@@ -1,11 +1,11 @@
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/nytex-dashboard:$COMMIT_SHA', '.']
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/nytex-dashboard:latest', '.']
   
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/nytex-dashboard:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/nytex-dashboard:latest']
   
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -15,7 +15,7 @@ steps:
       - 'deploy'
       - 'nytex-dashboard'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/nytex-dashboard:$COMMIT_SHA'
+      - 'gcr.io/$PROJECT_ID/nytex-dashboard:latest'
       - '--region'
       - 'us-central1'
       - '--platform'
@@ -31,6 +31,32 @@ steps:
       - 'DB_USER=nytex_user'
       - '--set-env-vars'
       - 'DB_NAME=nytex_dashboard'
+      - '--set-env-vars'
+      - 'SQUARE_ENVIRONMENT=production'
+      - '--set-env-vars'
+      - 'DEBUG=false'
+      - '--set-env-vars'
+      - 'SQLALCHEMY_ECHO=false'
+      - '--set-env-vars'
+      - 'ENVIRONMENT=production'
+      - '--set-env-vars'
+      - 'SECRET_KEY=NwdCDlUofwGFus3gco9wYncf0JiwxBRD_Z0v6eEaSjk'
+      - '--set-env-vars'
+      - 'MANUAL_USER_EMAIL=guest@nytexfireworks.com'
+      - '--set-env-vars'
+      - 'MANUAL_USER_PASSWORD=NytexD@shboard2025!'
+      - '--set-env-vars'
+      - 'MANUAL_USER_NAME=Guest User'
+      - '--set-env-vars'
+      - 'AZURE_REDIRECT_URI=https://nytex-dashboard-932676587025.us-central1.run.app/auth/callback'
+      - '--set-secrets'
+      - 'SQUARE_ACCESS_TOKEN=square-access-token:latest'
+      - '--set-secrets'
+      - 'AZURE_CLIENT_ID=azure-client-id:latest'
+      - '--set-secrets'
+      - 'AZURE_CLIENT_SECRET=azure-client-secret:latest'
+      - '--set-secrets'
+      - 'AZURE_TENANT_ID=azure-tenant-id:latest'
       - '--memory'
       - '1Gi'
       - '--cpu'
@@ -41,4 +67,4 @@ steps:
       - '0'
 
 images:
-  - 'gcr.io/$PROJECT_ID/nytex-dashboard:$COMMIT_SHA' 
+  - 'gcr.io/$PROJECT_ID/nytex-dashboard:latest' 

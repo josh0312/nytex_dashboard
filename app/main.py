@@ -8,7 +8,7 @@ from .routes.reports import reports_router
 from .routes.catalog import router as catalog_router
 from .routes.auth import router as auth_router
 from .middleware.template_monitor import TemplateMonitorMiddleware
-from .middleware.auth_middleware import AuthMiddleware
+# from .middleware.auth_middleware import AuthMiddleware  # DISABLED: Authentication removed for public access
 from .services.monitor_service import monitor
 from .database import init_models
 import logging
@@ -35,8 +35,8 @@ app = FastAPI(title="NyTex Dashboard", version="1.0.0")
 # Initialize models
 init_models()
 
-# Add authentication middleware first
-app.add_middleware(AuthMiddleware)
+# AUTHENTICATION DISABLED: Commented out AuthMiddleware for public access
+# app.add_middleware(AuthMiddleware)
 app.add_middleware(TemplateMonitorMiddleware)
 
 # Mount static files

@@ -5,12 +5,14 @@ from sqlalchemy import select, update
 from sqlalchemy.sql import func
 import msal
 import httpx
+import requests
 from jose import JWTError, jwt
 from ..database.models.auth import User, Session
 from ..database.schemas.auth import UserCreate, UserResponse
 from ..config import Config
 import secrets
 import logging
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ class AuthService:
             self.o365_client_id,
             authority=f"https://login.microsoftonline.com/{self.o365_tenant_id}",
             client_credential=self.o365_client_secret,
+            validate_authority=False  # Disable strict authority validation
         )
     
     def get_o365_auth_url(self, state: str = None) -> Optional[str]:
@@ -52,7 +55,7 @@ class AuthService:
         try:
             app = self.get_msal_app()
             auth_url = app.get_authorization_request_url(
-                scopes=["User.Read"],
+                scopes=["User.Read"],  # Use simple scope format for MSAL
                 redirect_uri=self.redirect_uri,
                 state=state or secrets.token_urlsafe(16)
             )
@@ -64,32 +67,98 @@ class AuthService:
     async def authenticate_o365_callback(self, code: str, db: AsyncSession) -> Optional[UserResponse]:
         """Handle O365 callback and authenticate user"""
         try:
-            app = self.get_msal_app()
-            result = app.acquire_token_by_authorization_code(
-                code,
-                scopes=["User.Read"],
-                redirect_uri=self.redirect_uri
+            logger.info(f"Starting O365 callback with code length: {len(code)}")
+            logger.info(f"Code starts with: {code[:50]}..." if len(code) > 50 else f"Full code: {code}")
+            
+            # Use v2.0 endpoint explicitly to match requestedAccessTokenVersion: 2
+            token_url = f"https://login.microsoftonline.com/{self.o365_tenant_id}/oauth2/v2.0/token"
+            
+            # Token exchange parameters - scope should not be included in token exchange
+            token_data = {
+                'client_id': self.o365_client_id,
+                'client_secret': self.o365_client_secret,
+                'code': code,
+                'redirect_uri': self.redirect_uri,
+                'grant_type': 'authorization_code'
+                # Note: scope is NOT included in token exchange - it was specified in auth request
+            }
+            
+            logger.info(f"Token exchange URL: {token_url}")
+            logger.info(f"Redirect URI: {self.redirect_uri}")
+            logger.info(f"Client ID: {self.o365_client_id}")
+            
+            # Use requests with proper form encoding
+            response = requests.post(
+                token_url,
+                data=token_data,
+                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                timeout=30
             )
             
-            if "error" in result:
-                logger.error(f"O365 authentication error: {result.get('error_description')}")
+            logger.info(f"Token exchange response status: {response.status_code}")
+            logger.info(f"Response headers: {dict(response.headers)}")
+            
+            if response.status_code != 200:
+                logger.error(f"Token exchange failed: {response.status_code}")
+                logger.error(f"Response text (first 500 chars): {response.text[:500]}")
+                
+                # If original code failed, try with URL decoded code
+                if response.status_code == 400:
+                    logger.info("Trying with URL decoded authorization code...")
+                    try:
+                        decoded_code = urllib.parse.unquote(code)
+                        if decoded_code != code:
+                            token_data['code'] = decoded_code
+                            response = requests.post(
+                                token_url,
+                                data=token_data,
+                                headers={'Content-Type': 'application/x-www-form-urlencoded'},
+                                timeout=30
+                            )
+                            logger.info(f"Retry response status: {response.status_code}")
+                            if response.status_code != 200:
+                                logger.error(f"Retry also failed: {response.text[:500]}")
+                                return None
+                        else:
+                            logger.info("Code was not URL encoded, no retry needed")
+                            return None
+                    except Exception as retry_error:
+                        logger.error(f"Retry attempt failed: {retry_error}")
+                        return None
+                else:
+                    return None
+            
+            # Try to parse JSON response
+            try:
+                token_result = response.json()
+            except Exception as json_error:
+                logger.error(f"Failed to parse JSON response: {json_error}")
+                logger.error(f"Raw response: {response.text}")
                 return None
             
-            access_token = result.get("access_token")
+            if 'error' in token_result:
+                logger.error(f"O365 token error: {token_result.get('error_description', token_result.get('error'))}")
+                logger.error(f"Full token error response: {token_result}")
+                return None
+            
+            access_token = token_result.get('access_token')
             if not access_token:
                 logger.error("No access token received from O365")
+                logger.error(f"Full token response: {token_result}")
                 return None
             
+            logger.info("Successfully acquired access token from O365 via v2.0 endpoint")
+            
             # Get user info from Microsoft Graph
-            async with httpx.AsyncClient() as client:
-                headers = {"Authorization": f"Bearer {access_token}"}
-                response = await client.get("https://graph.microsoft.com/v1.0/me", headers=headers)
-                
-                if response.status_code != 200:
-                    logger.error(f"Failed to get user info from Microsoft Graph: {response.status_code}")
-                    return None
-                
-                user_info = response.json()
+            headers = {"Authorization": f"Bearer {access_token}"}
+            graph_response = requests.get("https://graph.microsoft.com/v1.0/me", headers=headers, timeout=30)
+            
+            if graph_response.status_code != 200:
+                logger.error(f"Failed to get user info from Microsoft Graph: {graph_response.status_code} - {graph_response.text}")
+                return None
+            
+            user_info = graph_response.json()
+            logger.info(f"Successfully retrieved user info from Microsoft Graph")
             
             # Find or create user
             email = user_info.get("mail") or user_info.get("userPrincipalName")
@@ -99,6 +168,8 @@ class AuthService:
             if not email or not o365_user_id:
                 logger.error("Missing required user information from O365")
                 return None
+            
+            logger.info(f"Processing O365 user: {email}")
             
             # Check if user exists
             stmt = select(User).where(User.email == email)
@@ -112,11 +183,13 @@ class AuthService:
                     user.o365_user_id = o365_user_id
                 user.full_name = full_name or user.full_name
                 user.last_login = func.now()
+                logger.info(f"Updated existing user: {email}")
             else:
                 # Create new O365 user
                 user = User.create_o365_user(email, o365_user_id, full_name)
                 user.last_login = func.now()
                 db.add(user)
+                logger.info(f"Created new O365 user: {email}")
             
             await db.commit()
             await db.refresh(user)
@@ -125,6 +198,8 @@ class AuthService:
             
         except Exception as e:
             logger.error(f"Error in O365 authentication: {str(e)}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return None
     
     async def authenticate_manual_user(self, email: str, password: str, db: AsyncSession) -> Optional[UserResponse]:

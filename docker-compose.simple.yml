@@ -1,0 +1,62 @@
+# Simple Local Development Docker Compose
+# Just the main application without optional services
+version: '3.8'
+
+services:
+  nytex-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONPATH=/app
+      - PORT=8080
+      - ENVIRONMENT=development
+      - DEBUG=True
+      
+      # Load secrets from .env.local file
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-not-for-production}
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT:-sandbox}
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      
+      # Manual user account
+      - MANUAL_USER_EMAIL=${MANUAL_USER_EMAIL:-guest@nytexfireworks.com}
+      - MANUAL_USER_PASSWORD=${MANUAL_USER_PASSWORD:-NytexD@shboard2025!}
+      - MANUAL_USER_NAME=${MANUAL_USER_NAME:-Guest User}
+      
+      # O365 Integration
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI:-http://localhost:8080/auth/callback}
+      
+      # Database - use external database
+      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
+      
+      # Development settings
+      - RELOAD_TEMPLATES=True
+      - LOG_LEVEL=DEBUG
+      
+    volumes:
+      # Mount source code for development (hot reload)
+      - ./app:/app/app
+      - ./static:/app/static
+      - ./templates:/app/templates
+      - ./logs:/app/logs
+      - ./scripts:/app/scripts
+    env_file:
+      - .env.local
+    restart: unless-stopped
+    command: uvicorn run:app --host 0.0.0.0 --port 8080 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: nytex-dashboard-network 

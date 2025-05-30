@@ -1,0 +1,97 @@
+# Local Development Docker Compose
+# This mimics the production environment exactly with local secrets
+version: '3.8'
+
+services:
+  nytex-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Use regular Dockerfile for development
+    ports:
+      - "8080:8080"  # Same port as production
+    environment:
+      # Core application settings (same as production)
+      - PYTHONPATH=/app
+      - PORT=8080
+      - ENVIRONMENT=development
+      - DEBUG=True
+      
+      # Load secrets from .env.local file for development
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-not-for-production}
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT:-sandbox}
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      
+      # Manual user account
+      - MANUAL_USER_EMAIL=${MANUAL_USER_EMAIL:-guest@nytexfireworks.com}
+      - MANUAL_USER_PASSWORD=${MANUAL_USER_PASSWORD:-NytexD@shboard2025!}
+      - MANUAL_USER_NAME=${MANUAL_USER_NAME:-Guest User}
+      
+      # O365 Integration
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI:-http://localhost:8080/auth/callback}
+      
+      # Database - using local Cloud SQL proxy or local PostgreSQL
+      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
+      
+      # Enable hot reload for development
+      - RELOAD_TEMPLATES=True
+      - LOG_LEVEL=DEBUG
+      
+    volumes:
+      # Mount source code for development (hot reload)
+      - ./app:/app/app
+      - ./static:/app/static
+      - ./templates:/app/templates
+      # Mount logs for debugging
+      - ./logs:/app/logs
+      # Mount scripts for development
+      - ./scripts:/app/scripts
+    env_file:
+      - .env.local
+    restart: unless-stopped
+    command: uvicorn run:app --host 0.0.0.0 --port 8080 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Cloud SQL Proxy for local development
+  cloud-sql-proxy:
+    image: gcr.io/cloudsql-docker/gce-proxy:1.33.2
+    command: /cloud_sql_proxy -instances=${CLOUD_SQL_CONNECTION_NAME}=tcp:0.0.0.0:5432
+    ports:
+      - "5432:5432"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/config/credentials.json
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/config/credentials.json:ro
+    restart: unless-stopped
+    profiles:
+      - cloud-sql  # Optional service, enable with --profile cloud-sql
+
+  # Optional: Local PostgreSQL for complete local development
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: nytex_dashboard
+      POSTGRES_USER: nytex_user
+      POSTGRES_PASSWORD: nytex_password
+    ports:
+      - "5433:5432"  # Use different port to avoid conflict with Cloud SQL proxy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    profiles:
+      - local-db  # Optional service, enable with --profile local-db
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: nytex-dashboard-network 

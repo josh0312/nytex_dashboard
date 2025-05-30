@@ -1,0 +1,81 @@
+# Production-like Docker Compose for Local Testing
+# This EXACTLY replicates the production Cloud Run environment with Secret Manager
+version: '3.8'
+
+services:
+  nytex-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.secrets  # Use secrets-enabled Dockerfile
+    ports:
+      - "8080:8080"  # Exact same port as Cloud Run
+    environment:
+      # EXACT same environment as production Cloud Run
+      - PYTHONPATH=/app
+      - PORT=8080
+      - ENVIRONMENT=production
+      - DEBUG=False
+      
+      # Google Cloud project for Secret Manager
+      - GOOGLE_CLOUD_PROJECT=nytex-business-systems
+      
+      # Service account authentication (if needed)
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
+      
+      # Production environment variables (loaded from .env.prod)
+      - SECRET_KEY=${SECRET_KEY}
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT}
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      
+      # Manual user account (production values)
+      - MANUAL_USER_EMAIL=${MANUAL_USER_EMAIL}
+      - MANUAL_USER_PASSWORD=${MANUAL_USER_PASSWORD}
+      - MANUAL_USER_NAME=${MANUAL_USER_NAME}
+      
+      # O365 Integration (production values)
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI}
+      
+      # Database (production Cloud SQL)
+      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
+      
+    # Mount service account key for Secret Manager access
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS}:/app/service-account.json:ro
+    
+    # NO volume mounts - exact same as production (no hot reload)
+    env_file:
+      - .env.prod
+    restart: unless-stopped
+    
+    # Same resource constraints as Cloud Run (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    
+    # Same healthcheck as production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Longer start period to allow secret loading
+      
+    # Production-like security (non-root user, read-only filesystem)
+    user: "1000:1000"  # app user from Dockerfile
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/logs
+
+networks:
+  default:
+    name: nytex-dashboard-prod-network 

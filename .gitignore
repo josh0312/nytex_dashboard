@@ -29,3 +29,15 @@ app/static/css/src/
 
 # Generated exports
 app/static/exports/
+
+# Backup files
+*.backup
+*.backup.*
+*~
+
+# Temporary test files
+test_*.py
+!tests/test_*.py
+
+# Docker logs
+docker-compose.override.yml

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request
 from app.services.square_service import SquareService
 from app.services.weather_service import WeatherService
 from app.services.current_season import get_current_season
@@ -6,7 +6,6 @@ from app.services.season_service import SeasonService
 from app.database import get_session
 from app.logger import logger
 from app.templates_config import templates
-from app.middleware.auth_middleware import get_current_user
 
 router = APIRouter()
 
@@ -37,7 +36,7 @@ async def get_cached_seasonal_sales():
         return None, None
 
 @router.get("/")
-async def index(request: Request, current_user = Depends(get_current_user)):
+async def index(request: Request):
     """Dashboard index page"""
     try:
         logger.info("Loading dashboard index page")
@@ -58,8 +57,7 @@ async def index(request: Request, current_user = Depends(get_current_user)):
             "current_season": current_season,
             "dates": dates,
             "amounts": amounts,
-            "transactions": transactions,
-            "current_user": current_user
+            "transactions": transactions
         })
     except Exception as e:
         logger.error(f"Error loading dashboard: {str(e)}", exc_info=True)
@@ -70,7 +68,7 @@ async def index(request: Request, current_user = Depends(get_current_user)):
         })
 
 @router.get("/metrics")
-async def get_metrics(request: Request, current_user = Depends(get_current_user)):
+async def get_metrics(request: Request):
     """Get metrics page"""
     try:
         logger.info("Loading metrics page")
@@ -115,8 +113,7 @@ async def get_metrics(request: Request, current_user = Depends(get_current_user)
             "dates": dates,
             "amounts": amounts,
             "transactions": transactions,
-            "location_sales": location_sales,
-            "current_user": current_user
+            "location_sales": location_sales
         })
     except Exception as e:
         logger.error(f"Error loading metrics: {str(e)}", exc_info=True)
@@ -127,7 +124,7 @@ async def get_metrics(request: Request, current_user = Depends(get_current_user)
         })
 
 @router.get("/metrics/locations")
-async def get_locations(request: Request, current_user = Depends(get_current_user)):
+async def get_locations(request: Request):
     """Get location sales table"""
     try:
         square_service = SquareService()
@@ -167,7 +164,7 @@ async def get_locations(request: Request, current_user = Depends(get_current_use
         })
 
 @router.get("/metrics/total_sales")
-async def get_total_sales(request: Request, current_user = Depends(get_current_user)):
+async def get_total_sales(request: Request):
     """Get total sales component"""
     try:
         logger.info("=== Starting total sales component fetch ===")
@@ -211,7 +208,7 @@ async def get_total_sales(request: Request, current_user = Depends(get_current_u
         })
 
 @router.get("/metrics/total_orders")
-async def get_total_orders(request: Request, current_user = Depends(get_current_user)):
+async def get_total_orders(request: Request):
     """Get total orders component"""
     try:
         logger.info("=== Starting total orders component fetch ===")
@@ -236,7 +233,7 @@ async def get_total_orders(request: Request, current_user = Depends(get_current_
         })
 
 @router.get("/metrics/annual_sales_comparison")
-async def get_annual_sales_comparison(request: Request, current_user = Depends(get_current_user)):
+async def get_annual_sales_comparison(request: Request):
     """Get annual sales comparison data for the chart"""
     try:
         async with get_session() as session:

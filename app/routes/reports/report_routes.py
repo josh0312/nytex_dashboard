@@ -10,7 +10,7 @@ from app.templates_config import templates
 from app.logger import logger
 import logging
 
-router = APIRouter(prefix="/reports", tags=["reports"])
+router = APIRouter(tags=["reports"])
 
 @router.get("/", response_class=HTMLResponse)
 async def reports_index(request: Request):
