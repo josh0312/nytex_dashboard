@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import HTMLResponse
 from app.services.square_service import SquareService
 from app.services.weather_service import WeatherService
 from app.services.current_season import get_current_season
 from app.services.season_service import SeasonService
-from app.database import get_session
+from app.database.connection import get_session
 from app.logger import logger
 from app.templates_config import templates
 from sqlalchemy import text
@@ -263,36 +264,4 @@ async def get_annual_sales_comparison(request: Request):
             "request": request,
             "title": "Annual Sales Comparison",
             "message": "Unable to load annual sales comparison"
-        })
-
-@router.get("/debug/tables")
-async def debug_tables(request: Request):
-    """Debug endpoint to check what tables exist in the database"""
-    try:
-        async with get_session() as session:
-            # Check if operating_seasons table exists
-            result = await session.execute(text("""
-                SELECT table_name 
-                FROM information_schema.tables 
-                WHERE table_schema = 'public' 
-                ORDER BY table_name;
-            """))
-            tables = [row[0] for row in result.fetchall()]
-            
-            # Check if operating_seasons table has data
-            operating_seasons_count = 0
-            if 'operating_seasons' in tables:
-                result = await session.execute(text("SELECT COUNT(*) FROM operating_seasons"))
-                operating_seasons_count = result.scalar()
-            
-            return {
-                "tables": tables,
-                "operating_seasons_count": operating_seasons_count,
-                "database_info": "Connected successfully"
-            }
-    except Exception as e:
-        return {
-            "error": str(e),
-            "tables": [],
-            "operating_seasons_count": 0
-        } 
+        }) 
