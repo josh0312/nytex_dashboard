@@ -423,4 +423,15 @@ async def test_models(request: Request):
             "status": "error",
             "error": str(e),
             "database_connected": False
-        } 
+        }
+
+@router.get("/debug/simple_count")
+async def simple_count(request: Request):
+    """Super simple test - just count operating seasons"""
+    try:
+        async with get_db() as session:
+            result = await session.execute(text("SELECT COUNT(*) FROM operating_seasons"))
+            count = result.scalar()
+            return {"status": "success", "operating_seasons_count": count}
+    except Exception as e:
+        return {"status": "error", "error": str(e)} 
