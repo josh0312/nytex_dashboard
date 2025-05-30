@@ -61,7 +61,7 @@ async def index(request: Request):
         })
     except Exception as e:
         logger.error(f"Error loading dashboard: {str(e)}", exc_info=True)
-        return templates.TemplateResponse("dashboard/error.html", {
+        return templates.TemplateResponse("dashboard/components/error.html", {
             "request": request,
             "title": "Dashboard",
             "message": "Unable to load dashboard"
@@ -117,7 +117,7 @@ async def get_metrics(request: Request):
         })
     except Exception as e:
         logger.error(f"Error loading metrics: {str(e)}", exc_info=True)
-        return templates.TemplateResponse("dashboard/error.html", {
+        return templates.TemplateResponse("dashboard/components/error.html", {
             "request": request,
             "title": "Metrics",
             "message": "Unable to load metrics"

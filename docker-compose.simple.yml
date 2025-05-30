@@ -10,32 +10,11 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Core application settings
       - PYTHONPATH=/app
       - PORT=8080
       - ENVIRONMENT=development
       - DEBUG=True
-      
-      # Load secrets from .env.local file
-      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-not-for-production}
-      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
-      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT:-sandbox}
-      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
-      
-      # Manual user account
-      - MANUAL_USER_EMAIL=${MANUAL_USER_EMAIL:-guest@nytexfireworks.com}
-      - MANUAL_USER_PASSWORD=${MANUAL_USER_PASSWORD:-NytexD@shboard2025!}
-      - MANUAL_USER_NAME=${MANUAL_USER_NAME:-Guest User}
-      
-      # O365 Integration
-      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
-      - AZURE_CLIENT_SECRET=${AZURE_CLIENT_SECRET}
-      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
-      - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI:-http://localhost:8080/auth/callback}
-      
-      # Database - use external database
-      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
-      
-      # Development settings
       - RELOAD_TEMPLATES=True
       - LOG_LEVEL=DEBUG
       

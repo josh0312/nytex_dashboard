@@ -7,8 +7,8 @@ load_dotenv()
 
 def get_database_url():
     """Get database URL based on available environment variables"""
-    # Check if we have a full DATABASE_URL first
-    db_url = os.environ.get('DATABASE_URL')
+    # Check if we have a full DATABASE_URL or SQLALCHEMY_DATABASE_URI first
+    db_url = os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL')
     if db_url:
         if not db_url.startswith('postgresql+asyncpg://'):
             db_url = db_url.replace('postgresql://', 'postgresql+asyncpg://')
@@ -47,6 +47,14 @@ class Config:
     @classmethod
     def get_sync_db_url(cls):
         """Get synchronous database URL for migrations"""
+        # Check if we have a full DATABASE_URL or SQLALCHEMY_DATABASE_URI first
+        db_url = os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL')
+        if db_url:
+            # Convert asyncpg to psycopg2 for sync operations
+            if 'postgresql+asyncpg://' in db_url:
+                return db_url.replace('postgresql+asyncpg://', 'postgresql://')
+            return db_url
+        
         # For Cloud Run
         db_user = os.environ.get('DB_USER')
         db_pass = os.environ.get('DB_PASS')
@@ -58,13 +66,17 @@ class Config:
         
         # For traditional setup
         db_user = os.getenv("POSTGRES_USER")
-        db_password = os.getenv("POSTGRES_PASSWORD")
+        db_password = os.getenv("POSTGRES_PASSWORD", "")
         db_host = os.getenv("POSTGRES_HOST")
         db_port = os.getenv("POSTGRES_PORT")
         db_name = os.getenv("POSTGRES_DB")
         
-        if all([db_user, db_password, db_host, db_port, db_name]):
-            return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        if all([db_user, db_host, db_port, db_name]):
+            # Handle password-less connections (like for joshgoble user)
+            if db_password:
+                return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+            else:
+                return f"postgresql://{db_user}@{db_host}:{db_port}/{db_name}"
         
         return "postgresql://postgres:password@localhost:5432/nytex_dashboard"
     
