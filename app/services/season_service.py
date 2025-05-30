@@ -150,8 +150,11 @@ class SeasonService:
     async def get_yearly_season_totals(self):
         """Get order totals for each season grouped by year, from 2020 to current year."""
         try:
+            logger.info("Starting get_yearly_season_totals method")
             async with self._get_session_context() as session:
+                logger.info("Session context manager entered successfully")
                 current_year = datetime.now().year
+                logger.info(f"Current year: {current_year}")
                 
                 # Extract amount from total_money JSON
                 amount_expr = cast(
@@ -161,12 +164,14 @@ class SeasonService:
                     ),
                     Integer
                 )
+                logger.info("Amount expression created")
                 
                 # Convert timestamps to Central timezone for comparison
                 order_date_expr = cast(
                     text("(orders.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago')"),
                     Date
                 )
+                logger.info("Order date expression created")
                 
                 # Query to get seasons and their order totals
                 stmt = (
@@ -204,13 +209,17 @@ class SeasonService:
                         OperatingSeason.start_date
                     )
                 )
+                logger.info("SQL statement constructed")
 
                 # Log the SQL query with actual values
                 compiled_query = stmt.compile(compile_kwargs={"literal_binds": True})
                 logger.info(f"Generated SQL Query:\n{str(compiled_query)}")
 
+                logger.info("About to execute SQL query")
                 result = await session.execute(stmt)
+                logger.info("SQL query executed successfully")
                 seasons = result.all()
+                logger.info(f"Raw query returned {len(seasons)} rows")
                 
                 # Log raw results before processing
                 logger.info("Raw results from database:")
@@ -224,6 +233,7 @@ class SeasonService:
                 
                 # Group results by year
                 years_dict = {}
+                logger.info("Starting to group results by year")
                 for season in seasons:
                     year = int(season.year)
                     if year not in years_dict:
@@ -237,14 +247,19 @@ class SeasonService:
                         'total_amount': float(season.total_amount) / 100  # Convert cents to dollars
                     })
                 
+                logger.info(f"Grouped into {len(years_dict)} years")
+                
                 # Convert to list and sort by year descending
-                return [
+                result_list = [
                     {
                         'year': year,
                         'seasons': seasons_list
                     }
                     for year, seasons_list in sorted(years_dict.items(), reverse=True)
                 ]
+                
+                logger.info(f"Final result list contains {len(result_list)} years")
+                return result_list
 
         except Exception as e:
             logger.error(f"Error fetching yearly season totals: {str(e)}", exc_info=True)
