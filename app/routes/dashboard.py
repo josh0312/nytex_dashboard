@@ -8,6 +8,8 @@ from app.database.connection import get_session
 from app.logger import logger
 from app.templates_config import templates
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
 router = APIRouter()
 
@@ -264,4 +266,61 @@ async def get_annual_sales_comparison(request: Request):
             "request": request,
             "title": "Annual Sales Comparison",
             "message": "Unable to load annual sales comparison"
-        }) 
+        })
+
+@router.get("/debug/find_correct_db")
+async def find_correct_database(request: Request):
+    """Debug endpoint to find which database has the proper tables"""
+    databases_to_test = [
+        "nytex_dashboard", 
+        "square_data_sync"
+    ]
+    
+    results = {}
+    
+    for db_name in databases_to_test:
+        try:
+            # Create connection string for this database
+            db_uri = f"postgresql+asyncpg://nytex_user:@34.67.201.62:5432/{db_name}"
+            engine = create_async_engine(db_uri, echo=False)
+            async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+            
+            async with async_session() as session:
+                # Check tables
+                tables_result = await session.execute(text("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    ORDER BY table_name;
+                """))
+                tables = [row[0] for row in tables_result.fetchall()]
+                
+                # Check operating_seasons count if table exists
+                operating_seasons_count = 0
+                orders_count = 0
+                
+                if 'operating_seasons' in tables:
+                    os_result = await session.execute(text("SELECT COUNT(*) FROM operating_seasons"))
+                    operating_seasons_count = os_result.fetchone()[0]
+                
+                if 'orders' in tables:
+                    orders_result = await session.execute(text("SELECT COUNT(*) FROM orders"))
+                    orders_count = orders_result.fetchone()[0]
+                
+                results[db_name] = {
+                    "status": "success",
+                    "table_count": len(tables),
+                    "tables": tables,
+                    "operating_seasons_count": operating_seasons_count,
+                    "orders_count": orders_count
+                }
+                
+            await engine.dispose()
+            
+        except Exception as e:
+            results[db_name] = {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    return results 
