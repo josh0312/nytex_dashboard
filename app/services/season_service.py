@@ -150,117 +150,142 @@ class SeasonService:
     async def get_yearly_season_totals(self):
         """Get order totals for each season grouped by year, from 2020 to current year."""
         try:
-            logger.info("Starting get_yearly_season_totals method")
-            async with self._get_session_context() as session:
-                logger.info("Session context manager entered successfully")
-                current_year = datetime.now().year
-                logger.info(f"Current year: {current_year}")
-                
-                # Extract amount from total_money JSON
-                amount_expr = cast(
-                    func.json_extract_path_text(
-                        Order.total_money,
-                        'amount'
-                    ),
-                    Integer
-                )
-                logger.info("Amount expression created")
-                
-                # Convert timestamps to Central timezone for comparison
-                order_date_expr = cast(
-                    text("(orders.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago')"),
-                    Date
-                )
-                logger.info("Order date expression created")
-                
-                # Query to get seasons and their order totals
-                stmt = (
-                    select(
-                        extract('year', OperatingSeason.start_date).label('year'),
-                        OperatingSeason.name,
-                        OperatingSeason.start_date,
-                        OperatingSeason.end_date,
-                        func.count(Order.id).label('order_count'),
-                        func.coalesce(func.sum(amount_expr), 0).label('total_amount')
-                    )
-                    .select_from(OperatingSeason)
-                    .outerjoin(
-                        Order,
-                        and_(
-                            order_date_expr >= OperatingSeason.start_date,
-                            order_date_expr <= OperatingSeason.end_date,
-                            Order.state != 'CANCELED'
-                        )
-                    )
-                    .where(
-                        and_(
-                            extract('year', OperatingSeason.start_date) >= 2020,
-                            extract('year', OperatingSeason.start_date) <= current_year
-                        )
-                    )
-                    .group_by(
-                        extract('year', OperatingSeason.start_date),
-                        OperatingSeason.name,
-                        OperatingSeason.start_date,
-                        OperatingSeason.end_date
-                    )
-                    .order_by(
-                        extract('year', OperatingSeason.start_date).desc(),
-                        OperatingSeason.start_date
-                    )
-                )
-                logger.info("SQL statement constructed")
-
-                # Log the SQL query with actual values
-                compiled_query = stmt.compile(compile_kwargs={"literal_binds": True})
-                logger.info(f"Generated SQL Query:\n{str(compiled_query)}")
-
-                logger.info("About to execute SQL query")
-                result = await session.execute(stmt)
-                logger.info("SQL query executed successfully")
-                seasons = result.all()
-                logger.info(f"Raw query returned {len(seasons)} rows")
-                
-                # Log raw results before processing
-                logger.info("Raw results from database:")
-                for season in seasons:
-                    logger.info(
-                        f"Year: {season.year}, Name: {season.name}, "
-                        f"Date Range: {season.start_date} to {season.end_date}, "
-                        f"Orders: {season.order_count}, "
-                        f"Amount: ${float(season.total_amount)/100:.2f}"
-                    )
-                
-                # Group results by year
-                years_dict = {}
-                logger.info("Starting to group results by year")
-                for season in seasons:
-                    year = int(season.year)
-                    if year not in years_dict:
-                        years_dict[year] = []
+            logger.info("=== SERVICE: Starting get_yearly_season_totals method ===")
+            
+            try:
+                async with self._get_session_context() as session:
+                    logger.info("=== SERVICE: Session context manager entered successfully ===")
                     
-                    years_dict[year].append({
-                        'name': season.name,
-                        'start_date': season.start_date.strftime('%Y-%m-%d'),
-                        'end_date': season.end_date.strftime('%Y-%m-%d'),
-                        'order_count': season.order_count,
-                        'total_amount': float(season.total_amount) / 100  # Convert cents to dollars
-                    })
+                    try:
+                        current_year = datetime.now().year
+                        logger.info(f"=== SERVICE: Current year: {current_year} ===")
+                        
+                        # Extract amount from total_money JSON
+                        try:
+                            amount_expr = cast(
+                                func.json_extract_path_text(
+                                    Order.total_money,
+                                    'amount'
+                                ),
+                                Integer
+                            )
+                            logger.info("=== SERVICE: Amount expression created successfully ===")
+                        except Exception as e:
+                            logger.error(f"=== SERVICE: Failed to create amount expression: {e} ===")
+                            raise
+                        
+                        try:
+                            # SQL query with year filtering
+                            query = (
+                                select([
+                                    func.extract('year', Order.created_at).label('year'),
+                                    func.extract('month', Order.created_at).label('month'),
+                                    func.extract('day', Order.created_at).label('day'),
+                                    func.count(Order.id).label('order_count'),
+                                    func.sum(amount_expr).label('total_amount')
+                                ])
+                                .where(
+                                    and_(
+                                        func.extract('year', Order.created_at) >= 2020,
+                                        func.extract('year', Order.created_at) <= current_year,
+                                        Order.state == 'COMPLETED'
+                                    )
+                                )
+                                .group_by(
+                                    func.extract('year', Order.created_at),
+                                    func.extract('month', Order.created_at),
+                                    func.extract('day', Order.created_at)
+                                )
+                                .order_by(
+                                    func.extract('year', Order.created_at),
+                                    func.extract('month', Order.created_at),
+                                    func.extract('day', Order.created_at)
+                                )
+                            )
+                            logger.info("=== SERVICE: SQL query built successfully ===")
+                        except Exception as e:
+                            logger.error(f"=== SERVICE: Failed to build SQL query: {e} ===")
+                            raise
+                        
+                        try:
+                            logger.info("=== SERVICE: About to execute SQL query ===")
+                            result = await session.execute(query)
+                            logger.info("=== SERVICE: SQL query executed successfully ===")
+                        except Exception as e:
+                            logger.error(f"=== SERVICE: Failed to execute SQL query: {e} ===")
+                            raise
+                        
+                        try:
+                            rows = result.fetchall()
+                            logger.info(f"=== SERVICE: SQL query returned {len(rows)} rows ===")
+                        except Exception as e:
+                            logger.error(f"=== SERVICE: Failed to fetch SQL results: {e} ===")
+                            raise
+                        
+                        try:
+                            # Group by year and season
+                            logger.info("=== SERVICE: Starting to group results by year and season ===")
+                            year_seasons = {}
+                            
+                            for row in rows:
+                                year = int(row.year)
+                                month = int(row.month)
+                                day = int(row.day)
+                                order_count = int(row.order_count)
+                                amount = int(row.total_amount) if row.total_amount else 0
+                                
+                                if year not in year_seasons:
+                                    year_seasons[year] = {}
+                                
+                                season_name = self._get_season_name_for_date(month, day)
+                                
+                                if season_name not in year_seasons[year]:
+                                    year_seasons[year][season_name] = {
+                                        'orders': 0,
+                                        'amount': 0
+                                    }
+                                
+                                year_seasons[year][season_name]['orders'] += order_count
+                                year_seasons[year][season_name]['amount'] += amount
+                            
+                            logger.info(f"=== SERVICE: Grouped into {len(year_seasons)} years ===")
+                        except Exception as e:
+                            logger.error(f"=== SERVICE: Failed to group results: {e} ===")
+                            raise
+                        
+                        try:
+                            # Convert to final format
+                            result_data = []
+                            for year in sorted(year_seasons.keys()):
+                                year_data = {'year': year, 'seasons': []}
+                                
+                                for season_name in ['New Year', 'Valentine\'s Day', 'Texas Independence Day', 'Easter', 'Memorial Day', 'July 4th', 'Labor Day', 'Halloween', 'Thanksgiving', 'Christmas']:
+                                    if season_name in year_seasons[year]:
+                                        season_data = year_seasons[year][season_name]
+                                        year_data['seasons'].append({
+                                            'name': season_name,
+                                            'orders': season_data['orders'],
+                                            'amount': season_data['amount'] / 100.0  # Convert from cents
+                                        })
+                                
+                                result_data.append(year_data)
+                            
+                            logger.info(f"=== SERVICE: Final result has {len(result_data)} years ===")
+                            return result_data
+                        except Exception as e:
+                            logger.error(f"=== SERVICE: Failed to convert to final format: {e} ===")
+                            raise
+                            
+                    except Exception as e:
+                        logger.error(f"=== SERVICE: Exception in main logic: {e} ===")
+                        raise
+                        
+            except Exception as e:
+                logger.error(f"=== SERVICE: Exception in session context: {e} ===")
+                raise
                 
-                logger.info(f"Grouped into {len(years_dict)} years")
-                
-                # Convert to list and sort by year descending
-                result_list = [
-                    {
-                        'year': year,
-                        'seasons': seasons_list
-                    }
-                    for year, seasons_list in sorted(years_dict.items(), reverse=True)
-                ]
-                
-                logger.info(f"Final result list contains {len(result_list)} years")
-                return result_list
-
         except Exception as e:
-            logger.error(f"Error fetching yearly season totals: {str(e)}", exc_info=True)
-            return None 
+            logger.error(f"=== SERVICE: Top-level exception in get_yearly_season_totals: {type(e).__name__}: {e} ===")
+            import traceback
+            logger.error(f"=== SERVICE: Traceback: {traceback.format_exc()} ===")
+            return None
