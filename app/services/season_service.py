@@ -21,8 +21,7 @@ class SeasonService:
         except Exception as e:
             await self.session.rollback()
             raise
-        finally:
-            await self.session.close()
+        # Don't close the session - it's managed by the caller
 
     async def get_seasonal_sales(self, season):
         """Get daily sales totals and transaction counts for the given season."""
