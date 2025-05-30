@@ -269,6 +269,77 @@ async def get_annual_sales_comparison(request: Request):
             "message": "Unable to load annual sales comparison"
         })
 
+@router.get("/metrics/annual_sales_comparison_simple")
+async def get_annual_sales_comparison_simple(request: Request):
+    """Get annual sales comparison using raw SQL that we know works"""
+    try:
+        logger.info("=== SIMPLE: Starting annual sales comparison request ===")
+        async with get_db() as session:
+            logger.info("=== SIMPLE: Database session created successfully ===")
+            
+            # Use the exact SQL query that worked in production
+            raw_sql = """
+                SELECT 
+                    EXTRACT(year FROM operating_seasons.start_date) AS year, 
+                    operating_seasons.name, 
+                    operating_seasons.start_date, 
+                    operating_seasons.end_date, 
+                    count(orders.id) AS order_count, 
+                    coalesce(sum(CAST(json_extract_path_text(orders.total_money, 'amount') AS INTEGER)), 0) AS total_amount
+                FROM operating_seasons 
+                LEFT OUTER JOIN orders ON 
+                    CAST((orders.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) >= operating_seasons.start_date 
+                    AND CAST((orders.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) <= operating_seasons.end_date 
+                    AND orders.state != 'CANCELED'
+                WHERE EXTRACT(year FROM operating_seasons.start_date) >= 2020 
+                    AND EXTRACT(year FROM operating_seasons.start_date) <= 2025 
+                GROUP BY EXTRACT(year FROM operating_seasons.start_date), operating_seasons.name, operating_seasons.start_date, operating_seasons.end_date 
+                ORDER BY EXTRACT(year FROM operating_seasons.start_date) DESC, operating_seasons.start_date
+            """
+            
+            logger.info("=== SIMPLE: Executing raw SQL query ===")
+            result = await session.execute(text(raw_sql))
+            seasons = result.all()
+            logger.info(f"=== SIMPLE: Got {len(seasons)} seasons ===")
+            
+            # Group results by year (same logic as SeasonService but simpler)
+            years_dict = {}
+            for season in seasons:
+                year = int(season.year)
+                if year not in years_dict:
+                    years_dict[year] = []
+                
+                years_dict[year].append({
+                    'name': season.name,
+                    'start_date': season.start_date.strftime('%Y-%m-%d'),
+                    'end_date': season.end_date.strftime('%Y-%m-%d'),
+                    'order_count': season.order_count,
+                    'total_amount': float(season.total_amount) / 100  # Convert cents to dollars
+                })
+            
+            # Convert to list and sort by year descending
+            totals = [
+                {
+                    'year': year,
+                    'seasons': seasons_list
+                }
+                for year, seasons_list in sorted(years_dict.items(), reverse=True)
+            ]
+            
+            logger.info(f"=== SIMPLE: Returning {len(totals)} years of data ===")
+            
+            return templates.TemplateResponse("dashboard/components/annual_sales_comparison.html", {
+                "request": request,
+                "season_totals": totals
+            })
+    except Exception as e:
+        logger.error(f"=== SIMPLE: Error in simple annual sales comparison: {str(e)} ===", exc_info=True)
+        return templates.TemplateResponse("dashboard/components/error.html", {
+            "request": request,
+            "title": "Annual Sales Comparison",
+            "message": "Unable to load annual sales comparison"
+        })
+
 @router.get("/debug/find_correct_db")
 async def find_correct_database(request: Request):
     """Debug endpoint to find which database has the proper tables"""
