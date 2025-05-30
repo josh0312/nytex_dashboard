@@ -4,7 +4,7 @@ from app.services.square_service import SquareService
 from app.services.weather_service import WeatherService
 from app.services.current_season import get_current_season
 from app.services.season_service import SeasonService
-from app.database.connection import get_session
+from app.database.connection import get_db
 from app.logger import logger
 from app.templates_config import templates
 from sqlalchemy import text
@@ -18,7 +18,7 @@ async def get_cached_seasonal_sales():
     try:
         logger.info("Fetching fresh seasonal sales...")
         
-        async with get_session() as session:
+        async with get_db() as session:
             logger.debug("Got database session")
             # Get current season
             current_season = await get_current_season()
@@ -241,7 +241,7 @@ async def get_annual_sales_comparison(request: Request):
     """Get annual sales comparison data for the chart"""
     try:
         logger.info("=== ROUTE: Starting annual sales comparison request ===")
-        async with get_session() as session:
+        async with get_db() as session:
             logger.info("=== ROUTE: Database session created successfully ===")
             season_service = SeasonService(session)
             logger.info("=== ROUTE: SeasonService instance created ===")
