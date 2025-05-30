@@ -236,12 +236,14 @@ async def get_total_orders(request: Request):
 async def get_annual_sales_comparison(request: Request):
     """Get annual sales comparison data for the chart"""
     try:
-        logger.info("Starting annual sales comparison request")
+        logger.info("=== ROUTE: Starting annual sales comparison request ===")
         async with get_session() as session:
-            logger.info("Database session created successfully")
+            logger.info("=== ROUTE: Database session created successfully ===")
             season_service = SeasonService(session)
-            logger.info("SeasonService instance created")
+            logger.info("=== ROUTE: SeasonService instance created ===")
+            logger.info("=== ROUTE: About to call get_yearly_season_totals ===")
             totals = await season_service.get_yearly_season_totals()
+            logger.info("=== ROUTE: get_yearly_season_totals completed ===")
             logger.info(f"SeasonService returned totals: {totals is not None}, type: {type(totals)}")
             if totals:
                 logger.info(f"Number of year entries: {len(totals)}")
