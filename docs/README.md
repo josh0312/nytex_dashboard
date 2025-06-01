@@ -6,6 +6,7 @@ Welcome to the NyTex Dashboard documentation! This directory contains comprehens
 
 ### **Getting Started**
 - **[Main README](../README.md)** - Project overview and quick start
+- **[Local Development Guide](./LOCAL_DEVELOPMENT.md)** - Local development without environment files
 - **[Docker Development Guide](./DOCKER_GUIDE.md)** - Complete Docker setup and workflow
 - **[Secrets Management Guide](./SECRETS_GUIDE.md)** - Google Secret Manager integration
 
@@ -15,6 +16,7 @@ Welcome to the NyTex Dashboard documentation! This directory contains comprehens
 
 ### **Deployment & Operations**
 - **[Deployment Guide](./DEPLOYMENT.md)** - Production deployment and server management
+- **[Troubleshooting Guide](./TROUBLESHOOTING.md)** - Production issue diagnosis and solutions
 - **[API Documentation](http://localhost:8080/docs)** - Interactive API docs (when running locally)
 
 ## 🚀 Quick Navigation

@@ -47,16 +47,19 @@ async_session = None
 
 def get_engine():
     global engine
-    if engine is None and Config.SQLALCHEMY_DATABASE_URI:
+    if engine is None:
         try:
-            engine = create_async_engine(
-                Config.SQLALCHEMY_DATABASE_URI,
-                echo=Config.DEBUG,
-                pool_size=5,
-                max_overflow=10,
-                pool_timeout=30,
-                pool_recycle=1800
-            )
+            # Use the runtime method to get the current database URL
+            db_url = Config.get_database_url()
+            if db_url:
+                engine = create_async_engine(
+                    db_url,
+                    echo=Config.DEBUG,
+                    pool_size=5,
+                    max_overflow=10,
+                    pool_timeout=30,
+                    pool_recycle=1800
+                )
         except Exception as e:
             logging.error(f"Failed to create database engine: {e}")
             engine = None

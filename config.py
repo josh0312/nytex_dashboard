@@ -8,7 +8,12 @@ class Config:
     
     # Database configuration for Cloud Run
     def get_database_url():
-        # Check if we have a full DATABASE_URL first
+        # Check if we have SQLALCHEMY_DATABASE_URI from secret first
+        db_uri = os.environ.get('SQLALCHEMY_DATABASE_URI')
+        if db_uri:
+            return db_uri
+            
+        # Check if we have a full DATABASE_URL 
         db_url = os.environ.get('DATABASE_URL')
         if db_url:
             if not db_url.startswith('postgresql+asyncpg://'):
@@ -26,7 +31,7 @@ class Config:
             return f"postgresql+asyncpg://{db_user}:{db_pass}@/{db_name}?host=/cloudsql/{cloud_sql_connection_name}"
         
         # Fallback for local development
-        return "postgresql+asyncpg://postgres:password@localhost:5432/nytex_dashboard"
+        return "postgresql+asyncpg://postgres:password@localhost:5432/square_data_sync"
     
     SQLALCHEMY_DATABASE_URI = get_database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False

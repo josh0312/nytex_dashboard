@@ -22,40 +22,7 @@ docker push $IMAGE_NAME
 
 echo "🌐 Deploying to Cloud Run..."
 
-# Check for Square access token
-SQUARE_TOKEN=""
-if [ ! -z "$SQUARE_ACCESS_TOKEN" ]; then
-    SQUARE_TOKEN="$SQUARE_ACCESS_TOKEN"
-    echo "🔑 Using Square access token from environment"
-else
-    # Try to get from existing deployment
-    EXISTING_TOKEN=$(gcloud run services describe nytex-dashboard --region us-central1 --format="value(spec.template.spec.template.spec.containers[0].env[?(@.name=='SQUARE_ACCESS_TOKEN')].value)" 2>/dev/null || echo "")
-    
-    if [ ! -z "$EXISTING_TOKEN" ] && [ "$EXISTING_TOKEN" != "REPLACE_WITH_YOUR_SQUARE_TOKEN" ]; then
-        SQUARE_TOKEN="$EXISTING_TOKEN"
-        echo "🔑 Preserving existing Square access token"
-    else
-        echo "❌ ERROR: No valid Square access token found!"
-        echo "   Please set SQUARE_ACCESS_TOKEN environment variable before deploying"
-        echo "   export SQUARE_ACCESS_TOKEN=your_actual_token"
-        echo "   Then run this script again"
-        exit 1
-    fi
-fi
-
-# Validate token format (Square tokens start with specific prefixes)
-if [[ ! "$SQUARE_TOKEN" =~ ^(EAA|EAAA) ]]; then
-    echo "❌ WARNING: Square token doesn't appear to be valid format"
-    echo "   Square production tokens typically start with 'EAA' or 'EAAA'"
-    echo "   Current token: ${SQUARE_TOKEN:0:10}..."
-    read -p "   Continue anyway? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        exit 1
-    fi
-fi
-
-# Deploy to Cloud Run with all necessary environment variables
+# Deploy to Cloud Run with secrets from Secret Manager
 gcloud run deploy nytex-dashboard \
     --image $IMAGE_NAME \
     --platform managed \
@@ -66,13 +33,20 @@ gcloud run deploy nytex-dashboard \
     --max-instances 10 \
     --add-cloudsql-instances nytex-business-systems:us-central1:nytex-main-db \
     --set-env-vars "CLOUD_SQL_CONNECTION_NAME=nytex-business-systems:us-central1:nytex-main-db" \
-    --set-env-vars "DB_USER=nytex_user" \
-    --set-env-vars "DB_NAME=nytex_dashboard" \
-    --set-env-vars "DB_PASS=NytexSecure2024!" \
-    --set-env-vars "SECRET_KEY=prod-secret-key-2024" \
     --set-env-vars "DEBUG=false" \
-    --set-env-vars "SQUARE_ENVIRONMENT=production" \
-    --set-env-vars "SQUARE_ACCESS_TOKEN=$SQUARE_TOKEN"
+    --set-env-vars "ENVIRONMENT=production" \
+    --update-secrets "SECRET_KEY=secret-key:latest" \
+    --update-secrets "SQLALCHEMY_DATABASE_URI=database-uri:latest" \
+    --update-secrets "SQUARE_ACCESS_TOKEN=square-access-token:latest" \
+    --update-secrets "SQUARE_ENVIRONMENT=square-environment:latest" \
+    --update-secrets "OPENWEATHER_API_KEY=openweather-api-key:latest" \
+    --update-secrets "MANUAL_USER_EMAIL=manual-user-email:latest" \
+    --update-secrets "MANUAL_USER_PASSWORD=manual-user-password:latest" \
+    --update-secrets "MANUAL_USER_NAME=manual-user-name:latest" \
+    --update-secrets "AZURE_CLIENT_ID=azure-client-id:latest" \
+    --update-secrets "AZURE_CLIENT_SECRET=azure-client-secret:latest" \
+    --update-secrets "AZURE_TENANT_ID=azure-tenant-id:latest" \
+    --update-secrets "AZURE_REDIRECT_URI=azure-redirect-uri:latest"
 
 echo "✅ Deployment completed successfully!"
 echo ""

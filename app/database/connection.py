@@ -4,7 +4,7 @@ from ..config import Config
 
 # Create async engine with production-friendly settings
 engine = create_async_engine(
-    Config.SQLALCHEMY_DATABASE_URI,
+    Config.get_database_url(),
     echo=False,
     pool_pre_ping=True,
     pool_size=5,

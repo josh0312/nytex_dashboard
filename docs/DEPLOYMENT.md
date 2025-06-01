@@ -35,8 +35,13 @@
 - 🐳 Builds Docker image for linux/amd64 platform
 - 🏷️ Tags with timestamp version (e.g., `20250529-143052`)
 - ☁️ Pushes to Google Container Registry
-- 🌐 Deploys to Cloud Run with full database configuration
+- 🌐 Deploys to Cloud Run using **secrets from Google Secret Manager**
+- 🔐 Automatically configures all environment variables from secrets
 - ✅ Updates live site automatically
+
+**⚠️ Important**: The deployment script now uses Google Secret Manager for all sensitive configuration. See [Secrets Management Guide](SECRETS_GUIDE.md) for details.
+
+**🔧 If deployment fails**: See [Troubleshooting Guide](TROUBLESHOOTING.md) for common issues and solutions.
 
 ---
 
@@ -120,14 +125,39 @@ gcloud sql instances list
 
 ### **Database Configuration**
 - **Instance**: nytex-main-db
-- **Database**: nytex_dashboard
+- **Database**: square_data_sync *(production database)*
 - **User**: nytex_user
-- **Connection**: Automatic via Cloud SQL Proxy
+- **Connection**: Automatic via Cloud SQL Proxy in Cloud Run
+- **Connection Name**: nytex-business-systems:us-central1:nytex-main-db
 
 ### **Cost Estimates**
 - **Cloud SQL**: ~$7-15/month
 - **Cloud Run**: ~$0-10/month (usage-based)
 - **Total**: ~$7-25/month
+
+### **Database Issues**
+
+**🚨 CRITICAL**: If you're experiencing database connectivity issues, see the **[Complete Troubleshooting Guide](TROUBLESHOOTING.md)** for detailed solutions.
+
+**Problem**: Cannot connect to Cloud SQL
+```bash
+# Test database connection
+gcloud sql connect nytex-main-db --user=nytex_user --database=square_data_sync
+
+# Check if instance is running  
+gcloud sql instances list
+
+# Verify correct connection name
+gcloud sql instances describe nytex-main-db --format="value(connectionName)"
+```
+
+**Problem**: "Connect call failed" or "Connection refused"
+```bash
+# Check service status immediately
+curl -s https://nytex-dashboard-932676587025.us-central1.run.app/admin/status | python3 -m json.tool
+
+# See TROUBLESHOOTING.md for complete solutions
+```
 
 ---
 
@@ -190,17 +220,6 @@ gcloud run services logs tail nytex-dashboard --region us-central1
 # 1. Verify Square token is configured
 # 2. Check sync logs for errors
 # 3. Try running sync again: python scripts/sync_inventory_only.py
-```
-
-### **Database Issues**
-
-**Problem**: Cannot connect to Cloud SQL
-```bash
-# Test database connection
-gcloud sql connect nytex-main-db --user=nytex_user --database=nytex_dashboard
-
-# Check if instance is running
-gcloud sql instances list
 ```
 
 ---

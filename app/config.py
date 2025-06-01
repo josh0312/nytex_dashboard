@@ -35,14 +35,16 @@ def get_database_url():
         return f"postgresql+asyncpg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     
     # Fallback for local development
-    return "postgresql+asyncpg://postgres:password@localhost:5432/nytex_dashboard"
+    return "postgresql+asyncpg://postgres:password@localhost:5432/square_data_sync"
 
 class Config:
     # Get base directory
     BASE_DIR = Path(__file__).resolve().parent.parent
     
-    # Database settings
-    SQLALCHEMY_DATABASE_URI = get_database_url()
+    # Database settings - use class method to evaluate at runtime
+    @classmethod
+    def get_database_url(cls):
+        return get_database_url()
     
     @classmethod
     def get_sync_db_url(cls):
@@ -78,7 +80,7 @@ class Config:
             else:
                 return f"postgresql://{db_user}@{db_host}:{db_port}/{db_name}"
         
-        return "postgresql://postgres:password@localhost:5432/nytex_dashboard"
+        return "postgresql://postgres:password@localhost:5432/square_data_sync"
     
     # Square API configuration
     SQUARE_ACCESS_TOKEN = os.getenv('SQUARE_ACCESS_TOKEN')

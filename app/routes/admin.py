@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from app.database import get_session
-from app.config import Config
+from app.config import Config, get_database_url
 from app.templates_config import templates
 from app.logger import logger
 from app.services.incremental_sync_service import IncrementalSyncService
@@ -42,6 +42,18 @@ async def admin_status():
             "square_config": "missing",
             "locations": [],
             "tables_exist": False
+        }
+        
+        # Add debug information
+        import os
+        
+        status["debug"] = {
+            "env_vars": {
+                'DB_USER': os.environ.get('DB_USER', 'NOT_SET'),
+                'DB_NAME': os.environ.get('DB_NAME', 'NOT_SET'),
+                'CLOUD_SQL_CONNECTION_NAME': os.environ.get('CLOUD_SQL_CONNECTION_NAME', 'NOT_SET'),
+            },
+            "constructed_url": get_database_url()[:80] + "..." if len(get_database_url()) > 80 else get_database_url(),
         }
         
         # Check Square configuration
@@ -138,7 +150,7 @@ async def complete_sync(request: Request):
             base_url = "https://connect.squareupsandbox.com"
         
         # Get database URL for production
-        db_url = Config.SQLALCHEMY_DATABASE_URI
+        db_url = Config.get_database_url()
         
         logger.info(f"Using Square environment: {square_environment}")
         logger.info(f"Square API base URL: {base_url}")
@@ -865,6 +877,46 @@ async def test_inventory_quantities():
             
     except Exception as e:
         logger.error(f"Error in test inventory quantities: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "error": str(e)
+        }, status_code=500)
+
+@router.get("/debug-db-config")
+async def debug_db_config():
+    """Debug endpoint to show database configuration"""
+    try:
+        import os
+        from app.config import Config, get_database_url
+        
+        # Get environment variables
+        env_vars = {
+            'SQLALCHEMY_DATABASE_URI': os.environ.get('SQLALCHEMY_DATABASE_URI', 'NOT_SET'),
+            'DATABASE_URL': os.environ.get('DATABASE_URL', 'NOT_SET'),
+            'DB_USER': os.environ.get('DB_USER', 'NOT_SET'),
+            'DB_PASS': os.environ.get('DB_PASS', 'NOT_SET')[:10] + '...' if os.environ.get('DB_PASS') else 'NOT_SET',
+            'DB_NAME': os.environ.get('DB_NAME', 'NOT_SET'),
+            'CLOUD_SQL_CONNECTION_NAME': os.environ.get('CLOUD_SQL_CONNECTION_NAME', 'NOT_SET'),
+        }
+        
+        # Get constructed URLs
+        runtime_url = get_database_url()
+        config_url = Config.get_database_url()
+        static_url = getattr(Config, 'SQLALCHEMY_DATABASE_URI', 'NOT_SET')
+        
+        return JSONResponse({
+            "environment_variables": env_vars,
+            "constructed_urls": {
+                "runtime_function": runtime_url[:50] + "..." if len(runtime_url) > 50 else runtime_url,
+                "config_method": config_url[:50] + "..." if len(config_url) > 50 else config_url,
+                "static_attribute": static_url[:50] + "..." if len(static_url) > 50 else static_url,
+            },
+            "url_matches": {
+                "runtime_vs_config": runtime_url == config_url,
+                "runtime_vs_static": runtime_url == static_url,
+            }
+        })
+        
+    except Exception as e:
         return JSONResponse({
             "error": str(e)
         }, status_code=500) 

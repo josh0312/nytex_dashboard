@@ -27,6 +27,12 @@ app/static/css/src/
 # SQLite database files
 *.db
 
+# Database backup files
+*.sql
+*_backup.sql
+local_*.sql
+square_data_sync_backup.sql
+
 # Generated exports
 app/static/exports/
 
@@ -38,6 +44,8 @@ app/static/exports/
 # Temporary test files
 test_*.py
 !tests/test_*.py
+dashboard_test.html
+check_*.py
 
 # Docker logs
 docker-compose.override.yml
