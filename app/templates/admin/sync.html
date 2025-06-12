@@ -105,14 +105,33 @@
                 <br>• Step 2: Syncs catalog data (categories, items, variations)
                 <br>• Step 3: Syncs current inventory quantities
                 <br>• Step 4: Ensures all data relationships are correct
+                <br><br>
+                <strong>Sync Modes:</strong>
+                <br>• <strong>Incremental (Default):</strong> Only adds, updates, or marks deleted items that have changed - safe and efficient
+                <br>• <strong>Full Refresh:</strong> Completely wipes and rebuilds all data - use only when needed
             </p>
+            
+            <!-- Full Refresh Option -->
+            <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <label class="flex items-center">
+                    <input type="checkbox" id="full-refresh-checkbox" class="mr-2">
+                    <span class="text-sm font-medium text-yellow-800">
+                        🔥 Full Refresh Mode (⚠️ Destructive - wipes all existing data)
+                    </span>
+                </label>
+                <p class="text-xs text-yellow-700 mt-1">
+                    Only check this if you need to completely rebuild the database from scratch.
+                    Normal operation should use incremental mode.
+                </p>
+            </div>
+            
             <div class="flex items-center gap-4">
                 <button id="complete-sync-btn" class="sync-btn" style="background: #10B981; font-size: 16px; padding: 16px 32px;" onclick="runCompleteSync()">
-                    <span id="complete-btn-text">🚀 Start Complete Sync</span>
+                    <span id="complete-btn-text">🚀 Start Incremental Sync</span>
                 </button>
                 <div id="complete-status" class="flex items-center">
                     <span class="status-indicator status-ready"></span>
-                    <span>Ready to sync all data</span>
+                    <span>Ready to sync (incremental mode)</span>
                 </div>
             </div>
             <div id="complete-log" class="log-output hidden"></div>
@@ -188,6 +207,21 @@ let syncInProgress = false;
 document.addEventListener('DOMContentLoaded', function() {
     checkSquareConfig();
     refreshDataStatus();
+    
+    // Handle full refresh checkbox changes
+    const fullRefreshCheckbox = document.getElementById('full-refresh-checkbox');
+    const completeBtnText = document.getElementById('complete-btn-text');
+    const completeStatus = document.getElementById('complete-status');
+    
+    fullRefreshCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            completeBtnText.textContent = '🔥 Start Full Refresh Sync';
+            completeStatus.innerHTML = '<span class="status-indicator status-ready"></span><span>Ready to sync (⚠️ FULL REFRESH mode)</span>';
+        } else {
+            completeBtnText.textContent = '🚀 Start Incremental Sync';
+            completeStatus.innerHTML = '<span class="status-indicator status-ready"></span><span>Ready to sync (incremental mode)</span>';
+        }
+    });
 });
 
 async function checkSquareConfig() {
@@ -330,13 +364,25 @@ async function runCompleteSync() {
     const btnText = document.getElementById('complete-btn-text');
     const status = document.getElementById('complete-status');
     const log = document.getElementById('complete-log');
+    const fullRefreshCheckbox = document.getElementById('full-refresh-checkbox');
+    
+    // Get sync mode
+    const fullRefresh = fullRefreshCheckbox.checked;
+    const syncMode = fullRefresh ? 'FULL REFRESH' : 'INCREMENTAL';
     
     // Update UI
     btn.disabled = true;
-    btnText.textContent = '🚀 Running Complete Sync...';
-    status.innerHTML = '<span class="status-indicator status-running"></span><span>Complete sync in progress...</span>';
+    btnText.textContent = fullRefresh ? '🔥 Running Full Refresh...' : '🚀 Running Incremental Sync...';
+    status.innerHTML = `<span class="status-indicator status-running"></span><span>${syncMode} sync in progress...</span>`;
     log.className = 'log-output';
-    log.textContent = 'Starting complete production sync...\n';
+    log.textContent = `Starting ${syncMode} production sync...\n`;
+    
+    if (fullRefresh) {
+        log.textContent += '⚠️  FULL REFRESH MODE - This will wipe and rebuild all data\n';
+    } else {
+        log.textContent += '📈 INCREMENTAL MODE - Only updating changed data\n';
+    }
+    
     log.textContent += 'This will sync all data in the proper order:\n';
     log.textContent += '1. Locations\n';
     log.textContent += '2. Catalog data (categories, items, variations)\n';
@@ -345,26 +391,46 @@ async function runCompleteSync() {
     
     try {
         const response = await fetch('/admin/complete-sync', {
-            method: 'POST'
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                full_refresh: fullRefresh
+            })
         });
         const result = await response.json();
         
         if (result.success) {
-            log.textContent += '🎉 Complete sync finished successfully!\n';
-            log.textContent += `📋 ${result.message}\n`;
-            log.textContent += '\n✅ Production database now has all necessary data\n';
-            log.textContent += '✅ Reports should display actual data\n';
+            log.textContent += `🎉 ${syncMode} sync finished successfully!\n`;
+            log.textContent += `📋 ${result.message}\n\n`;
+            
+            // Display detailed statistics
+            if (result.sync_stats) {
+                log.textContent += '📊 Sync Statistics:\n';
+                const stats = result.sync_stats;
+                
+                log.textContent += `📍 Locations: ${stats.locations.created} created, ${stats.locations.updated} updated, ${stats.locations.deleted} deleted\n`;
+                log.textContent += `📂 Categories: ${stats.categories.created} created, ${stats.categories.updated} updated, ${stats.categories.deleted} deleted\n`;
+                log.textContent += `🏷️  Items: ${stats.items.created} created, ${stats.items.updated} updated, ${stats.items.deleted} deleted\n`;
+                log.textContent += `🔧 Variations: ${stats.variations.created} created, ${stats.variations.updated} updated, ${stats.variations.deleted} deleted\n`;
+                log.textContent += `📦 Inventory: ${stats.inventory.created} created, ${stats.inventory.updated} updated, ${stats.inventory.deleted} deleted\n`;
+                log.textContent += `\n🔢 Total Changes: ${result.total_changes}\n\n`;
+            }
+            
+            log.textContent += '✅ Production database now has current data\n';
+            log.textContent += '✅ Reports should display accurate information\n';
             log.textContent += '✅ All data relationships are correct\n';
             
-            status.innerHTML = '<span class="status-indicator status-ready"></span><span>Complete sync successful</span>';
+            status.innerHTML = `<span class="status-indicator status-ready"></span><span>${syncMode} sync successful</span>`;
             
             // Refresh data status
             setTimeout(refreshDataStatus, 3000);
         } else {
-            log.textContent += `❌ Complete sync failed: ${result.error}\n`;
+            log.textContent += `❌ ${syncMode} sync failed: ${result.error}\n`;
             log.textContent += '\nPlease check the error above and try again.\n';
             log.textContent += 'You can also try running individual syncs if needed.\n';
-            status.innerHTML = '<span class="status-indicator status-error"></span><span>Complete sync failed</span>';
+            status.innerHTML = `<span class="status-indicator status-error"></span><span>${syncMode} sync failed</span>`;
         }
     } catch (error) {
         log.textContent += `❌ Error: ${error.message}\n`;
@@ -373,7 +439,13 @@ async function runCompleteSync() {
     } finally {
         syncInProgress = false;
         btn.disabled = false;
-        btnText.textContent = '🚀 Start Complete Sync';
+        
+        // Reset button text based on checkbox state
+        if (fullRefreshCheckbox.checked) {
+            btnText.textContent = '🔥 Start Full Refresh Sync';
+        } else {
+            btnText.textContent = '🚀 Start Incremental Sync';
+        }
     }
 }
 

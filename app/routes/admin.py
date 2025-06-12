@@ -128,9 +128,19 @@ async def create_tables():
 
 @router.post("/complete-sync")
 async def complete_sync(request: Request):
-    """Trigger complete production data sync"""
+    """Trigger complete production data sync with incremental updates by default"""
     try:
-        logger.info("Starting complete production data sync via API")
+        # Parse request body to check for full_refresh flag
+        request_body = {}
+        try:
+            request_body = await request.json()
+        except:
+            pass  # No JSON body is fine, use defaults
+        
+        full_refresh = request_body.get('full_refresh', False)
+        sync_mode = "FULL REFRESH" if full_refresh else "INCREMENTAL"
+        
+        logger.info(f"Starting complete production data sync via API - Mode: {sync_mode}")
         
         # Get configuration
         square_access_token = getattr(Config, 'SQUARE_ACCESS_TOKEN', '')
@@ -154,41 +164,67 @@ async def complete_sync(request: Request):
         
         logger.info(f"Using Square environment: {square_environment}")
         logger.info(f"Square API base URL: {base_url}")
+        logger.info(f"Sync mode: {sync_mode}")
+        
+        # Initialize sync statistics
+        sync_stats = {
+            "locations": {"created": 0, "updated": 0, "deleted": 0},
+            "categories": {"created": 0, "updated": 0, "deleted": 0},
+            "items": {"created": 0, "updated": 0, "deleted": 0},
+            "variations": {"created": 0, "updated": 0, "deleted": 0},
+            "inventory": {"created": 0, "updated": 0, "deleted": 0}
+        }
         
         # Step 1: Sync Locations
         logger.info("Step 1: Syncing locations...")
-        locations_success = await sync_locations_direct(square_access_token, base_url, db_url)
-        if not locations_success:
+        locations_result = await sync_locations_incremental(square_access_token, base_url, db_url, full_refresh)
+        if not locations_result["success"]:
             return JSONResponse({
                 "success": False,
-                "error": "Location sync failed",
+                "error": f"Location sync failed: {locations_result['error']}",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }, status_code=500)
+        sync_stats["locations"] = locations_result["stats"]
         
         # Step 2: Sync Catalog Data
         logger.info("Step 2: Syncing catalog data...")
-        catalog_success = await sync_catalog_direct(square_access_token, base_url, db_url)
-        if not catalog_success:
+        catalog_result = await sync_catalog_incremental(square_access_token, base_url, db_url, full_refresh)
+        if not catalog_result["success"]:
             return JSONResponse({
                 "success": False,
-                "error": "Catalog sync failed",
+                "error": f"Catalog sync failed: {catalog_result['error']}",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }, status_code=500)
+        sync_stats["categories"] = catalog_result["stats"]["categories"]
+        sync_stats["items"] = catalog_result["stats"]["items"]
+        sync_stats["variations"] = catalog_result["stats"]["variations"]
         
         # Step 3: Sync Inventory
         logger.info("Step 3: Syncing inventory...")
-        inventory_success = await sync_inventory_direct(square_access_token, base_url, db_url)
-        if not inventory_success:
+        inventory_result = await sync_inventory_incremental(square_access_token, base_url, db_url, full_refresh)
+        if not inventory_result["success"]:
             return JSONResponse({
                 "success": False,
-                "error": "Inventory sync failed",
+                "error": f"Inventory sync failed: {inventory_result['error']}",
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }, status_code=500)
+        sync_stats["inventory"] = inventory_result["stats"]
         
-        logger.info("Complete production sync successful")
+        # Calculate totals
+        total_changes = sum(
+            stats["created"] + stats["updated"] + stats["deleted"] 
+            for stats in sync_stats.values()
+        )
+        
+        success_message = f"Complete production sync successful ({sync_mode}) - {total_changes} total changes"
+        logger.info(success_message)
+        
         return JSONResponse({
             "success": True,
-            "message": "Complete production sync successful - all data synced in proper order",
+            "message": success_message,
+            "sync_mode": sync_mode,
+            "sync_stats": sync_stats,
+            "total_changes": total_changes,
             "timestamp": datetime.now(timezone.utc).isoformat()
         })
         
@@ -919,4 +955,393 @@ async def debug_db_config():
     except Exception as e:
         return JSONResponse({
             "error": str(e)
-        }, status_code=500) 
+        }, status_code=500)
+
+async def sync_locations_incremental(access_token, base_url, db_url, full_refresh=False):
+    """Sync locations with incremental updates or full refresh"""
+    try:
+        timeout = aiohttp.ClientTimeout(total=300)
+        engine = create_async_engine(db_url, echo=False)
+        stats = {"created": 0, "updated": 0, "deleted": 0}
+        
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            url = f"{base_url}/v2/locations"
+            headers = {'Authorization': f'Bearer {access_token}'}
+            
+            async with session.get(url, headers=headers) as response:
+                if response.status != 200:
+                    logger.error(f"Square API error: {response.status}")
+                    await engine.dispose()
+                    return {"success": False, "error": f"Square API error: {response.status}", "stats": stats}
+                
+                data = await response.json()
+                locations = data.get('locations', [])
+                square_location_ids = {loc['id'] for loc in locations}
+                
+                async with engine.begin() as conn:
+                    if full_refresh:
+                        # Full refresh mode - clear all data in proper order
+                        logger.info("🔥 FULL REFRESH MODE: Clearing all existing data")
+                        await conn.execute(text("DELETE FROM catalog_inventory"))
+                        await conn.execute(text("DELETE FROM catalog_variations"))
+                        await conn.execute(text("DELETE FROM catalog_items"))
+                        await conn.execute(text("DELETE FROM catalog_categories"))
+                        await conn.execute(text("DELETE FROM locations"))
+                        stats["deleted"] = "ALL"
+                    else:
+                        # Incremental mode - get existing locations
+                        existing_result = await conn.execute(text("SELECT id FROM locations"))
+                        existing_ids = {row[0] for row in existing_result.fetchall()}
+                        
+                        # Mark locations as deleted if they're no longer in Square
+                        deleted_ids = existing_ids - square_location_ids
+                        for deleted_id in deleted_ids:
+                            await conn.execute(text("""
+                                UPDATE locations SET status = 'INACTIVE', updated_at = :updated_at
+                                WHERE id = :id
+                            """), {
+                                'id': deleted_id,
+                                'updated_at': datetime.now()
+                            })
+                            stats["deleted"] += 1
+                            logger.info(f"📍 Marked location as INACTIVE: {deleted_id}")
+                    
+                    # Process each location from Square
+                    for location in locations:
+                        location_data = {
+                            'id': location['id'],
+                            'name': location.get('name', ''),
+                            'address': json.dumps(location.get('address', {})),
+                            'timezone': location.get('timezone', ''),
+                            'status': location.get('status', 'ACTIVE'),
+                            'created_at': datetime.now(),
+                            'updated_at': datetime.now()
+                        }
+                        
+                        if full_refresh:
+                            # Insert all locations
+                            await conn.execute(text("""
+                                INSERT INTO locations (id, name, address, timezone, status, created_at, updated_at)
+                                VALUES (:id, :name, :address, :timezone, :status, :created_at, :updated_at)
+                            """), location_data)
+                            stats["created"] += 1
+                        else:
+                            # Upsert location
+                            result = await conn.execute(text("""
+                                INSERT INTO locations (id, name, address, timezone, status, created_at, updated_at)
+                                VALUES (:id, :name, :address, :timezone, :status, :created_at, :updated_at)
+                                ON CONFLICT (id) DO UPDATE SET
+                                    name = EXCLUDED.name,
+                                    address = EXCLUDED.address,
+                                    timezone = EXCLUDED.timezone,
+                                    status = EXCLUDED.status,
+                                    updated_at = EXCLUDED.updated_at
+                                RETURNING (xmax = 0) AS inserted
+                            """), location_data)
+                            
+                            row = result.fetchone()
+                            if row and row[0]:  # xmax = 0 means it was an INSERT
+                                stats["created"] += 1
+                                logger.info(f"📍 Created location: {location['name']}")
+                            else:
+                                stats["updated"] += 1
+                                logger.info(f"📍 Updated location: {location['name']}")
+                
+                mode_text = "FULL REFRESH" if full_refresh else "INCREMENTAL"
+                logger.info(f"✅ Locations sync completed ({mode_text}): {stats}")
+                await engine.dispose()
+                return {"success": True, "stats": stats}
+                    
+    except Exception as e:
+        logger.error(f"Error syncing locations: {str(e)}")
+        return {"success": False, "error": str(e), "stats": stats}
+
+async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=False):
+    """Sync catalog data with incremental updates or full refresh"""
+    try:
+        timeout = aiohttp.ClientTimeout(total=600)
+        engine = create_async_engine(db_url, echo=False)
+        stats = {
+            "categories": {"created": 0, "updated": 0, "deleted": 0},
+            "items": {"created": 0, "updated": 0, "deleted": 0},
+            "variations": {"created": 0, "updated": 0, "deleted": 0}
+        }
+        
+        async with engine.begin() as conn:
+            if full_refresh:
+                # Full refresh mode - catalog data already cleared in locations sync
+                logger.info("🔥 FULL REFRESH MODE: Catalog tables already cleared")
+            
+            # Fetch all catalog data from Square
+            categories = await fetch_catalog_objects_direct(access_token, base_url, "CATEGORY")
+            items = await fetch_catalog_objects_direct(access_token, base_url, "ITEM")
+            variations = await fetch_catalog_objects_direct(access_token, base_url, "ITEM_VARIATION")
+            
+            square_category_ids = {cat['id'] for cat in categories}
+            square_item_ids = {item['id'] for item in items}
+            square_variation_ids = {var['id'] for var in variations}
+            
+            if not full_refresh:
+                # Mark deleted categories
+                existing_result = await conn.execute(text("SELECT id FROM catalog_categories WHERE is_deleted = false"))
+                existing_category_ids = {row[0] for row in existing_result.fetchall()}
+                deleted_category_ids = existing_category_ids - square_category_ids
+                for deleted_id in deleted_category_ids:
+                    await conn.execute(text("""
+                        UPDATE catalog_categories SET is_deleted = true, updated_at = :updated_at
+                        WHERE id = :id
+                    """), {'id': deleted_id, 'updated_at': datetime.now()})
+                    stats["categories"]["deleted"] += 1
+                
+                # Mark deleted items
+                existing_result = await conn.execute(text("SELECT id FROM catalog_items WHERE is_deleted = false"))
+                existing_item_ids = {row[0] for row in existing_result.fetchall()}
+                deleted_item_ids = existing_item_ids - square_item_ids
+                for deleted_id in deleted_item_ids:
+                    await conn.execute(text("""
+                        UPDATE catalog_items SET is_deleted = true, updated_at = :updated_at
+                        WHERE id = :id
+                    """), {'id': deleted_id, 'updated_at': datetime.now()})
+                    stats["items"]["deleted"] += 1
+                
+                # Mark deleted variations
+                existing_result = await conn.execute(text("SELECT id FROM catalog_variations WHERE is_deleted = false"))
+                existing_variation_ids = {row[0] for row in existing_result.fetchall()}
+                deleted_variation_ids = existing_variation_ids - square_variation_ids
+                for deleted_id in deleted_variation_ids:
+                    await conn.execute(text("""
+                        UPDATE catalog_variations SET is_deleted = true, updated_at = :updated_at
+                        WHERE id = :id
+                    """), {'id': deleted_id, 'updated_at': datetime.now()})
+                    stats["variations"]["deleted"] += 1
+            
+            # Sync categories
+            for category in categories:
+                category_data = {
+                    'id': category['id'],
+                    'name': category.get('category_data', {}).get('name', ''),
+                    'is_deleted': False,
+                    'created_at': datetime.now(),
+                    'updated_at': datetime.now()
+                }
+                
+                if full_refresh:
+                    await conn.execute(text("""
+                        INSERT INTO catalog_categories (id, name, is_deleted, created_at, updated_at)
+                        VALUES (:id, :name, :is_deleted, :created_at, :updated_at)
+                    """), category_data)
+                    stats["categories"]["created"] += 1
+                else:
+                    result = await conn.execute(text("""
+                        INSERT INTO catalog_categories (id, name, is_deleted, created_at, updated_at)
+                        VALUES (:id, :name, :is_deleted, :created_at, :updated_at)
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            is_deleted = EXCLUDED.is_deleted,
+                            updated_at = EXCLUDED.updated_at
+                        RETURNING (xmax = 0) AS inserted
+                    """), category_data)
+                    
+                    row = result.fetchone()
+                    if row and row[0]:
+                        stats["categories"]["created"] += 1
+                    else:
+                        stats["categories"]["updated"] += 1
+            
+            # Sync items
+            for item in items:
+                item_data_obj = item.get('item_data', {})
+                item_data = {
+                    'id': item['id'],
+                    'name': item_data_obj.get('name', ''),
+                    'description': item_data_obj.get('description', ''),
+                    'category_id': item_data_obj.get('category_id'),
+                    'is_deleted': False,
+                    'created_at': datetime.now(),
+                    'updated_at': datetime.now()
+                }
+                
+                if full_refresh:
+                    await conn.execute(text("""
+                        INSERT INTO catalog_items (id, name, description, category_id, is_deleted, created_at, updated_at)
+                        VALUES (:id, :name, :description, :category_id, :is_deleted, :created_at, :updated_at)
+                    """), item_data)
+                    stats["items"]["created"] += 1
+                else:
+                    result = await conn.execute(text("""
+                        INSERT INTO catalog_items (id, name, description, category_id, is_deleted, created_at, updated_at)
+                        VALUES (:id, :name, :description, :category_id, :is_deleted, :created_at, :updated_at)
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            description = EXCLUDED.description,
+                            category_id = EXCLUDED.category_id,
+                            is_deleted = EXCLUDED.is_deleted,
+                            updated_at = EXCLUDED.updated_at
+                        RETURNING (xmax = 0) AS inserted
+                    """), item_data)
+                    
+                    row = result.fetchone()
+                    if row and row[0]:
+                        stats["items"]["created"] += 1
+                    else:
+                        stats["items"]["updated"] += 1
+            
+            # Sync variations
+            for variation in variations:
+                variation_data_obj = variation.get('item_variation_data', {})
+                variation_data = {
+                    'id': variation['id'],
+                    'name': variation_data_obj.get('name', ''),
+                    'item_id': variation_data_obj.get('item_id'),
+                    'sku': variation_data_obj.get('sku', ''),
+                    'price_money': json.dumps(variation_data_obj.get('price_money', {})),
+                    'is_deleted': False,
+                    'created_at': datetime.now(),
+                    'updated_at': datetime.now()
+                }
+                
+                if full_refresh:
+                    await conn.execute(text("""
+                        INSERT INTO catalog_variations (id, name, item_id, sku, price_money, is_deleted, created_at, updated_at)
+                        VALUES (:id, :name, :item_id, :sku, :price_money, :is_deleted, :created_at, :updated_at)
+                    """), variation_data)
+                    stats["variations"]["created"] += 1
+                else:
+                    result = await conn.execute(text("""
+                        INSERT INTO catalog_variations (id, name, item_id, sku, price_money, is_deleted, created_at, updated_at)
+                        VALUES (:id, :name, :item_id, :sku, :price_money, :is_deleted, :created_at, :updated_at)
+                        ON CONFLICT (id) DO UPDATE SET
+                            name = EXCLUDED.name,
+                            item_id = EXCLUDED.item_id,
+                            sku = EXCLUDED.sku,
+                            price_money = EXCLUDED.price_money,
+                            is_deleted = EXCLUDED.is_deleted,
+                            updated_at = EXCLUDED.updated_at
+                        RETURNING (xmax = 0) AS inserted
+                    """), variation_data)
+                    
+                    row = result.fetchone()
+                    if row and row[0]:
+                        stats["variations"]["created"] += 1
+                    else:
+                        stats["variations"]["updated"] += 1
+            
+            mode_text = "FULL REFRESH" if full_refresh else "INCREMENTAL"
+            logger.info(f"✅ Catalog sync completed ({mode_text}): {stats}")
+        
+        await engine.dispose()
+        return {"success": True, "stats": stats}
+        
+    except Exception as e:
+        logger.error(f"Error syncing catalog: {str(e)}")
+        return {"success": False, "error": str(e), "stats": stats}
+
+async def sync_inventory_incremental(access_token, base_url, db_url, full_refresh=False):
+    """Sync inventory data with incremental updates or full refresh"""
+    try:
+        timeout = aiohttp.ClientTimeout(total=600)
+        engine = create_async_engine(db_url, echo=False)
+        stats = {"created": 0, "updated": 0, "deleted": 0}
+        
+        async with engine.begin() as conn:
+            # Get active locations
+            locations_result = await conn.execute(text("SELECT id, name FROM locations WHERE status = 'ACTIVE'"))
+            locations = locations_result.fetchall()
+            
+            if not locations:
+                logger.error("No active locations found")
+                await engine.dispose()
+                return {"success": False, "error": "No active locations found", "stats": stats}
+            
+            if full_refresh:
+                # Full refresh mode - inventory data already cleared in locations sync
+                logger.info("🔥 FULL REFRESH MODE: Inventory table already cleared")
+            
+            total_processed = 0
+            
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                for location in locations:
+                    location_id, location_name = location
+                    
+                    url = f"{base_url}/v2/inventory/counts/batch-retrieve"
+                    headers = {
+                        'Authorization': f'Bearer {access_token}',
+                        'Content-Type': 'application/json'
+                    }
+                    
+                    body = {
+                        'location_ids': [location_id],
+                        'updated_after': '2020-01-01T00:00:00Z'
+                    }
+                    
+                    async with session.post(url, headers=headers, json=body) as response:
+                        if response.status != 200:
+                            logger.error(f"Error fetching inventory for {location_name}: {response.status}")
+                            continue
+                        
+                        data = await response.json()
+                        counts = data.get('counts', [])
+                        
+                        for count in counts:
+                            catalog_object_id = count.get('catalog_object_id')
+                            quantity = int(count.get('quantity', 0))
+                            
+                            if not catalog_object_id:
+                                continue
+                            
+                            inventory_data = {
+                                'variation_id': catalog_object_id,
+                                'location_id': location_id,
+                                'quantity': quantity,
+                                'calculated_at': datetime.now()
+                            }
+                            
+                            if full_refresh:
+                                await conn.execute(text("""
+                                    INSERT INTO catalog_inventory (variation_id, location_id, quantity, calculated_at)
+                                    VALUES (:variation_id, :location_id, :quantity, :calculated_at)
+                                """), inventory_data)
+                                stats["created"] += 1
+                            else:
+                                # Check if record exists and if quantity changed
+                                existing_result = await conn.execute(text("""
+                                    SELECT quantity FROM catalog_inventory 
+                                    WHERE variation_id = :variation_id AND location_id = :location_id
+                                """), {
+                                    'variation_id': catalog_object_id,
+                                    'location_id': location_id
+                                })
+                                existing = existing_result.fetchone()
+                                
+                                if existing is None:
+                                    # Insert new record
+                                    await conn.execute(text("""
+                                        INSERT INTO catalog_inventory (variation_id, location_id, quantity, calculated_at)
+                                        VALUES (:variation_id, :location_id, :quantity, :calculated_at)
+                                    """), inventory_data)
+                                    stats["created"] += 1
+                                elif existing[0] != quantity:
+                                    # Update existing record only if quantity changed
+                                    await conn.execute(text("""
+                                        UPDATE catalog_inventory 
+                                        SET quantity = :quantity, calculated_at = :calculated_at, updated_at = :updated_at
+                                        WHERE variation_id = :variation_id AND location_id = :location_id
+                                    """), {
+                                        **inventory_data,
+                                        'updated_at': datetime.now()
+                                    })
+                                    stats["updated"] += 1
+                            
+                            total_processed += 1
+                        
+                        logger.info(f"📦 Processed {len(counts)} inventory items for {location_name}")
+            
+            mode_text = "FULL REFRESH" if full_refresh else "INCREMENTAL"
+            logger.info(f"✅ Inventory sync completed ({mode_text}): {stats}, Total processed: {total_processed}")
+        
+        await engine.dispose()
+        return {"success": True, "stats": stats}
+        
+    except Exception as e:
+        logger.error(f"Error syncing inventory: {str(e)}")
+        return {"success": False, "error": str(e), "stats": stats} 
