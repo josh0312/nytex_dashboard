@@ -73,10 +73,11 @@
                             Start Export
                         </button>
                         
-                        <button class="bg-gray-600 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white font-medium py-2 px-3 rounded-lg inline-flex items-center justify-center text-xs"
-                                onclick="refreshStatus()">
-                            <i data-lucide="refresh-cw" class="h-3 w-3 mr-2"></i>
-                            Refresh Status
+                        <button id="excel-export-btn"
+                                class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white font-medium py-2 px-3 rounded-lg inline-flex items-center justify-center text-xs"
+                                onclick="exportToExcel()">
+                            <i data-lucide="file-spreadsheet" class="h-3 w-3 mr-2"></i>
+                            Export to Excel
                         </button>
                     </div>
                 </div>
@@ -226,7 +227,7 @@
                 
                 // Refresh status after successful start
                 setTimeout(() => {
-                    refreshStatus();
+                    htmx.trigger('#status-container', 'refresh');
                 }, 2000);
             } else {
                 addLogEntry(`Export failed: ${result.message}`, 'error');
@@ -244,15 +245,46 @@
         }
     }
 
-    function refreshStatus() {
-        addLogEntry('Refreshing status...', 'info');
-        htmx.trigger('#status-container', 'refresh');
+    async function exportToExcel() {
+        const exportBtn = document.getElementById('excel-export-btn');
+        const originalText = exportBtn.innerHTML;
+        
+        // Update button state
+        exportBtn.innerHTML = '<i data-lucide="loader-2" class="h-4 w-4 mr-2 animate-spin"></i>Exporting...';
+        exportBtn.disabled = true;
+        
+        // Reinitialize icons
+        lucide.createIcons();
+        
+        addLogEntry('Starting Excel export...', 'info');
+        
+        try {
+            // Create a download link for the Excel export
+            const link = document.createElement('a');
+            link.href = '/catalog/export/excel';
+            link.download = `square_catalog_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            addLogEntry('Excel export completed successfully', 'success');
+            showToast('Excel export downloaded successfully', 'success');
+            
+        } catch (error) {
+            const errorMsg = `Excel export error: ${error.message}`;
+            addLogEntry(errorMsg, 'error');
+            showToast(errorMsg, 'error');
+        } finally {
+            exportBtn.innerHTML = originalText;
+            exportBtn.disabled = false;
+            lucide.createIcons();
+        }
     }
 
     // Auto-refresh status every 30 seconds
     setInterval(() => {
         if (!exportInProgress) {
-            refreshStatus();
+            htmx.trigger('#status-container', 'refresh');
         }
     }, 30000);
 </script>

@@ -24,10 +24,12 @@ app = Flask(__name__)
 Base = declarative_base()
 
 class SquareItemLibraryExport(Base):
-    """Model for Square catalog export data"""
+    """Model for Square catalog export data - matches Square's official export format"""
     __tablename__ = 'square_item_library_export'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Core item fields
     reference_handle = Column(String(255))
     token = Column(String(255))
     item_name = Column(String(500))
@@ -36,18 +38,13 @@ class SquareItemLibraryExport(Base):
     description = Column(Text)
     categories = Column(String(255))
     reporting_category = Column(String(255))
-    item_type = Column(String(255))
     seo_title = Column(String(255))
     seo_description = Column(Text)
     permalink = Column(String(255))
-    square_online_item_visibility = Column(String(255))
     gtin = Column(String(255))
+    square_online_item_visibility = Column(String(255))
+    item_type = Column(String(255))
     weight_lb = Column(String(255))
-    contains_alcohol = Column(String(255))
-    archived = Column(String(255))
-    sellable = Column(String(255))
-    stockable = Column(String(255))
-    skip_detail_screen_in_pos = Column(String(255))
     social_media_link_title = Column(String(255))
     social_media_link_description = Column(Text)
     shipping_enabled = Column(String(255))
@@ -56,19 +53,98 @@ class SquareItemLibraryExport(Base):
     pickup_enabled = Column(String(255))
     price = Column(Numeric(10, 2))
     online_sale_price = Column(Numeric(10, 2))
+    archived = Column(String(255))
+    sellable = Column(String(255))
+    contains_alcohol = Column(String(255))
+    stockable = Column(String(255))
+    skip_detail_screen_in_pos = Column(String(255))
     option_name_1 = Column(String(255))
     option_value_1 = Column(String(255))
     default_unit_cost = Column(Numeric(10, 2))
     default_vendor_name = Column(String(255))
     default_vendor_code = Column(String(255))
+    
+    # Location-specific fields - Aubrey
+    enabled_aubrey = Column(String(255))
+    current_quantity_aubrey = Column(String(255))
+    new_quantity_aubrey = Column(String(255))
+    stock_alert_enabled_aubrey = Column(String(255))
+    stock_alert_count_aubrey = Column(String(255))
+    price_aubrey = Column(String(255))
+    
+    # Location-specific fields - Bridgefarmer
+    enabled_bridgefarmer = Column(String(255))
+    current_quantity_bridgefarmer = Column(String(255))
+    new_quantity_bridgefarmer = Column(String(255))
+    stock_alert_enabled_bridgefarmer = Column(String(255))
+    stock_alert_count_bridgefarmer = Column(String(255))
+    price_bridgefarmer = Column(String(255))
+    
+    # Location-specific fields - Building
+    enabled_building = Column(String(255))
+    current_quantity_building = Column(String(255))
+    new_quantity_building = Column(String(255))
+    stock_alert_enabled_building = Column(String(255))
+    stock_alert_count_building = Column(String(255))
+    price_building = Column(String(255))
+    
+    # Location-specific fields - FloMo
+    enabled_flomo = Column(String(255))
+    current_quantity_flomo = Column(String(255))
+    new_quantity_flomo = Column(String(255))
+    stock_alert_enabled_flomo = Column(String(255))
+    stock_alert_count_flomo = Column(String(255))
+    price_flomo = Column(String(255))
+    
+    # Location-specific fields - Justin
+    enabled_justin = Column(String(255))
+    current_quantity_justin = Column(String(255))
+    new_quantity_justin = Column(String(255))
+    stock_alert_enabled_justin = Column(String(255))
+    stock_alert_count_justin = Column(String(255))
+    price_justin = Column(String(255))
+    
+    # Location-specific fields - Quinlan
+    enabled_quinlan = Column(String(255))
+    current_quantity_quinlan = Column(String(255))
+    new_quantity_quinlan = Column(String(255))
+    stock_alert_enabled_quinlan = Column(String(255))
+    stock_alert_count_quinlan = Column(String(255))
+    price_quinlan = Column(String(255))
+    
+    # Location-specific fields - Terrell
+    enabled_terrell = Column(String(255))
+    current_quantity_terrell = Column(String(255))
+    new_quantity_terrell = Column(String(255))
+    stock_alert_enabled_terrell = Column(String(255))
+    stock_alert_count_terrell = Column(String(255))
+    price_terrell = Column(String(255))
+    
+    # Tax field
     tax_sales_tax = Column(String(255))
-    location_data = Column(JSONB)
+    
+    # Metadata fields
     created_at = Column(DateTime)
     updated_at = Column(DateTime)
     export_date = Column(DateTime)
 
 def get_database_url():
     """Get database URL from environment variables"""
+    # Check for SQLALCHEMY_DATABASE_URI first (matches main app)
+    db_url = os.environ.get('SQLALCHEMY_DATABASE_URI') or os.environ.get('DATABASE_URL')
+    if db_url:
+        # Convert asyncpg to regular postgresql for SQLAlchemy sync operations
+        if 'postgresql+asyncpg://' in db_url:
+            db_url = db_url.replace('postgresql+asyncpg://', 'postgresql://')
+        
+        # Handle Docker networking - only replace localhost with host.docker.internal if running in Docker
+        # Check if we're running in Docker by looking for /.dockerenv file
+        import os.path as path
+        if path.exists('/.dockerenv') and 'localhost:' in db_url:
+            db_url = db_url.replace('localhost:', 'host.docker.internal:')
+        
+        return db_url
+    
     # For Cloud Run
     db_user = os.environ.get('DB_USER')
     db_password = os.environ.get('DB_PASSWORD')
@@ -78,8 +154,8 @@ def get_database_url():
     if all([db_user, db_password, db_name, cloud_sql_connection_name]):
         return f"postgresql://{db_user}:{db_password}@/{db_name}?host=/cloudsql/{cloud_sql_connection_name}"
     
-    # For local development
-    return "postgresql://postgres:password@localhost:5432/nytex_dashboard"
+    # For local development fallback
+    return "postgresql://postgres:password@host.docker.internal:5432/nytex_dashboard"
 
 # Global variables for export status
 export_status = {
@@ -102,14 +178,14 @@ class SquareCatalogExporter:
             self.base_url = "https://connect.squareupsandbox.com"
     
     async def export_catalog_data(self):
-        """Export catalog data from Square API to database"""
+        """Export catalog data from Square API to database with complete field mapping"""
         global export_status
         
         try:
             export_status['running'] = True
             export_status['error'] = None
             
-            logger.info("Starting Square catalog export...")
+            logger.info("Starting comprehensive Square catalog export...")
             
             if not self.square_access_token:
                 raise Exception("Square access token not configured")
@@ -124,6 +200,16 @@ class SquareCatalogExporter:
             logger.info("Clearing existing catalog data...")
             session.execute(text("DELETE FROM square_item_library_export"))
             session.commit()
+            
+            # Get location mapping for inventory data
+            location_mapping = {}
+            locations_result = session.execute(text("""
+                SELECT id, name FROM locations WHERE status = 'ACTIVE' ORDER BY name
+            """))
+            for row in locations_result:
+                location_mapping[row[0]] = row[1].lower()
+            
+            logger.info(f"Found {len(location_mapping)} active locations: {list(location_mapping.values())}")
             
             # Fetch catalog data from Square
             all_items = []
@@ -141,7 +227,8 @@ class SquareCatalogExporter:
                     body = {
                         "object_types": ["ITEM"],
                         "limit": 1000,
-                        "include_deleted_objects": False
+                        "include_deleted_objects": False,
+                        "include_related_objects": True  # Include variations and other related objects
                     }
                     
                     if cursor:
@@ -155,6 +242,10 @@ class SquareCatalogExporter:
                             items = data.get('objects', [])
                             all_items.extend(items)
                             
+                            # Also collect related objects (categories, etc.)
+                            related_objects = data.get('related_objects', [])
+                            all_items.extend(related_objects)
+                            
                             logger.info(f"Retrieved {len(items)} items on page {page} (total: {len(all_items)})")
                             
                             cursor = data.get('cursor')
@@ -165,47 +256,284 @@ class SquareCatalogExporter:
                             error_text = await response.text()
                             raise Exception(f"Square API error: {response.status} - {error_text}")
             
-            # Process and save items
-            logger.info(f"Processing {len(all_items)} catalog items...")
+            # Build a lookup for categories and other related objects
+            categories_lookup = {}
+            for obj in all_items:
+                if obj.get('type') == 'CATEGORY':
+                    categories_lookup[obj.get('id')] = obj.get('category_data', {}).get('name', '')
             
+            logger.info(f"Found {len(categories_lookup)} categories in Square API response")
+            
+            # Debug: Log first few categories to see what we have
+            category_sample = list(categories_lookup.items())[:5]
+            logger.info(f"Sample categories: {category_sample}")
+            
+            # Process and save items with complete field mapping
+            logger.info(f"Processing catalog items with full field mapping...")
+            
+            processed_count = 0
             for item in all_items:
+                # Only process ITEM objects, skip related objects
+                if item.get('type') != 'ITEM':
+                    continue
+                    
                 # Extract item data
                 item_data = item.get('item_data', {})
                 variations = item_data.get('variations', [])
                 
+                # Get item-level fields
+                item_name = item_data.get('name', '')
+                description = item_data.get('description', '')
+                
+                # Debug: Log the full item_data structure for first few items
+                if processed_count < 3:
+                    logger.info(f"Full item_data for '{item_name}': {item_data}")
+                
+                # Extract categories from Square API
+                # The categories are in item_data.categories as objects with 'id' and 'ordinal'
+                categories_list = item_data.get('categories', [])
+                category_names = []
+                category_ids = []
+                
+                for cat_obj in categories_list:
+                    cat_id = cat_obj.get('id')
+                    if cat_id:
+                        category_ids.append(cat_id)
+                        if cat_id in categories_lookup:
+                            category_names.append(categories_lookup[cat_id])
+                
+                categories_from_api = ','.join(category_names)
+                
+                # Debug logging for first few items
+                if processed_count < 5:
+                    logger.info(f"Item '{item_name}': categories_list={categories_list}, category_ids={category_ids}, categories_from_api='{categories_from_api}'")
+                
+                # Extract ecom data
+                ecom_data = item_data.get('ecom_seo_data', {})
+                seo_title = ecom_data.get('seo_title', '')
+                seo_description = ecom_data.get('seo_description', '')
+                permalink = ecom_data.get('permalink', '')
+                
+                # Extract item options
+                item_options = item_data.get('item_options', [])
+                option_name_1 = item_options[0].get('name', '') if item_options else ''
+                
                 for variation in variations:
                     variation_data = variation.get('item_variation_data', {})
+                    variation_id = variation.get('id', '')
                     
-                    # Create export record
+                    # Extract vendor information from Square API
+                    vendor_infos = variation_data.get('item_variation_vendor_infos', [])
+                    api_vendor_code = ''
+                    if vendor_infos:
+                        # Get the first vendor info's SKU as the vendor code
+                        vendor_info_data = vendor_infos[0].get('item_variation_vendor_info_data', {})
+                        api_vendor_code = vendor_info_data.get('sku', '')
+                    
+                    # Get inventory data for this variation across all locations
+                    inventory_data = {}
+                    inventory_result = session.execute(text("""
+                        SELECT l.name, ci.quantity 
+                        FROM catalog_inventory ci
+                        JOIN locations l ON ci.location_id = l.id
+                        WHERE ci.variation_id = :variation_id AND l.status = 'ACTIVE'
+                    """), {'variation_id': variation_id})
+                    
+                    for inv_row in inventory_result:
+                        location_name = inv_row[0].lower()
+                        quantity = inv_row[1] or 0
+                        inventory_data[location_name] = str(quantity)
+                    
+                    # Get variation-level data from our production tables
+                    variation_result = session.execute(text("""
+                        SELECT cv.sellable, cv.stockable, cv.track_inventory,
+                               cv.present_at_all_locations, cv.units_per_case, cv.default_unit_cost
+                        FROM catalog_variations cv
+                        WHERE cv.id = :variation_id
+                    """), {'variation_id': variation_id})
+                    
+                    variation_row = variation_result.fetchone()
+                    if variation_row:
+                        sellable = 'TRUE' if variation_row[0] else 'FALSE'
+                        stockable = 'TRUE' if variation_row[1] else 'FALSE'
+                        track_inventory = variation_row[2]
+                        present_at_all_locations = variation_row[3]
+                        units_per_case = variation_row[4]
+                        default_unit_cost = variation_row[5]
+                    else:
+                        sellable = 'TRUE'
+                        stockable = 'TRUE'
+                        track_inventory = True
+                        present_at_all_locations = True
+                        units_per_case = None
+                        default_unit_cost = None
+                    
+                    # Get item-level data from our production tables including categories
+                    item_result = session.execute(text("""
+                        SELECT ci.is_archived, ci.ecom_visibility, ci.is_taxable,
+                               cc.name as category_name, rc.name as reporting_category_name
+                        FROM catalog_items ci
+                        LEFT JOIN catalog_categories cc ON ci.category_id = cc.id
+                        LEFT JOIN catalog_categories rc ON ci.reporting_category_id = rc.id
+                        WHERE ci.id = :item_id
+                    """), {'item_id': item.get('id', '')})
+                    
+                    item_row = item_result.fetchone()
+                    if item_row:
+                        archived = 'TRUE' if item_row[0] else 'FALSE'
+                        ecom_visibility = item_row[1] or 'UNINDEXED'
+                        is_taxable = item_row[2]
+                        category_name = item_row[3] or ''
+                        reporting_category_name = item_row[4] or ''
+                    else:
+                        archived = 'FALSE'
+                        ecom_visibility = 'UNINDEXED'
+                        is_taxable = True
+                        category_name = ''
+                        reporting_category_name = ''
+                    
+                    # Get vendor information for this variation
+                    vendor_result = session.execute(text("""
+                        SELECT v.name as vendor_name, v.account_number as vendor_code
+                        FROM catalog_vendor_info cvi
+                        JOIN vendors v ON cvi.vendor_id = v.id
+                        WHERE cvi.variation_id = :variation_id AND cvi.is_deleted = false
+                        ORDER BY cvi.ordinal
+                        LIMIT 1
+                    """), {'variation_id': variation_id})
+                    
+                    vendor_row = vendor_result.fetchone()
+                    if vendor_row:
+                        default_vendor_name = vendor_row[0] or ''
+                        default_vendor_code = vendor_row[1] or api_vendor_code  # Use API vendor code if DB is empty
+                    else:
+                        default_vendor_name = ''
+                        default_vendor_code = api_vendor_code  # Use API vendor code as fallback
+                    
+                    # Extract price information
+                    price_money = variation_data.get('price_money', {})
+                    price = float(price_money.get('amount', 0)) / 100 if price_money else None
+                    
+                    # Extract option values
+                    option_values = variation_data.get('item_option_values', [])
+                    option_value_1 = option_values[0].get('option_value', '') if option_values else ''
+                    
+                    # Create export record with all fields
                     export_record = SquareItemLibraryExport(
+                        # Core fields
                         reference_handle=item.get('id'),
                         token=variation.get('id'),
-                        item_name=item_data.get('name', ''),
+                        item_name=item_name,
                         variation_name=variation_data.get('name', ''),
                         sku=variation_data.get('sku', ''),
-                        description=item_data.get('description', ''),
-                        categories=','.join([cat.get('name', '') for cat in item_data.get('categories', [])]),
-                        price=float(variation_data.get('price_money', {}).get('amount', 0)) / 100 if variation_data.get('price_money') else None,
+                        description=description,
+                        categories=categories_from_api,  # Use categories from Square API
+                        reporting_category=categories_from_api,  # Same as categories - should always match
+                        seo_title=seo_title,
+                        seo_description=seo_description,
+                        permalink=permalink,
+                        gtin='',  # Not available in API
+                        square_online_item_visibility=ecom_visibility,
+                        item_type='REGULAR',  # Default
+                        weight_lb='',  # Not available in API
+                        social_media_link_title='',  # Not available in API
+                        social_media_link_description='',  # Not available in API
+                        shipping_enabled='TRUE',  # Default
+                        self_serve_ordering_enabled='TRUE',  # Default
+                        delivery_enabled='TRUE',  # Default
+                        pickup_enabled='TRUE',  # Default
+                        price=price,
+                        online_sale_price=price,  # Same as regular price
+                        archived=archived,
+                        sellable=sellable,
+                        contains_alcohol='FALSE',  # Default
+                        stockable=stockable,
+                        skip_detail_screen_in_pos='FALSE',  # Default
+                        option_name_1=option_name_1,
+                        option_value_1=option_value_1,
+                        default_unit_cost=default_unit_cost,
+                        default_vendor_name=default_vendor_name,
+                        default_vendor_code=default_vendor_code,
+                        
+                        # Location-specific fields
+                        enabled_aubrey='TRUE' if present_at_all_locations else 'FALSE',
+                        current_quantity_aubrey=inventory_data.get('aubrey', '0'),
+                        new_quantity_aubrey=inventory_data.get('aubrey', '0'),
+                        stock_alert_enabled_aubrey='FALSE',
+                        stock_alert_count_aubrey='0',
+                        price_aubrey=str(price) if price else '',
+                        
+                        enabled_bridgefarmer='TRUE' if present_at_all_locations else 'FALSE',
+                        current_quantity_bridgefarmer=inventory_data.get('bridgefarmer', '0'),
+                        new_quantity_bridgefarmer=inventory_data.get('bridgefarmer', '0'),
+                        stock_alert_enabled_bridgefarmer='FALSE',
+                        stock_alert_count_bridgefarmer='0',
+                        price_bridgefarmer=str(price) if price else '',
+                        
+                        enabled_building='TRUE' if present_at_all_locations else 'FALSE',
+                        current_quantity_building=inventory_data.get('building', '0'),
+                        new_quantity_building=inventory_data.get('building', '0'),
+                        stock_alert_enabled_building='FALSE',
+                        stock_alert_count_building='0',
+                        price_building=str(price) if price else '',
+                        
+                        enabled_flomo='TRUE' if present_at_all_locations else 'FALSE',
+                        current_quantity_flomo=inventory_data.get('flomo', '0'),
+                        new_quantity_flomo=inventory_data.get('flomo', '0'),
+                        stock_alert_enabled_flomo='FALSE',
+                        stock_alert_count_flomo='0',
+                        price_flomo=str(price) if price else '',
+                        
+                        enabled_justin='TRUE' if present_at_all_locations else 'FALSE',
+                        current_quantity_justin=inventory_data.get('justin', '0'),
+                        new_quantity_justin=inventory_data.get('justin', '0'),
+                        stock_alert_enabled_justin='FALSE',
+                        stock_alert_count_justin='0',
+                        price_justin=str(price) if price else '',
+                        
+                        enabled_quinlan='TRUE' if present_at_all_locations else 'FALSE',
+                        current_quantity_quinlan=inventory_data.get('quinlan', '0'),
+                        new_quantity_quinlan=inventory_data.get('quinlan', '0'),
+                        stock_alert_enabled_quinlan='FALSE',
+                        stock_alert_count_quinlan='0',
+                        price_quinlan=str(price) if price else '',
+                        
+                        enabled_terrell='TRUE' if present_at_all_locations else 'FALSE',
+                        current_quantity_terrell=inventory_data.get('terrell', '0'),
+                        new_quantity_terrell=inventory_data.get('terrell', '0'),
+                        stock_alert_enabled_terrell='FALSE',
+                        stock_alert_count_terrell='0',
+                        price_terrell=str(price) if price else '',
+                        
+                        # Tax field
+                        tax_sales_tax='Sales Tax (8.25%)' if is_taxable else '',
+                        
+                        # Metadata
                         created_at=datetime.utcnow(),
                         updated_at=datetime.utcnow(),
-                        export_date=datetime.utcnow(),
-                        location_data={}  # Can be expanded later
+                        export_date=datetime.utcnow()
                     )
                     
                     session.add(export_record)
+                    processed_count += 1
+                    
+                    # Commit in batches for performance
+                    if processed_count % 100 == 0:
+                        session.commit()
+                        logger.info(f"Processed {processed_count} variations...")
             
             session.commit()
             session.close()
             
             export_status['running'] = False
             export_status['last_export'] = datetime.utcnow().isoformat()
-            export_status['total_items'] = len(all_items)
+            export_status['total_items'] = processed_count
             
-            logger.info(f"Catalog export completed successfully: {len(all_items)} items")
+            logger.info(f"Comprehensive catalog export completed successfully: {processed_count} variations processed")
             
             return {
                 'success': True,
-                'items_exported': len(all_items),
+                'items_exported': processed_count,
                 'export_time': export_status['last_export']
             }
             
@@ -273,6 +601,189 @@ def start_export():
         return jsonify({
             'success': False,
             'message': f"Failed to start export: {str(e)}"
+        }), 500
+
+@app.route('/query/categories', methods=['GET'])
+def check_categories():
+    """Check if categories are populated in the export data"""
+    try:
+        database_url = get_database_url()
+        engine = create_engine(database_url)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        
+        # Check categories
+        result = session.execute(text("""
+            SELECT 
+                categories,
+                COUNT(*) as count
+            FROM square_item_library_export 
+            WHERE categories IS NOT NULL AND categories != '' 
+            GROUP BY categories 
+            ORDER BY count DESC 
+            LIMIT 10
+        """))
+        
+        categories_data = []
+        for row in result:
+            categories_data.append({
+                'category': row[0],
+                'count': row[1]
+            })
+        
+        # Also get total counts
+        total_result = session.execute(text("""
+            SELECT 
+                COUNT(*) as total_items,
+                COUNT(CASE WHEN categories IS NOT NULL AND categories != '' THEN 1 END) as items_with_categories,
+                COUNT(CASE WHEN categories IS NULL OR categories = '' THEN 1 END) as items_without_categories
+            FROM square_item_library_export
+        """))
+        
+        totals = total_result.fetchone()
+        
+        session.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'total_items': totals[0],
+                'items_with_categories': totals[1],
+                'items_without_categories': totals[2],
+                'top_categories': categories_data
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking categories: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/query/category-comparison', methods=['GET'])
+def check_category_comparison():
+    """Check if categories and reporting_category columns have the same data"""
+    try:
+        database_url = get_database_url()
+        engine = create_engine(database_url)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        
+        # Check if categories and reporting_category match
+        result = session.execute(text("""
+            SELECT 
+                COUNT(*) as total_items,
+                COUNT(CASE WHEN categories = reporting_category THEN 1 END) as matching_categories,
+                COUNT(CASE WHEN categories != reporting_category THEN 1 END) as different_categories,
+                COUNT(CASE WHEN categories IS NULL OR categories = '' THEN 1 END) as empty_categories,
+                COUNT(CASE WHEN reporting_category IS NULL OR reporting_category = '' THEN 1 END) as empty_reporting_categories
+            FROM square_item_library_export
+        """))
+        
+        row = result.fetchone()
+        
+        # Get sample of different categories
+        diff_result = session.execute(text("""
+            SELECT categories, reporting_category, item_name
+            FROM square_item_library_export 
+            WHERE categories != reporting_category 
+            LIMIT 5
+        """))
+        
+        different_samples = []
+        for row_diff in diff_result:
+            different_samples.append({
+                'item_name': row_diff[2],
+                'categories': row_diff[0],
+                'reporting_category': row_diff[1]
+            })
+        
+        session.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'total_items': row[0],
+                'matching_categories': row[1],
+                'different_categories': row[2],
+                'empty_categories': row[3],
+                'empty_reporting_categories': row[4],
+                'different_samples': different_samples
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking category comparison: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/query/vendors', methods=['GET'])
+def check_vendors():
+    """Check vendor data in the export"""
+    try:
+        database_url = get_database_url()
+        engine = create_engine(database_url)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        
+        # Check vendor data in export
+        result = session.execute(text("""
+            SELECT 
+                default_vendor_name,
+                default_vendor_code,
+                COUNT(*) as count
+            FROM square_item_library_export 
+            WHERE default_vendor_name IS NOT NULL AND default_vendor_name != ''
+            GROUP BY default_vendor_name, default_vendor_code 
+            ORDER BY count DESC 
+            LIMIT 10
+        """))
+        
+        vendor_data = []
+        for row in result:
+            vendor_data.append({
+                'vendor_name': row[0],
+                'vendor_code': row[1] or 'EMPTY',
+                'count': row[2]
+            })
+        
+        # Also check the actual vendors table to see what account_number data exists
+        vendors_result = session.execute(text("""
+            SELECT 
+                name,
+                account_number,
+                id
+            FROM vendors 
+            ORDER BY name
+            LIMIT 10
+        """))
+        
+        vendors_table_data = []
+        for row in vendors_result:
+            vendors_table_data.append({
+                'name': row[0],
+                'account_number': row[1] or 'EMPTY',
+                'id': row[2]
+            })
+        
+        session.close()
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'export_vendor_data': vendor_data,
+                'vendors_table_data': vendors_table_data
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking vendors: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
         }), 500
 
 if __name__ == '__main__':

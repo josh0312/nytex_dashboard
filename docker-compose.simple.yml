@@ -17,6 +17,8 @@ services:
       - DEBUG=True
       - RELOAD_TEMPLATES=True
       - LOG_LEVEL=DEBUG
+      # Override database URL for Docker networking
+      - SQLALCHEMY_DATABASE_URI=postgresql+asyncpg://joshgoble@host.docker.internal:5432/square_data_sync
       
     volumes:
       # Mount source code for development (hot reload)

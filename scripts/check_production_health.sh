@@ -95,8 +95,8 @@ fi
 echo ""
 echo "📊 Testing Square API connectivity..."
 
-# Test Square API by triggering a small sync test
-TEST_RESPONSE=$(curl -s -X POST "$SERVICE_URL/locations/sync" 2>/dev/null || echo '{"success": false}')
+# Test Square API by triggering a small sync test using complete sync in incremental mode
+TEST_RESPONSE=$(curl -s -X POST "$SERVICE_URL/admin/complete-sync" -H "Content-Type: application/json" -d '{"full_refresh": false}' 2>/dev/null || echo '{"success": false}')
 TEST_SUCCESS=$(echo "$TEST_RESPONSE" | python -c "import sys, json; data=json.load(sys.stdin); print(data.get('success', False))" 2>/dev/null || echo "False")
 
 if [ "$TEST_SUCCESS" == "True" ]; then

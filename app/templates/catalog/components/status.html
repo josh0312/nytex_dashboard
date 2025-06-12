@@ -54,17 +54,21 @@
         <!-- Database Status -->
         <div class="text-center">
             {% if status.has_data %}
-                <div class="inline-flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full mb-1">
+                <div id="database-status-indicator" class="inline-flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full mb-1 cursor-pointer"
+                     onclick="checkDatabaseStatus()"
+                     title="Click to refresh database status">
                     <i data-lucide="database" class="h-4 w-4 text-green-600 dark:text-green-400"></i>
                 </div>
-                <div class="text-xs text-gray-600 dark:text-gray-400">
-                    Database Ready
+                <div class="text-xs text-gray-600 dark:text-gray-400" id="database-status-text">
+                    Database
                 </div>
             {% else %}
-                <div class="inline-flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full mb-1">
+                <div id="database-status-indicator" class="inline-flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full mb-1 cursor-pointer"
+                     onclick="checkDatabaseStatus()"
+                     title="Click to refresh database status">
                     <i data-lucide="database" class="h-4 w-4 text-gray-400"></i>
                 </div>
-                <div class="text-xs text-gray-600 dark:text-gray-400">
+                <div class="text-xs text-gray-600 dark:text-gray-400" id="database-status-text">
                     No Data
                 </div>
             {% endif %}
@@ -105,6 +109,7 @@
 
 <script>
     let apiHealthCheckInProgress = false;
+    let databaseStatusCheckInProgress = false;
     
     function formatExportTime() {
         const exportDateElement = document.getElementById('export-date');
@@ -186,7 +191,7 @@
                 indicator.className = 'inline-flex items-center justify-center w-8 h-8 bg-green-100 dark:bg-green-900 rounded-full mb-1 cursor-pointer';
                 indicator.title = 'API is healthy - Click to recheck';
                 indicator.onclick = checkApiHealth;
-                text.textContent = 'API Healthy';
+                text.textContent = 'API';
             } else {
                 // API is not healthy
                 indicator.innerHTML = '<i data-lucide="server-off" class="h-4 w-4 text-red-600 dark:text-red-400"></i>';
@@ -238,6 +243,39 @@
             } else {
                 alert('Failed to get start instructions');
             }
+        }
+    }
+    
+    async function checkDatabaseStatus() {
+        if (databaseStatusCheckInProgress) return;
+        
+        databaseStatusCheckInProgress = true;
+        const indicator = document.getElementById('database-status-indicator');
+        const text = document.getElementById('database-status-text');
+        
+        // Show loading state
+        indicator.innerHTML = '<i data-lucide="loader-2" class="h-4 w-4 text-gray-400 animate-spin"></i>';
+        indicator.className = 'inline-flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full mb-1 cursor-pointer';
+        text.textContent = 'Checking...';
+        lucide.createIcons();
+        
+        try {
+            // Trigger HTMX refresh of the status container
+            if (typeof htmx !== 'undefined') {
+                htmx.trigger('#status-container', 'refresh');
+            } else {
+                // Fallback: refresh the page
+                window.location.reload();
+            }
+            
+            // Reset to normal state after a short delay
+            setTimeout(() => {
+                databaseStatusCheckInProgress = false;
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Error refreshing database status:', error);
+            databaseStatusCheckInProgress = false;
         }
     }
     

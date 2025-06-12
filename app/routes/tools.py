@@ -2,9 +2,10 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from app.templates_config import templates
 from app.services.square_catalog_service import SquareCatalogService
-from app.services.square_inventory_service import SquareInventoryService
 from app.database import get_session
 from app.logger import logger
+from sqlalchemy import text
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -36,6 +37,68 @@ async def square_catalog_export_tool(request: Request):
             "message": "Unable to load Square Catalog Export tool page"
         })
 
+async def get_inventory_status_direct(session):
+    """Get inventory status using direct database queries"""
+    try:
+        # Get total inventory records
+        count_result = await session.execute(
+            text("SELECT COUNT(*) FROM catalog_inventory")
+        )
+        total_records = count_result.scalar()
+        
+        # Get latest update time
+        latest_result = await session.execute(
+            text("SELECT MAX(updated_at) FROM catalog_inventory")
+        )
+        latest_update = latest_result.scalar()
+        
+        # Get inventory by location
+        location_result = await session.execute(
+            text("""
+                SELECT l.name, COUNT(ci.id) as item_count, SUM(ci.quantity) as total_qty
+                FROM catalog_inventory ci
+                JOIN locations l ON ci.location_id = l.id
+                WHERE l.status = 'ACTIVE'
+                GROUP BY l.name
+                ORDER BY l.name
+            """)
+        )
+        location_stats = [
+            {
+                'location': row[0],
+                'item_count': row[1],
+                'total_quantity': row[2]
+            }
+            for row in location_result.fetchall()
+        ]
+        
+        # Format last update time
+        last_update_iso = None
+        if latest_update:
+            if latest_update.tzinfo is None:
+                # Database stores timezone-naive UTC, so add UTC timezone for display
+                utc_update = latest_update.replace(tzinfo=timezone.utc)
+            else:
+                utc_update = latest_update.astimezone(timezone.utc)
+            last_update_iso = utc_update.isoformat()
+        
+        return {
+            'total_records': total_records,
+            'last_update': last_update_iso,
+            'has_data': total_records > 0,
+            'location_stats': location_stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting inventory status: {str(e)}")
+        return {
+            'total_records': 0,
+            'last_update': None,
+            'has_data': False,
+            'location_stats': [],
+            'error': str(e)
+        }
+
 @router.get("/square-inventory-update", response_class=HTMLResponse)
 async def square_inventory_update_tool(request: Request):
     """Square Inventory Update tool page"""
@@ -44,8 +107,7 @@ async def square_inventory_update_tool(request: Request):
         
         # Get current inventory status
         async with get_session() as session:
-            inventory_service = SquareInventoryService()
-            status = await inventory_service.get_inventory_status(session)
+            status = await get_inventory_status_direct(session)
         
         return templates.TemplateResponse("tools/square_inventory_update.html", {
             "request": request,
@@ -61,15 +123,32 @@ async def square_inventory_update_tool(request: Request):
 
 @router.post("/square-inventory-update/start")
 async def start_inventory_update(request: Request):
-    """Start the Square inventory update process"""
+    """Start the Square inventory update process using complete sync"""
     try:
-        logger.info("Starting Square inventory update")
+        logger.info("Starting Square inventory update via complete sync")
         
-        async with get_session() as session:
-            inventory_service = SquareInventoryService()
-            result = await inventory_service.fetch_inventory_from_square(session)
+        # Use the complete sync endpoint for inventory updates
+        import aiohttp
         
-        return JSONResponse(result)
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "http://localhost:8000/admin/complete-sync",
+                json={"full_refresh": False},
+                headers={"Content-Type": "application/json"}
+            ) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return JSONResponse({
+                        "success": True,
+                        "message": "Inventory update completed via complete sync",
+                        "data": result
+                    })
+                else:
+                    error_text = await response.text()
+                    return JSONResponse({
+                        "success": False,
+                        "message": f"Complete sync failed: {error_text}"
+                    }, status_code=500)
         
     except Exception as e:
         logger.error(f"Error starting inventory update: {str(e)}", exc_info=True)
@@ -83,8 +162,7 @@ async def get_inventory_update_status(request: Request):
     """Get current inventory update status"""
     try:
         async with get_session() as session:
-            inventory_service = SquareInventoryService()
-            status = await inventory_service.get_inventory_status(session)
+            status = await get_inventory_status_direct(session)
         
         return JSONResponse({
             "success": True,
@@ -103,8 +181,7 @@ async def get_inventory_status_component(request: Request):
     """Get inventory status component for HTMX updates"""
     try:
         async with get_session() as session:
-            inventory_service = SquareInventoryService()
-            status = await inventory_service.get_inventory_status(session)
+            status = await get_inventory_status_direct(session)
         
         return templates.TemplateResponse("tools/components/inventory_status.html", {
             "request": request,

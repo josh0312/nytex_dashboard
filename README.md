@@ -46,6 +46,7 @@ python run.py
 
 ### 📦 **Inventory Management**
 - **Square Integration**: Real-time sync with Square POS systems
+- **Square Catalog Export**: Complete 76-column export matching Square's official format
 - **Automated Categorization**: Smart product classification
 - **Stock Alerts**: Low inventory notifications
 - **Seasonal Tracking**: Track products by fireworks seasons
@@ -79,7 +80,8 @@ nytex_dashboard/
 ├── docs/                       # Documentation
 │   ├── DOCKER_GUIDE.md       # Docker development guide
 │   ├── SECRETS_GUIDE.md      # Secrets management guide
-│   └── DEPLOYMENT.md         # Production deployment
+│   ├── DEPLOYMENT.md         # Production deployment
+│   └── SQUARE_CATALOG_EXPORT.md  # Square catalog export guide
 ├── docker-compose.yml         # Full development environment
 ├── docker-compose.simple.yml  # Simplified development
 └── docker-compose.prod.yml    # Production testing
@@ -206,6 +208,7 @@ python -m pytest tests/ --cov=app
 
 - **[Docker Development Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and workflow
 - **[Secrets Management Guide](./docs/SECRETS_GUIDE.md)** - Google Secret Manager integration
+- **[Square Catalog Export](./docs/SQUARE_CATALOG_EXPORT.md)** - Complete catalog export system
 - **[Authentication Setup](./docs/AUTHENTICATION.md)** - O365 and manual authentication
 - **[API Documentation](http://localhost:8080/docs)** - Interactive API docs (when running)
 

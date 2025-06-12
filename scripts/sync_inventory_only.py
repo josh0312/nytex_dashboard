@@ -37,28 +37,38 @@ async def sync_inventory_only():
             
             logger.info("✅ Service is healthy")
             
-            # Trigger inventory sync
-            logger.info("📦 Triggering inventory sync...")
-            async with session.post(f"{base_url}/inventory/sync") as response:
+            # Trigger complete sync in incremental mode (inventory included)
+            logger.info("📦 Triggering complete sync (incremental mode)...")
+            async with session.post(
+                f"{base_url}/admin/complete-sync",
+                headers={"Content-Type": "application/json"},
+                json={"full_refresh": False}
+            ) as response:
                 if response.status == 200:
                     result = await response.json()
                     
                     if result.get('success'):
-                        logger.info("✅ Inventory sync successful!")
+                        logger.info("✅ Complete sync successful!")
                         logger.info(f"📋 Message: {result.get('message', 'Sync completed')}")
                         
                         # Extract details if available
-                        data = result.get('data', {})
-                        if isinstance(data, dict):
-                            inventory_count = data.get('total_inventory_updated', 'unknown')
-                            catalog_updates = data.get('catalog_updates', {})
-                            items_updated = catalog_updates.get('items_updated', 0)
-                            variations_updated = catalog_updates.get('variations_updated', 0)
-                            
+                        sync_stats = result.get('sync_stats', {})
+                        enhanced_features = result.get('enhanced_features', {})
+                        
+                        if sync_stats:
+                            inventory_stats = sync_stats.get('inventory', {})
                             logger.info(f"📊 Results:")
-                            logger.info(f"   • {inventory_count} inventory records")
-                            logger.info(f"   • {items_updated} catalog items updated")
-                            logger.info(f"   • {variations_updated} variations updated")
+                            logger.info(f"   • {inventory_stats.get('created', 0)} inventory records created")
+                            logger.info(f"   • {inventory_stats.get('updated', 0)} inventory records updated")
+                            logger.info(f"   • {result.get('total_changes', 0)} total changes")
+                        
+                        if enhanced_features:
+                            units_updates = enhanced_features.get('units_per_case_updates', {})
+                            dedup = enhanced_features.get('inventory_deduplication', {})
+                            logger.info(f"🚀 Enhanced features:")
+                            logger.info(f"   • {units_updates.get('items_updated', 0)} items updated with Units Per Case")
+                            logger.info(f"   • {units_updates.get('variations_updated', 0)} variations updated with Units Per Case")
+                            logger.info(f"   • {dedup.get('raw_items', 0)} raw items deduplicated to {dedup.get('unique_records', 0)} unique records")
                         
                         return True
                     else:

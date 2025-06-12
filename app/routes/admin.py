@@ -12,7 +12,7 @@ from app.services.incremental_sync_service import IncrementalSyncService
 from sqlalchemy import text
 import aiohttp
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from typing import List, Dict
+from typing import List, Dict, Any
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -199,8 +199,8 @@ async def complete_sync(request: Request):
         sync_stats["items"] = catalog_result["stats"]["items"]
         sync_stats["variations"] = catalog_result["stats"]["variations"]
         
-        # Step 3: Sync Inventory
-        logger.info("Step 3: Syncing inventory...")
+        # Step 3: Sync Inventory (Enhanced with Units Per Case and deduplication)
+        logger.info("Step 3: Syncing inventory with advanced features...")
         inventory_result = await sync_inventory_incremental(square_access_token, base_url, db_url, full_refresh)
         if not inventory_result["success"]:
             return JSONResponse({
@@ -209,6 +209,17 @@ async def complete_sync(request: Request):
                 "timestamp": datetime.now(timezone.utc).isoformat()
             }, status_code=500)
         sync_stats["inventory"] = inventory_result["stats"]
+        
+        # Add catalog updates from inventory sync to the overall stats
+        if "catalog_updates" in inventory_result:
+            catalog_updates = inventory_result["catalog_updates"]
+            # Add to existing catalog stats
+            sync_stats["categories"]["updated"] += catalog_updates.get("items_updated", 0)
+            sync_stats["variations"]["updated"] += catalog_updates.get("variations_updated", 0)
+            
+            # Log the enhanced features
+            logger.info(f"📋 Catalog enhancements: {catalog_updates['items_updated']} items updated with Units Per Case, {catalog_updates['variations_updated']} variations updated")
+            logger.info(f"📊 Inventory processing: {inventory_result.get('total_raw_items', 0)} raw items deduplicated to {inventory_result.get('unique_records', 0)} unique records")
         
         # Calculate totals
         total_changes = sum(
@@ -219,14 +230,27 @@ async def complete_sync(request: Request):
         success_message = f"Complete production sync successful ({sync_mode}) - {total_changes} total changes"
         logger.info(success_message)
         
-        return JSONResponse({
+        # Enhanced response with catalog updates
+        response_data = {
             "success": True,
             "message": success_message,
             "sync_mode": sync_mode,
             "sync_stats": sync_stats,
             "total_changes": total_changes,
             "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        }
+        
+        # Add enhanced inventory details if available
+        if "catalog_updates" in inventory_result:
+            response_data["enhanced_features"] = {
+                "units_per_case_updates": inventory_result["catalog_updates"],
+                "inventory_deduplication": {
+                    "raw_items": inventory_result.get("total_raw_items", 0),
+                    "unique_records": inventory_result.get("unique_records", 0)
+                }
+            }
+        
+        return JSONResponse(response_data)
         
     except Exception as e:
         logger.error(f"Error during complete sync: {str(e)}", exc_info=True)
@@ -1237,11 +1261,45 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
         return {"success": False, "error": str(e), "stats": stats}
 
 async def sync_inventory_incremental(access_token, base_url, db_url, full_refresh=False):
-    """Sync inventory data with incremental updates or full refresh"""
+    """Enhanced inventory sync with Units Per Case, deduplication, and catalog updates"""
     try:
         timeout = aiohttp.ClientTimeout(total=600)
         engine = create_async_engine(db_url, echo=False)
         stats = {"created": 0, "updated": 0, "deleted": 0}
+        catalog_updates = {
+            'items_updated': 0,
+            'variations_updated': 0,
+            'items_with_units': 0,
+            'variations_with_units': 0
+        }
+        
+        # Units Per Case attribute ID
+        units_per_case_id = "WLEIG6KKOKGRMX2PG2TCZFP7"
+        
+        def extract_units_per_case(obj: Dict[str, Any]) -> int:
+            """Extract Units Per Case value from a catalog object's custom attributes"""
+            try:
+                if 'custom_attribute_values' in obj:
+                    custom_attrs = obj['custom_attribute_values']
+                    
+                    # Look for Units Per Case specifically
+                    for attr_key, attr_data in custom_attrs.items():
+                        if (attr_data.get('custom_attribute_definition_id') == units_per_case_id or
+                            attr_data.get('name') == 'Units Per Case'):
+                            units_value = attr_data.get('number_value')
+                            if units_value is not None:
+                                try:
+                                    # Convert to float first, then to int (handles decimal values from Square)
+                                    return int(float(units_value))
+                                except (ValueError, TypeError):
+                                    logger.warning(f"Invalid Units Per Case value: {units_value} for object {obj.get('id')}")
+                                    return None
+                            break
+                
+                return None
+            except Exception as e:
+                logger.error(f"Error extracting Units Per Case from object {obj.get('id')}: {str(e)}")
+                return None
         
         async with engine.begin() as conn:
             # Get active locations
@@ -1257,91 +1315,334 @@ async def sync_inventory_incremental(access_token, base_url, db_url, full_refres
                 # Full refresh mode - inventory data already cleared in locations sync
                 logger.info("🔥 FULL REFRESH MODE: Inventory table already cleared")
             
-            total_processed = 0
+            # Step 1: Update catalog items and variations with Units Per Case
+            logger.info("📋 Updating catalog with Units Per Case data...")
             
             async with aiohttp.ClientSession(timeout=timeout) as session:
+                catalog_url = f"{base_url}/v2/catalog/search"
+                headers = {
+                    'Authorization': f'Bearer {access_token}',
+                    'Content-Type': 'application/json'
+                }
+                
+                # Get existing catalog items for comparison
+                db_items_result = await conn.execute(text("SELECT id, units_per_case FROM catalog_items WHERE is_deleted = false"))
+                db_items = {row[0]: row[1] for row in db_items_result.fetchall()}
+                
+                # Fetch and update items
+                all_items = []
+                cursor = None
+                page = 1
+                
+                while True:
+                    body = {
+                        "object_types": ["ITEM"],
+                        "limit": 1000,
+                        "include_deleted_objects": False
+                    }
+                    
+                    if cursor:
+                        body["cursor"] = cursor
+                    
+                    logger.info(f"📋 Fetching catalog items page {page} for Units Per Case sync...")
+                    
+                    async with session.post(catalog_url, headers=headers, json=body) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            items = data.get('objects', [])
+                            all_items.extend(items)
+                            
+                            logger.info(f"Retrieved {len(items)} items on page {page} (total: {len(all_items)})")
+                            
+                            cursor = data.get('cursor')
+                            if not cursor:
+                                break
+                            page += 1
+                        else:
+                            error_text = await response.text()
+                            logger.error(f"Square API error fetching items: {response.status} - {error_text}")
+                            break
+                
+                # Process items and update Units Per Case
+                for square_item in all_items:
+                    item_id = square_item.get('id')
+                    
+                    if not item_id or item_id not in db_items:
+                        continue
+                    
+                    units_per_case = extract_units_per_case(square_item)
+                    
+                    if units_per_case is not None:
+                        catalog_updates['items_with_units'] += 1
+                    
+                    # Update if different
+                    current_units = db_items[item_id]
+                    if current_units != units_per_case:
+                        await conn.execute(text("""
+                            UPDATE catalog_items 
+                            SET units_per_case = :units_per_case, updated_at = :updated_at
+                            WHERE id = :id
+                        """), {
+                            'id': item_id,
+                            'units_per_case': units_per_case,
+                            'updated_at': datetime.now()
+                        })
+                        catalog_updates['items_updated'] += 1
+                
+                # Get existing catalog variations for comparison
+                db_variations_result = await conn.execute(text("SELECT id, units_per_case FROM catalog_variations WHERE is_deleted = false"))
+                db_variations = {row[0]: row[1] for row in db_variations_result.fetchall()}
+                
+                # Fetch and update variations
+                all_variations = []
+                cursor = None
+                page = 1
+                
+                while True:
+                    body = {
+                        "object_types": ["ITEM_VARIATION"],
+                        "limit": 1000,
+                        "include_deleted_objects": False
+                    }
+                    
+                    if cursor:
+                        body["cursor"] = cursor
+                    
+                    logger.info(f"🔧 Fetching catalog variations page {page} for Units Per Case sync...")
+                    
+                    async with session.post(catalog_url, headers=headers, json=body) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            variations = data.get('objects', [])
+                            all_variations.extend(variations)
+                            
+                            logger.info(f"Retrieved {len(variations)} variations on page {page} (total: {len(all_variations)})")
+                            
+                            cursor = data.get('cursor')
+                            if not cursor:
+                                break
+                            page += 1
+                        else:
+                            error_text = await response.text()
+                            logger.error(f"Square API error fetching variations: {response.status} - {error_text}")
+                            break
+                
+                # Process variations and update Units Per Case
+                for square_variation in all_variations:
+                    variation_id = square_variation.get('id')
+                    
+                    if not variation_id or variation_id not in db_variations:
+                        continue
+                    
+                    units_per_case = extract_units_per_case(square_variation)
+                    
+                    if units_per_case is not None:
+                        catalog_updates['variations_with_units'] += 1
+                    
+                    # Update if different
+                    current_units = db_variations[variation_id]
+                    if current_units != units_per_case:
+                        await conn.execute(text("""
+                            UPDATE catalog_variations 
+                            SET units_per_case = :units_per_case, updated_at = :updated_at
+                            WHERE id = :id
+                        """), {
+                            'id': variation_id,
+                            'units_per_case': units_per_case,
+                            'updated_at': datetime.now()
+                        })
+                        catalog_updates['variations_updated'] += 1
+                
+                logger.info(f"📋 Catalog updates completed - Items: {catalog_updates['items_updated']} updated ({catalog_updates['items_with_units']} with units), Variations: {catalog_updates['variations_updated']} updated ({catalog_updates['variations_with_units']} with units)")
+                
+                # Step 2: Fetch inventory data with advanced deduplication
+                logger.info("📦 Fetching inventory data with deduplication...")
+                
+                # Get catalog to variation mapping for validation
+                catalog_to_variation_result = await conn.execute(text("SELECT id FROM catalog_variations WHERE is_deleted = false"))
+                catalog_to_variation = {row[0] for row in catalog_to_variation_result.fetchall()}
+                
+                # Collect all inventory data first for deduplication
+                location_inventory = {}
+                total_raw_items = 0
+                
                 for location in locations:
                     location_id, location_name = location
                     
-                    url = f"{base_url}/v2/inventory/counts/batch-retrieve"
-                    headers = {
-                        'Authorization': f'Bearer {access_token}',
-                        'Content-Type': 'application/json'
-                    }
+                    location_inventory_items = []
+                    cursor = None
                     
-                    body = {
+                    inventory_url = f"{base_url}/v2/inventory/counts/batch-retrieve"
+                    
+                    request_body = {
                         'location_ids': [location_id],
                         'updated_after': '2020-01-01T00:00:00Z'
                     }
                     
-                    async with session.post(url, headers=headers, json=body) as response:
-                        if response.status != 200:
-                            logger.error(f"Error fetching inventory for {location_name}: {response.status}")
-                            continue
+                    while True:
+                        if cursor:
+                            request_body["cursor"] = cursor
                         
-                        data = await response.json()
-                        counts = data.get('counts', [])
-                        
-                        for count in counts:
-                            catalog_object_id = count.get('catalog_object_id')
-                            quantity = int(count.get('quantity', 0))
-                            
-                            if not catalog_object_id:
-                                continue
-                            
-                            inventory_data = {
-                                'variation_id': catalog_object_id,
-                                'location_id': location_id,
-                                'quantity': quantity,
-                                'calculated_at': datetime.now()
-                            }
-                            
-                            if full_refresh:
-                                await conn.execute(text("""
-                                    INSERT INTO catalog_inventory (variation_id, location_id, quantity, calculated_at)
-                                    VALUES (:variation_id, :location_id, :quantity, :calculated_at)
-                                """), inventory_data)
-                                stats["created"] += 1
-                            else:
-                                # Check if record exists and if quantity changed
-                                existing_result = await conn.execute(text("""
-                                    SELECT quantity FROM catalog_inventory 
-                                    WHERE variation_id = :variation_id AND location_id = :location_id
-                                """), {
-                                    'variation_id': catalog_object_id,
-                                    'location_id': location_id
-                                })
-                                existing = existing_result.fetchone()
+                        async with session.post(inventory_url, headers=headers, json=request_body) as response:
+                            if response.status == 200:
+                                data = await response.json()
+                                counts = data.get('counts', [])
                                 
-                                if existing is None:
-                                    # Insert new record
-                                    await conn.execute(text("""
-                                        INSERT INTO catalog_inventory (variation_id, location_id, quantity, calculated_at)
-                                        VALUES (:variation_id, :location_id, :quantity, :calculated_at)
-                                    """), inventory_data)
-                                    stats["created"] += 1
-                                elif existing[0] != quantity:
-                                    # Update existing record only if quantity changed
-                                    await conn.execute(text("""
-                                        UPDATE catalog_inventory 
-                                        SET quantity = :quantity, calculated_at = :calculated_at, updated_at = :updated_at
-                                        WHERE variation_id = :variation_id AND location_id = :location_id
-                                    """), {
-                                        **inventory_data,
-                                        'updated_at': datetime.now()
-                                    })
-                                    stats["updated"] += 1
-                            
-                            total_processed += 1
+                                logger.info(f"📦 Retrieved {len(counts)} inventory items for {location_name}")
+                                location_inventory_items.extend(counts)
+                                total_raw_items += len(counts)
+                                
+                                # Check for more pages
+                                cursor = data.get('cursor')
+                                if not cursor:
+                                    break
+                            else:
+                                error_text = await response.text()
+                                logger.error(f"Error fetching inventory for {location_name}: {response.status} - {error_text}")
+                                break
+                    
+                    location_inventory[location_id] = location_inventory_items
+                    logger.info(f"📦 Total inventory items for {location_name}: {len(location_inventory_items)}")
+                
+                # Advanced deduplication logic
+                logger.info(f"📊 Processing {total_raw_items} raw inventory items for deduplication...")
+                unique_inventory = {}
+                
+                for location_id, inventory_items in location_inventory.items():
+                    for item in inventory_items:
+                        catalog_object_id = item.get('catalog_object_id')
+                        quantity = item.get('quantity', '0')
+                        calculated_at = item.get('calculated_at')
                         
-                        logger.info(f"📦 Processed {len(counts)} inventory items for {location_name}")
+                        # Convert quantity to integer
+                        try:
+                            quantity_int = int(quantity)
+                        except (ValueError, TypeError):
+                            quantity_int = 0
+                        
+                        # Parse calculated_at timestamp
+                        calculated_datetime = None
+                        if calculated_at:
+                            try:
+                                calculated_datetime = datetime.fromisoformat(calculated_at.replace('Z', '+00:00'))
+                                # Convert to timezone-naive UTC for database storage
+                                if calculated_datetime.tzinfo is not None:
+                                    calculated_datetime = calculated_datetime.astimezone(timezone.utc).replace(tzinfo=None)
+                            except ValueError:
+                                calculated_datetime = datetime.now(timezone.utc).replace(tzinfo=None)
+                        else:
+                            calculated_datetime = datetime.now(timezone.utc).replace(tzinfo=None)
+                        
+                        # Only process if we have a matching variation and valid catalog object ID
+                        if catalog_object_id and catalog_object_id in catalog_to_variation:
+                            # Create unique key for deduplication
+                            unique_key = (catalog_object_id, location_id)
+                            
+                            # If this combination doesn't exist or has a newer timestamp, update it
+                            if (unique_key not in unique_inventory or 
+                                (calculated_datetime and 
+                                 unique_inventory[unique_key]['calculated_datetime'] < calculated_datetime)):
+                                
+                                unique_inventory[unique_key] = {
+                                    'variation_id': catalog_object_id,
+                                    'location_id': location_id,
+                                    'quantity': quantity_int,
+                                    'calculated_datetime': calculated_datetime
+                                }
+                
+                logger.info(f"📊 Deduplicated to {len(unique_inventory)} unique inventory records")
+                
+                # Step 3: Update database with deduplicated inventory
+                if full_refresh:
+                    # Full refresh mode - inventory already cleared
+                    for inventory_data in unique_inventory.values():
+                        await conn.execute(text("""
+                            INSERT INTO catalog_inventory (variation_id, location_id, quantity, calculated_at)
+                            VALUES (:variation_id, :location_id, :quantity, :calculated_at)
+                        """), inventory_data)
+                        stats["created"] += 1
+                else:
+                    # Incremental mode - check for changes
+                    for inventory_data in unique_inventory.values():
+                        # Check if record exists and if quantity changed
+                        existing_result = await conn.execute(text("""
+                            SELECT quantity FROM catalog_inventory 
+                            WHERE variation_id = :variation_id AND location_id = :location_id
+                        """), {
+                            'variation_id': inventory_data['variation_id'],
+                            'location_id': inventory_data['location_id']
+                        })
+                        existing = existing_result.fetchone()
+                        
+                        if existing is None:
+                            # Insert new record
+                            await conn.execute(text("""
+                                INSERT INTO catalog_inventory (variation_id, location_id, quantity, calculated_at)
+                                VALUES (:variation_id, :location_id, :quantity, :calculated_at)
+                            """), inventory_data)
+                            stats["created"] += 1
+                        elif existing[0] != inventory_data['quantity']:
+                            # Update existing record only if quantity changed
+                            await conn.execute(text("""
+                                UPDATE catalog_inventory 
+                                SET quantity = :quantity, calculated_at = :calculated_at, updated_at = :updated_at
+                                WHERE variation_id = :variation_id AND location_id = :location_id
+                            """), {
+                                **inventory_data,
+                                'updated_at': datetime.now()
+                            })
+                            stats["updated"] += 1
             
             mode_text = "FULL REFRESH" if full_refresh else "INCREMENTAL"
-            logger.info(f"✅ Inventory sync completed ({mode_text}): {stats}, Total processed: {total_processed}")
+            logger.info(f"✅ Enhanced inventory sync completed ({mode_text}): {stats}")
+            logger.info(f"📋 Catalog updates: {catalog_updates}")
         
         await engine.dispose()
-        return {"success": True, "stats": stats}
+        return {
+            "success": True, 
+            "stats": stats,
+            "catalog_updates": catalog_updates,
+            "total_raw_items": total_raw_items,
+            "unique_records": len(unique_inventory) if 'unique_inventory' in locals() else 0
+        }
         
     except Exception as e:
-        logger.error(f"Error syncing inventory: {str(e)}")
-        return {"success": False, "error": str(e), "stats": stats} 
+        logger.error(f"Error in enhanced inventory sync: {str(e)}")
+        return {"success": False, "error": str(e), "stats": stats}
+
+@router.get("/logs")
+async def get_recent_logs():
+    """Get recent log entries for the admin log viewer"""
+    try:
+        import os
+        
+        # Try to read from the app.log file
+        log_file_path = "app.log"
+        
+        if os.path.exists(log_file_path):
+            # Read the last 50 lines of the log file
+            with open(log_file_path, 'r') as f:
+                lines = f.readlines()
+                recent_lines = lines[-50:] if len(lines) > 50 else lines
+                log_content = ''.join(recent_lines)
+            
+            return JSONResponse({
+                "success": True,
+                "logs": log_content,
+                "lines_count": len(recent_lines),
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        else:
+            return JSONResponse({
+                "success": False,
+                "message": "Log file not found. Logs may be configured differently in production.",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+            
+    except Exception as e:
+        logger.error(f"Error reading logs: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "message": f"Error reading logs: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500) 

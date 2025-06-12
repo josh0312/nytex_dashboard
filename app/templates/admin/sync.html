@@ -64,6 +64,190 @@
     }
     
     .hidden { display: none; }
+    
+    /* Enhanced Visual Elements */
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #E5E7EB;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 8px 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10B981, #059669);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+        width: 0%;
+    }
+    
+    .sync-flow-step {
+        display: flex;
+        align-items: center;
+        padding: 12px;
+        margin: 8px 0;
+        border-radius: 8px;
+        border: 2px solid #E5E7EB;
+        background: #F9FAFB;
+        transition: all 0.3s ease;
+    }
+    
+    .sync-flow-step.active {
+        border-color: #F59E0B;
+        background: #FFFBEB;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+    }
+    
+    .sync-flow-step.completed {
+        border-color: #10B981;
+        background: #F0FDF4;
+    }
+    
+    .sync-flow-step.error {
+        border-color: #EF4444;
+        background: #FEF2F2;
+    }
+    
+    .step-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        font-weight: bold;
+        color: white;
+    }
+    
+    .step-icon.pending { background: #9CA3AF; }
+    .step-icon.active { background: #F59E0B; animation: pulse 2s infinite; }
+    .step-icon.completed { background: #10B981; }
+    .step-icon.error { background: #EF4444; }
+    
+    .status-card {
+        background: white;
+        border-radius: 8px;
+        padding: 16px;
+        border: 1px solid #E5E7EB;
+        transition: all 0.2s ease;
+    }
+    
+    .status-card:hover {
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+    }
+    
+    .status-card.ready {
+        border-color: #10B981;
+        background: linear-gradient(135deg, #F0FDF4, #ECFDF5);
+    }
+    
+    .status-card.error {
+        border-color: #EF4444;
+        background: linear-gradient(135deg, #FEF2F2, #FDE8E8);
+    }
+    
+    .status-card.warning {
+        border-color: #F59E0B;
+        background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
+    }
+    
+    .metric-card {
+        text-align: center;
+        padding: 20px;
+        border-radius: 12px;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--accent-color), var(--accent-color-dark));
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    
+    .metric-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        line-height: 1;
+        margin: 8px 0;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .metric-subtitle {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        margin-top: 4px;
+    }
+    
+    .sync-timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+    
+    .sync-timeline::before {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #E5E7EB;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -23px;
+        top: 8px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #9CA3AF;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #E5E7EB;
+    }
+    
+    .timeline-item.active::before {
+        background: #F59E0B;
+        box-shadow: 0 0 0 2px #F59E0B, 0 0 0 6px rgba(245, 158, 11, 0.2);
+        animation: pulse 2s infinite;
+    }
+    
+    .timeline-item.completed::before {
+        background: #10B981;
+        box-shadow: 0 0 0 2px #10B981;
+    }
+    
+    .timeline-item.error::before {
+        background: #EF4444;
+        box-shadow: 0 0 0 2px #EF4444;
+    }
 </style>
 {% endblock %}
 
@@ -80,15 +264,84 @@
 
         <!-- Configuration Check -->
         <div class="sync-card">
-            <h2 class="text-xl font-semibold mb-4">🔧 Configuration Status</h2>
-            <div id="config-status">
-                <div class="flex items-center">
-                    <span class="status-indicator status-ready"></span>
-                    <span>Production Environment Ready</span>
+            <h2 class="text-xl font-semibold mb-4">🔧 Sync Readiness Check</h2>
+            <p class="text-gray-600 mb-4">
+                Comprehensive validation of all components required for successful production sync.
+            </p>
+            
+            <!-- Overall Readiness Progress -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700">System Readiness</span>
+                    <span class="text-sm text-gray-500" id="readiness-percentage">0%</span>
                 </div>
-                <div class="flex items-center mt-2">
-                    <span class="status-indicator" id="square-status"></span>
-                    <span id="square-text">Checking Square API configuration...</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="readiness-progress"></div>
+                </div>
+            </div>
+            
+            <div id="config-status">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Database Status -->
+                    <div class="status-card" id="db-card">
+                        <div class="flex items-center mb-2">
+                            <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                                <span class="text-xl">🗄️</span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-medium text-sm" id="db-text">Checking database...</div>
+                                <div class="text-xs text-gray-500" id="db-detail">Validating connection...</div>
+                            </div>
+                            <span class="status-indicator" id="db-status"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Square API Status -->
+                    <div class="status-card" id="square-card">
+                        <div class="flex items-center mb-2">
+                            <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                                <span class="text-xl">🔗</span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-medium text-sm" id="square-text">Checking Square API...</div>
+                                <div class="text-xs text-gray-500" id="square-detail">Validating token...</div>
+                            </div>
+                            <span class="status-indicator" id="square-status"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Tables Status -->
+                    <div class="status-card" id="tables-card">
+                        <div class="flex items-center mb-2">
+                            <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                                <span class="text-xl">📋</span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-medium text-sm" id="tables-text">Checking tables...</div>
+                                <div class="text-xs text-gray-500" id="tables-detail">Validating schema...</div>
+                            </div>
+                            <span class="status-indicator" id="tables-status"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Overall Readiness -->
+                    <div class="status-card" id="overall-card">
+                        <div class="flex items-center mb-2">
+                            <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                                <span class="text-xl">⚡</span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-medium text-sm" id="overall-text">Calculating readiness...</div>
+                                <div class="text-xs text-gray-500" id="overall-detail">Analyzing components...</div>
+                            </div>
+                            <span class="status-indicator" id="overall-status"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Readiness Summary -->
+                <div id="readiness-summary" class="mt-4 p-3 rounded border hidden">
+                    <!-- Summary content will be populated by JavaScript -->
                 </div>
             </div>
         </div>
@@ -98,18 +351,104 @@
             <h2 class="text-xl font-semibold mb-4">🚀 Complete Production Sync</h2>
             <p class="text-gray-700 mb-4">
                 <strong>Recommended:</strong> Run this comprehensive sync to ensure production has all necessary data.
-                This syncs locations, catalog data, and inventory in the proper order.
-                <br><br>
-                <strong>What it does:</strong>
-                <br>• Step 1: Syncs all locations from Square
-                <br>• Step 2: Syncs catalog data (categories, items, variations)
-                <br>• Step 3: Syncs current inventory quantities
-                <br>• Step 4: Ensures all data relationships are correct
-                <br><br>
-                <strong>Sync Modes:</strong>
-                <br>• <strong>Incremental (Default):</strong> Only adds, updates, or marks deleted items that have changed - safe and efficient
-                <br>• <strong>Full Refresh:</strong> Completely wipes and rebuilds all data - use only when needed
+                This syncs locations, catalog data, and inventory in the proper order with advanced features.
             </p>
+            
+            <!-- Sync Flow Visualization -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-3">📋 Sync Process Flow</h3>
+                <div class="sync-timeline" id="sync-timeline">
+                    <div class="timeline-item" id="step-1">
+                        <div class="flex items-center">
+                            <div class="step-icon pending">1</div>
+                            <div class="flex-1">
+                                <div class="font-medium">📍 Sync Locations</div>
+                                <div class="text-sm text-gray-600">Import all Square locations and store configurations</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item" id="step-2">
+                        <div class="flex items-center">
+                            <div class="step-icon pending">2</div>
+                            <div class="flex-1">
+                                <div class="font-medium">📂 Sync Catalog Data</div>
+                                <div class="text-sm text-gray-600">Import categories, items, and variations with metadata</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item" id="step-3">
+                        <div class="flex items-center">
+                            <div class="step-icon pending">3</div>
+                            <div class="flex-1">
+                                <div class="font-medium">📦 Enhanced Inventory Sync</div>
+                                <div class="text-sm text-gray-600">Import quantities with Units Per Case extraction and deduplication</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item" id="step-4">
+                        <div class="flex items-center">
+                            <div class="step-icon pending">4</div>
+                            <div class="flex-1">
+                                <div class="font-medium">✅ Validation & Cleanup</div>
+                                <div class="text-sm text-gray-600">Verify data relationships and ensure consistency</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Enhanced Features Info -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="bg-white bg-opacity-60 p-4 rounded-lg border border-green-200">
+                    <div class="text-center">
+                        <div class="text-2xl mb-2">📋</div>
+                        <div class="font-semibold text-sm">Units Per Case</div>
+                        <div class="text-xs text-gray-600">Auto-extract custom attributes</div>
+                    </div>
+                </div>
+                <div class="bg-white bg-opacity-60 p-4 rounded-lg border border-green-200">
+                    <div class="text-center">
+                        <div class="text-2xl mb-2">🔄</div>
+                        <div class="font-semibold text-sm">Smart Deduplication</div>
+                        <div class="text-xs text-gray-600">Handle multiple timestamps</div>
+                    </div>
+                </div>
+                <div class="bg-white bg-opacity-60 p-4 rounded-lg border border-green-200">
+                    <div class="text-center">
+                        <div class="text-2xl mb-2">🔗</div>
+                        <div class="font-semibold text-sm">Catalog Updates</div>
+                        <div class="text-xs text-gray-600">Sync metadata during inventory</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sync Modes -->
+            <div class="mb-4">
+                <h4 class="font-semibold mb-2">🎛️ Sync Modes:</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="flex items-center p-3 bg-white bg-opacity-60 rounded border border-green-200">
+                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-green-600 font-bold">📈</span>
+                        </div>
+                        <div>
+                            <div class="font-medium text-sm">Incremental (Default)</div>
+                            <div class="text-xs text-gray-600">Safe updates - only changed data</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center p-3 bg-white bg-opacity-60 rounded border border-yellow-200">
+                        <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
+                            <span class="text-yellow-600 font-bold">🔥</span>
+                        </div>
+                        <div>
+                            <div class="font-medium text-sm">Full Refresh</div>
+                            <div class="text-xs text-gray-600">Complete rebuild - use with caution</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Full Refresh Option -->
             <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
@@ -137,64 +476,82 @@
             <div id="complete-log" class="log-output hidden"></div>
         </div>
 
-        <!-- Location Sync -->
-        <div class="sync-card">
-            <h2 class="text-xl font-semibold mb-4">📍 Location Data Sync</h2>
-            <p class="text-gray-600 mb-4">
-                Syncs store locations from Square. This must be completed before inventory sync.
-                Locations are required for inventory tracking across different stores.
-            </p>
-            <div class="flex items-center gap-4">
-                <button id="location-sync-btn" class="sync-btn" onclick="runLocationSync()">
-                    <span id="location-btn-text">Start Location Sync</span>
-                </button>
-                <div id="location-status" class="flex items-center">
-                    <span class="status-indicator status-ready"></span>
-                    <span>Ready to sync</span>
-                </div>
-            </div>
-            <div id="location-log" class="log-output hidden"></div>
-        </div>
-
-        <!-- Inventory Sync -->
-        <div class="sync-card">
-            <h2 class="text-xl font-semibold mb-4">📦 Inventory Data Sync</h2>
-            <p class="text-gray-600 mb-4">
-                Syncs inventory quantities, catalog items, and variations from Square. 
-                This is the main sync that populates your reports with current data.
-                <strong>Note:</strong> Locations must be synced first.
-            </p>
-            <div class="flex items-center gap-4">
-                <button id="inventory-sync-btn" class="sync-btn" onclick="runInventorySync()">
-                    <span id="inventory-btn-text">Start Inventory Sync</span>
-                </button>
-                <div id="inventory-status" class="flex items-center">
-                    <span class="status-indicator status-ready"></span>
-                    <span>Ready to sync</span>
-                </div>
-            </div>
-            <div id="inventory-log" class="log-output hidden"></div>
-        </div>
-
         <!-- System Status -->
         <div class="sync-card">
-            <h2 class="text-xl font-semibold mb-4">📊 Current Data Status</h2>
+            <h2 class="text-xl font-semibold mb-4">📊 Production Database Status</h2>
+            <p class="text-gray-600 mb-4">
+                Real-time view of your production database contents from the Complete Production Sync system.
+                This shows actual data counts from your catalog items, variations, and inventory tables.
+            </p>
             <div id="data-status">
-                <p class="text-gray-600">Loading current database status...</p>
+                <div class="flex items-center justify-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span class="ml-3 text-gray-600">Loading current database status...</span>
+                </div>
             </div>
-            <button onclick="refreshDataStatus()" class="sync-btn mt-4">Refresh Status</button>
+            <div class="flex items-center gap-3 mt-4">
+                <button onclick="refreshDataStatus()" class="sync-btn">
+                    🔄 Refresh Status
+                </button>
+                <div class="text-xs text-gray-500" id="status-last-updated">
+                    <!-- Last updated timestamp will appear here -->
+                </div>
+            </div>
         </div>
 
-        <!-- Quick Actions -->
+        <!-- Admin Tools & Monitoring -->
         <div class="sync-card">
-            <h2 class="text-xl font-semibold mb-4">⚡ Quick Actions</h2>
+            <h2 class="text-xl font-semibold mb-4">🛠️ Admin Tools & Monitoring</h2>
+            <p class="text-gray-600 mb-4">
+                Essential admin tools and log monitoring for production sync management.
+            </p>
+            
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button onclick="openReportsPage()" class="sync-btn">
-                    View Low Item Stock Report
-                </button>
-                <button onclick="viewLogs()" class="sync-btn">
-                    View Production Logs
-                </button>
+                <!-- Log Viewer -->
+                <div class="space-y-2">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">📜 Log Viewer</h3>
+                    <button onclick="toggleLogViewer()" class="sync-btn w-full text-sm" id="log-viewer-btn">
+                        📖 Show Recent Logs
+                    </button>
+                    <button onclick="refreshLogs()" class="sync-btn w-full text-sm">
+                        🔄 Refresh Logs
+                    </button>
+                    <button onclick="clearLogViewer()" class="sync-btn w-full text-sm">
+                        🗑️ Clear Log Display
+                    </button>
+                </div>
+                
+                <!-- Admin Tools -->
+                <div class="space-y-2">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">🔧 Admin Tools</h3>
+                    <button onclick="openDashboard()" class="sync-btn w-full text-sm">
+                        🏠 Main Dashboard
+                    </button>
+                    <button onclick="checkTableCounts()" class="sync-btn w-full text-sm">
+                        📋 Database Status
+                    </button>
+                    <button onclick="checkSystemHealth()" class="sync-btn w-full text-sm">
+                        💚 System Health Check
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Log Viewer Display -->
+            <div id="log-viewer" class="mt-4 hidden">
+                <div class="bg-gray-900 text-green-400 p-4 rounded font-mono text-sm max-h-96 overflow-y-auto">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-green-300 font-semibold">📜 Production Logs</span>
+                        <span class="text-gray-400 text-xs" id="log-timestamp">Loading...</span>
+                    </div>
+                    <div id="log-content" class="whitespace-pre-wrap">
+                        Click "Show Recent Logs" to load log entries...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Status Display -->
+            <div id="quick-status" class="mt-4 p-3 bg-gray-50 rounded hidden">
+                <!-- Dynamic status content will be loaded here -->
             </div>
         </div>
     </div>
@@ -205,7 +562,7 @@ let syncInProgress = false;
 
 // Check configuration on page load
 document.addEventListener('DOMContentLoaded', function() {
-    checkSquareConfig();
+    checkSyncReadiness();
     refreshDataStatus();
     
     // Handle full refresh checkbox changes
@@ -224,135 +581,202 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-async function checkSquareConfig() {
+async function checkSyncReadiness() {
+    // Initialize all status indicators to loading state
+    const statusElements = ['db', 'square', 'tables', 'overall'];
+    statusElements.forEach(element => {
+        document.getElementById(`${element}-status`).className = 'status-indicator status-running';
+        document.getElementById(`${element}-text`).textContent = 'Checking...';
+        document.getElementById(`${element}-detail`).textContent = 'Validating component...';
+        document.getElementById(`${element}-card`).className = 'status-card';
+    });
+    
+    // Reset progress bar
+    document.getElementById('readiness-progress').style.width = '0%';
+    document.getElementById('readiness-percentage').textContent = '0%';
+    
+    let readinessChecks = {
+        database: { status: false, message: '', detail: '' },
+        square: { status: false, message: '', detail: '' },
+        tables: { status: false, message: '', detail: '' },
+        overall: { status: false, message: '', detail: '' }
+    };
+    
     try {
-        const response = await fetch('/inventory/sync', {
-            method: 'POST'
-        });
+        // Check admin status endpoint for comprehensive system info
+        const response = await fetch('/admin/status');
         const result = await response.json();
         
-        const statusEl = document.getElementById('square-status');
-        const textEl = document.getElementById('square-text');
+        let readyCount = 0;
         
-        if (result.message && result.message.includes('Square access token not configured')) {
-            statusEl.className = 'status-indicator status-error';
-            textEl.textContent = 'Square access token not configured';
-            textEl.innerHTML += '<br><small>Contact admin to configure SQUARE_ACCESS_TOKEN</small>';
+        // 1. Database Check
+        if (result.database === 'connected') {
+            readinessChecks.database = {
+                status: true,
+                message: 'Database Connected',
+                detail: 'Successfully connected to production database'
+            };
+            document.getElementById('db-status').className = 'status-indicator status-ready';
+            document.getElementById('db-card').className = 'status-card ready';
+            readyCount++;
         } else {
-            statusEl.className = 'status-indicator status-ready';
-            textEl.textContent = 'Square API configured';
+            readinessChecks.database = {
+                status: false,
+                message: 'Database Issue',
+                detail: `Connection status: ${result.database}`
+            };
+            document.getElementById('db-status').className = 'status-indicator status-error';
+            document.getElementById('db-card').className = 'status-card error';
         }
+        document.getElementById('db-text').textContent = readinessChecks.database.message;
+        document.getElementById('db-detail').textContent = readinessChecks.database.detail;
+        
+        // 2. Square API Check
+        if (result.square_config === 'configured') {
+            readinessChecks.square = {
+                status: true,
+                message: 'Square API Ready',
+                detail: 'Access token configured and available'
+            };
+            document.getElementById('square-status').className = 'status-indicator status-ready';
+            document.getElementById('square-card').className = 'status-card ready';
+            readyCount++;
+        } else {
+            readinessChecks.square = {
+                status: false,
+                message: 'Square API Missing',
+                detail: 'SQUARE_ACCESS_TOKEN not configured'
+            };
+            document.getElementById('square-status').className = 'status-indicator status-error';
+            document.getElementById('square-card').className = 'status-card error';
+        }
+        document.getElementById('square-text').textContent = readinessChecks.square.message;
+        document.getElementById('square-detail').textContent = readinessChecks.square.detail;
+        
+        // 3. Tables Check
+        if (result.tables_exist && result.location_count !== undefined) {
+            readinessChecks.tables = {
+                status: true,
+                message: 'Tables Ready',
+                detail: `${result.location_count} locations found, tables exist`
+            };
+            document.getElementById('tables-status').className = 'status-indicator status-ready';
+            document.getElementById('tables-card').className = 'status-card ready';
+            readyCount++;
+        } else {
+            readinessChecks.tables = {
+                status: false,
+                message: 'Tables Missing',
+                detail: 'Required database tables not found'
+            };
+            document.getElementById('tables-status').className = 'status-indicator status-error';
+            document.getElementById('tables-card').className = 'status-card error';
+        }
+        document.getElementById('tables-text').textContent = readinessChecks.tables.message;
+        document.getElementById('tables-detail').textContent = readinessChecks.tables.detail;
+        
+        // 4. Overall Readiness Assessment
+        const allReady = readinessChecks.database.status && 
+                        readinessChecks.square.status && 
+                        readinessChecks.tables.status;
+        
+        if (allReady) {
+            readinessChecks.overall = {
+                status: true,
+                message: 'Ready to Sync',
+                detail: 'All components validated successfully'
+            };
+            document.getElementById('overall-status').className = 'status-indicator status-ready';
+            document.getElementById('overall-card').className = 'status-card ready';
+            readyCount++;
+        } else {
+            const failedComponents = [];
+            if (!readinessChecks.database.status) failedComponents.push('Database');
+            if (!readinessChecks.square.status) failedComponents.push('Square API');
+            if (!readinessChecks.tables.status) failedComponents.push('Tables');
+            
+            readinessChecks.overall = {
+                status: false,
+                message: 'Not Ready',
+                detail: `Issues: ${failedComponents.join(', ')}`
+            };
+            document.getElementById('overall-status').className = 'status-indicator status-error';
+            document.getElementById('overall-card').className = 'status-card error';
+        }
+        document.getElementById('overall-text').textContent = readinessChecks.overall.message;
+        document.getElementById('overall-detail').textContent = readinessChecks.overall.detail;
+        
+        // Update progress bar
+        const progressPercentage = Math.round((readyCount / 4) * 100);
+        document.getElementById('readiness-progress').style.width = `${progressPercentage}%`;
+        document.getElementById('readiness-percentage').textContent = `${progressPercentage}%`;
+        
+        // Show readiness summary
+        showReadinessSummary(readinessChecks, allReady);
+        
     } catch (error) {
-        const statusEl = document.getElementById('square-status');
-        const textEl = document.getElementById('square-text');
-        statusEl.className = 'status-indicator status-error';
-        textEl.textContent = 'Unable to check configuration';
+        // Handle error case
+        statusElements.forEach(element => {
+            document.getElementById(`${element}-status`).className = 'status-indicator status-error';
+            document.getElementById(`${element}-text`).textContent = 'Check Failed';
+            document.getElementById(`${element}-detail`).textContent = 'Unable to validate component';
+            document.getElementById(`${element}-card`).className = 'status-card error';
+        });
+        
+        showReadinessSummary(null, false, error.message);
     }
 }
 
-async function runLocationSync() {
-    if (syncInProgress) return;
+function showReadinessSummary(checks, isReady, errorMessage = null) {
+    const summaryEl = document.getElementById('readiness-summary');
+    summaryEl.classList.remove('hidden');
     
-    syncInProgress = true;
-    const btn = document.getElementById('location-sync-btn');
-    const btnText = document.getElementById('location-btn-text');
-    const status = document.getElementById('location-status');
-    const log = document.getElementById('location-log');
-    
-    // Update UI
-    btn.disabled = true;
-    btnText.textContent = 'Syncing...';
-    status.innerHTML = '<span class="status-indicator status-running"></span><span>Sync in progress...</span>';
-    log.className = 'log-output';
-    log.textContent = 'Starting location sync...\n';
-    
-    try {
-        const response = await fetch('/locations/sync', {
-            method: 'POST'
-        });
-        const result = await response.json();
-        
-        if (result.success) {
-            log.textContent += '✅ Location sync completed successfully!\n';
-            log.textContent += `📋 ${result.message}\n`;
-            
-            if (result.data) {
-                const data = result.data;
-                log.textContent += `📍 Total locations: ${data.total_locations || 'unknown'}\n`;
-                log.textContent += `➕ Created: ${data.locations_created || 0}\n`;
-                log.textContent += `📝 Updated: ${data.locations_updated || 0}\n`;
-            }
-            
-            status.innerHTML = '<span class="status-indicator status-ready"></span><span>Sync completed</span>';
-            
-            // Refresh data status
-            setTimeout(refreshDataStatus, 2000);
-        } else {
-            log.textContent += `❌ Location sync failed: ${result.message}\n`;
-            status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync failed</span>';
-        }
-    } catch (error) {
-        log.textContent += `❌ Error: ${error.message}\n`;
-        status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync error</span>';
-    } finally {
-        syncInProgress = false;
-        btn.disabled = false;
-        btnText.textContent = 'Start Location Sync';
+    if (errorMessage) {
+        summaryEl.className = 'mt-4 p-3 rounded border border-red-200 bg-red-50';
+        summaryEl.innerHTML = `
+            <div class="flex items-center">
+                <span class="text-red-600 font-semibold">❌ Readiness Check Failed</span>
+            </div>
+            <p class="text-sm text-red-700 mt-1">
+                Unable to validate system readiness: ${errorMessage}
+            </p>
+        `;
+        return;
     }
-}
-
-async function runInventorySync() {
-    if (syncInProgress) return;
     
-    syncInProgress = true;
-    const btn = document.getElementById('inventory-sync-btn');
-    const btnText = document.getElementById('inventory-btn-text');
-    const status = document.getElementById('inventory-status');
-    const log = document.getElementById('inventory-log');
-    
-    // Update UI
-    btn.disabled = true;
-    btnText.textContent = 'Syncing...';
-    status.innerHTML = '<span class="status-indicator status-running"></span><span>Sync in progress...</span>';
-    log.className = 'log-output';
-    log.textContent = 'Starting inventory sync...\n';
-    
-    try {
-        const response = await fetch('/inventory/sync', {
-            method: 'POST'
-        });
-        const result = await response.json();
+    if (isReady) {
+        summaryEl.className = 'mt-4 p-3 rounded border border-green-200 bg-green-50';
+        summaryEl.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span class="text-green-800 font-semibold">✅ System Ready for Production Sync</span>
+                <button onclick="checkSyncReadiness()" class="text-xs text-green-600 hover:text-green-800">🔄 Recheck</button>
+            </div>
+            <p class="text-sm text-green-700 mt-1">
+                All components validated successfully. You can safely run incremental or full refresh syncs.
+            </p>
+        `;
+    } else {
+        summaryEl.className = 'mt-4 p-3 rounded border border-yellow-200 bg-yellow-50';
         
-        if (result.success) {
-            log.textContent += '✅ Sync completed successfully!\n';
-            log.textContent += `📋 ${result.message}\n`;
-            
-            if (result.data) {
-                const data = result.data;
-                log.textContent += `📦 Inventory records: ${data.total_inventory_updated || 'unknown'}\n`;
-                
-                if (data.catalog_updates) {
-                    const catalog = data.catalog_updates;
-                    log.textContent += `📋 Catalog items updated: ${catalog.items_updated || 0}\n`;
-                    log.textContent += `🔧 Variations updated: ${catalog.variations_updated || 0}\n`;
-                }
-            }
-            
-            status.innerHTML = '<span class="status-indicator status-ready"></span><span>Sync completed</span>';
-            
-            // Refresh data status
-            setTimeout(refreshDataStatus, 2000);
-        } else {
-            log.textContent += `❌ Sync failed: ${result.message}\n`;
-            status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync failed</span>';
+        let issuesList = '';
+        if (checks) {
+            if (!checks.database.status) issuesList += `<li>🔴 Database: ${checks.database.detail}</li>`;
+            if (!checks.square.status) issuesList += `<li>🔴 Square API: ${checks.square.detail}</li>`;
+            if (!checks.tables.status) issuesList += `<li>🔴 Tables: ${checks.tables.detail}</li>`;
         }
-    } catch (error) {
-        log.textContent += `❌ Error: ${error.message}\n`;
-        status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync error</span>';
-    } finally {
-        syncInProgress = false;
-        btn.disabled = false;
-        btnText.textContent = 'Start Inventory Sync';
+        
+        summaryEl.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span class="text-yellow-800 font-semibold">⚠️ System Not Ready for Sync</span>
+                <button onclick="checkSyncReadiness()" class="text-xs text-yellow-600 hover:text-yellow-800">🔄 Recheck</button>
+            </div>
+            <p class="text-sm text-yellow-700 mt-1">
+                Please resolve the following issues before running a sync:
+            </p>
+            <ul class="text-sm text-yellow-700 mt-2 ml-4">
+                ${issuesList}
+            </ul>
+        `;
     }
 }
 
@@ -370,6 +794,9 @@ async function runCompleteSync() {
     const fullRefresh = fullRefreshCheckbox.checked;
     const syncMode = fullRefresh ? 'FULL REFRESH' : 'INCREMENTAL';
     
+    // Reset and show timeline
+    resetSyncTimeline();
+    
     // Update UI
     btn.disabled = true;
     btnText.textContent = fullRefresh ? '🔥 Running Full Refresh...' : '🚀 Running Incremental Sync...';
@@ -383,11 +810,11 @@ async function runCompleteSync() {
         log.textContent += '📈 INCREMENTAL MODE - Only updating changed data\n';
     }
     
-    log.textContent += 'This will sync all data in the proper order:\n';
-    log.textContent += '1. Locations\n';
-    log.textContent += '2. Catalog data (categories, items, variations)\n';
-    log.textContent += '3. Inventory quantities\n';
-    log.textContent += '4. Data validation\n\n';
+    log.textContent += 'This will sync all data in the proper order:\n\n';
+    
+    // Simulate sync progress with timeline animation
+    animateSyncProgress(1);
+    log.textContent += '📍 Step 1: Syncing locations...\n';
     
     try {
         const response = await fetch('/admin/complete-sync', {
@@ -402,7 +829,18 @@ async function runCompleteSync() {
         const result = await response.json();
         
         if (result.success) {
-            log.textContent += `🎉 ${syncMode} sync finished successfully!\n`;
+            // Animate through all steps quickly to show completion
+            for (let step = 1; step <= 4; step++) {
+                animateSyncProgress(step);
+                await new Promise(resolve => setTimeout(resolve, 200)); // Small delay for visual effect
+            }
+            
+            // Mark all steps as completed
+            for (let step = 1; step <= 4; step++) {
+                updateSyncStep(step, 'completed');
+            }
+            
+            log.textContent += `\n🎉 ${syncMode} sync finished successfully!\n`;
             log.textContent += `📋 ${result.message}\n\n`;
             
             // Display detailed statistics
@@ -418,6 +856,28 @@ async function runCompleteSync() {
                 log.textContent += `\n🔢 Total Changes: ${result.total_changes}\n\n`;
             }
             
+            // Display enhanced inventory features if available
+            if (result.enhanced_features) {
+                log.textContent += '🚀 Enhanced Features:\n';
+                const enhanced = result.enhanced_features;
+                
+                if (enhanced.units_per_case_updates) {
+                    const units = enhanced.units_per_case_updates;
+                    log.textContent += `📋 Units Per Case Updates:\n`;
+                    log.textContent += `   • ${units.items_updated} items updated (${units.items_with_units} with units)\n`;
+                    log.textContent += `   • ${units.variations_updated} variations updated (${units.variations_with_units} with units)\n`;
+                }
+                
+                if (enhanced.inventory_deduplication) {
+                    const dedup = enhanced.inventory_deduplication;
+                    log.textContent += `📊 Inventory Deduplication:\n`;
+                    log.textContent += `   • ${dedup.raw_items} raw items processed\n`;
+                    log.textContent += `   • ${dedup.unique_records} unique records after deduplication\n`;
+                }
+                
+                log.textContent += '\n';
+            }
+            
             log.textContent += '✅ Production database now has current data\n';
             log.textContent += '✅ Reports should display accurate information\n';
             log.textContent += '✅ All data relationships are correct\n';
@@ -427,12 +887,18 @@ async function runCompleteSync() {
             // Refresh data status
             setTimeout(refreshDataStatus, 3000);
         } else {
+            // Mark current step as error
+            updateSyncStep(1, 'error');
+            
             log.textContent += `❌ ${syncMode} sync failed: ${result.error}\n`;
             log.textContent += '\nPlease check the error above and try again.\n';
             log.textContent += 'You can also try running individual syncs if needed.\n';
             status.innerHTML = `<span class="status-indicator status-error"></span><span>${syncMode} sync failed</span>`;
         }
     } catch (error) {
+        // Mark current step as error
+        updateSyncStep(1, 'error');
+        
         log.textContent += `❌ Error: ${error.message}\n`;
         log.textContent += '\nNetwork or server error occurred.\n';
         status.innerHTML = '<span class="status-indicator status-error"></span><span>Sync error</span>';
@@ -451,45 +917,281 @@ async function runCompleteSync() {
 
 async function refreshDataStatus() {
     const statusEl = document.getElementById('data-status');
-    statusEl.innerHTML = '<p class="text-gray-600">Loading...</p>';
+    statusEl.innerHTML = '<div class="flex items-center justify-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div><span class="ml-3 text-gray-600">Loading current database status...</span></div>';
     
     try {
-        // Try to get data from catalog status endpoint
+        // Get data from updated catalog status endpoint
         const response = await fetch('/catalog/status');
         const result = await response.json();
         
         if (result.success && result.data) {
             const data = result.data;
             statusEl.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-blue-50 p-4 rounded">
-                        <h4 class="font-semibold text-blue-900">Total Items</h4>
-                        <p class="text-2xl font-bold text-blue-600">${data.total_items || 0}</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="metric-card bg-blue-50" style="--accent-color: #3B82F6; --accent-color-dark: #2563EB;">
+                        <div class="metric-label text-blue-700">Catalog Items</div>
+                        <div class="metric-number text-blue-600">${(data.total_items || 0).toLocaleString()}</div>
+                        <div class="metric-subtitle text-blue-600">Active products</div>
                     </div>
-                    <div class="bg-green-50 p-4 rounded">
-                        <h4 class="font-semibold text-green-900">Last Export</h4>
-                        <p class="text-green-600">${data.last_export ? new Date(data.last_export).toLocaleDateString() : 'Never'}</p>
+                    <div class="metric-card bg-green-50" style="--accent-color: #10B981; --accent-color-dark: #059669;">
+                        <div class="metric-label text-green-700">Variations</div>
+                        <div class="metric-number text-green-600">${(data.total_variations || 0).toLocaleString()}</div>
+                        <div class="metric-subtitle text-green-600">Product options</div>
                     </div>
-                    <div class="bg-purple-50 p-4 rounded">
-                        <h4 class="font-semibold text-purple-900">Status</h4>
-                        <p class="text-purple-600">${data.has_data ? 'Data Available' : 'No Data'}</p>
+                    <div class="metric-card bg-purple-50" style="--accent-color: #8B5CF6; --accent-color-dark: #7C3AED;">
+                        <div class="metric-label text-purple-700">Inventory Records</div>
+                        <div class="metric-number text-purple-600">${(data.total_inventory || 0).toLocaleString()}</div>
+                        <div class="metric-subtitle text-purple-600">Stock quantities</div>
+                    </div>
+                    <div class="metric-card bg-orange-50" style="--accent-color: #F59E0B; --accent-color-dark: #D97706;">
+                        <div class="metric-label text-orange-700">Last Sync</div>
+                        <div class="metric-number text-orange-600 text-lg">${data.last_sync_central ? data.last_sync_central.split(' ')[0] : 'Never'}</div>
+                        <div class="metric-subtitle text-orange-600">${data.has_data ? 'Data Available' : 'No Data'}</div>
                     </div>
                 </div>
+                <div class="mt-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 rounded-full ${data.has_data ? 'bg-green-500' : 'bg-red-500'} mr-3"></div>
+                            <span class="font-medium text-gray-800">
+                                ${data.has_data ? 
+                                    `✅ Production database contains ${(data.total_items || 0).toLocaleString()} items with ${(data.total_variations || 0).toLocaleString()} variations and ${(data.total_inventory || 0).toLocaleString()} inventory records` : 
+                                    '❌ No production data found - run Complete Production Sync to populate database'
+                                }
+                            </span>
+                        </div>
+                        <div class="text-xs text-gray-500">
+                            ${data.has_data ? '🟢 Healthy' : '🔴 Needs Sync'}
+                        </div>
+                    </div>
+                    ${data.last_sync_central ? `
+                        <div class="mt-2 text-sm text-gray-600 flex items-center">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Last updated: ${data.last_sync_central}
+                        </div>
+                    ` : ''}
+                </div>
             `;
+            document.getElementById('status-last-updated').textContent = `Last refreshed: ${new Date().toLocaleTimeString()}`;
         } else {
-            statusEl.innerHTML = '<p class="text-yellow-600">Unable to load data status</p>';
+            statusEl.innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-yellow-600 text-4xl mb-4">⚠️</div>
+                    <p class="text-yellow-600 font-medium">Unable to load data status</p>
+                    <p class="text-sm text-gray-500 mt-2">Please check your database connection and try again</p>
+                </div>
+            `;
         }
     } catch (error) {
-        statusEl.innerHTML = '<p class="text-red-600">Error loading status</p>';
+        statusEl.innerHTML = `
+            <div class="text-center py-8">
+                <div class="text-red-600 text-4xl mb-4">❌</div>
+                <p class="text-red-600 font-medium">Error loading status</p>
+                <p class="text-sm text-gray-500 mt-2">${error.message}</p>
+            </div>
+        `;
     }
 }
 
-function openReportsPage() {
-    window.open('/reports/inventory/low-stock', '_blank');
+function toggleLogViewer() {
+    const logViewer = document.getElementById('log-viewer');
+    const btn = document.getElementById('log-viewer-btn');
+    
+    if (logViewer.classList.contains('hidden')) {
+        logViewer.classList.remove('hidden');
+        btn.textContent = '📖 Hide Logs';
+        refreshLogs(); // Load logs when showing
+    } else {
+        logViewer.classList.add('hidden');
+        btn.textContent = '📖 Show Recent Logs';
+    }
 }
 
-function viewLogs() {
-    alert('To view production logs, run:\ngcloud run services logs read nytex-dashboard --region us-central1');
+async function refreshLogs() {
+    const logContent = document.getElementById('log-content');
+    const logTimestamp = document.getElementById('log-timestamp');
+    
+    logContent.textContent = 'Loading logs...';
+    logTimestamp.textContent = 'Loading...';
+    
+    try {
+        // Try to get recent logs from the server
+        const response = await fetch('/admin/logs');
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.logs) {
+                logContent.textContent = result.logs;
+                logTimestamp.textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+            } else {
+                logContent.textContent = result.message || 'No logs available';
+                logTimestamp.textContent = new Date().toLocaleTimeString();
+            }
+        } else {
+            // Fallback to showing instructions for manual log viewing
+            logContent.textContent = `📋 To view production logs manually, run:
+
+gcloud run services logs read nytex-dashboard --region us-central1 --limit=50
+
+Or for real-time logs:
+gcloud run services logs tail nytex-dashboard --region us-central1
+
+📝 Recent sync activity should appear in the logs above when running syncs.`;
+            logTimestamp.textContent = new Date().toLocaleTimeString();
+        }
+    } catch (error) {
+        logContent.textContent = `❌ Error loading logs: ${error.message}
+
+📋 Manual log viewing commands:
+gcloud run services logs read nytex-dashboard --region us-central1 --limit=50
+
+For real-time monitoring:
+gcloud run services logs tail nytex-dashboard --region us-central1`;
+        logTimestamp.textContent = new Date().toLocaleTimeString();
+    }
+}
+
+function clearLogViewer() {
+    const logContent = document.getElementById('log-content');
+    const logTimestamp = document.getElementById('log-timestamp');
+    
+    logContent.textContent = 'Log display cleared. Click "Refresh Logs" to reload.';
+    logTimestamp.textContent = 'Cleared';
+}
+
+function openDashboard() {
+    window.open('/', '_blank');
+}
+
+async function checkTableCounts() {
+    const statusEl = document.getElementById('quick-status');
+    statusEl.classList.remove('hidden');
+    statusEl.innerHTML = '<p class="text-gray-600">Loading database status...</p>';
+    
+    try {
+        const response = await fetch('/admin/table-counts');
+        const result = await response.json();
+        
+        if (response.ok && result) {
+            let statusHtml = '<h4 class="font-semibold text-gray-800 mb-2">📋 Database Table Counts</h4>';
+            statusHtml += '<div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">';
+            
+            for (const [table, count] of Object.entries(result)) {
+                if (typeof count === 'number') {
+                    statusHtml += `
+                        <div class="bg-white p-2 rounded border">
+                            <div class="font-medium text-gray-700">${table}</div>
+                            <div class="text-lg font-bold text-blue-600">${count.toLocaleString()}</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            statusHtml += '</div>';
+            statusEl.innerHTML = statusHtml;
+        } else {
+            statusEl.innerHTML = '<p class="text-red-600">❌ Error loading table counts</p>';
+        }
+    } catch (error) {
+        statusEl.innerHTML = `<p class="text-red-600">❌ Error: ${error.message}</p>`;
+    }
+}
+
+async function checkSystemHealth() {
+    const statusEl = document.getElementById('quick-status');
+    statusEl.classList.remove('hidden');
+    statusEl.innerHTML = '<p class="text-gray-600">Checking system health...</p>';
+    
+    try {
+        const response = await fetch('/admin/status');
+        const result = await response.json();
+        
+        if (response.ok && result) {
+            let statusHtml = '<h4 class="font-semibold text-gray-800 mb-2">💚 System Health Check</h4>';
+            statusHtml += '<div class="space-y-2 text-sm">';
+            
+            // Database status
+            const dbStatus = result.database === 'connected' ? '✅' : '❌';
+            statusHtml += `<div class="flex justify-between"><span>Database:</span><span>${dbStatus} ${result.database}</span></div>`;
+            
+            // Square config status
+            const squareStatus = result.square_config === 'configured' ? '✅' : '❌';
+            statusHtml += `<div class="flex justify-between"><span>Square API:</span><span>${squareStatus} ${result.square_config}</span></div>`;
+            
+            // Table existence
+            const tablesStatus = result.tables_exist ? '✅' : '❌';
+            statusHtml += `<div class="flex justify-between"><span>Tables:</span><span>${tablesStatus} ${result.tables_exist ? 'Exist' : 'Missing'}</span></div>`;
+            
+            // Location count
+            if (result.location_count !== undefined) {
+                statusHtml += `<div class="flex justify-between"><span>Locations:</span><span>📍 ${result.location_count}</span></div>`;
+            }
+            
+            statusHtml += '</div>';
+            statusEl.innerHTML = statusHtml;
+        } else {
+            statusEl.innerHTML = '<p class="text-red-600">❌ Error checking system health</p>';
+        }
+    } catch (error) {
+        statusEl.innerHTML = `<p class="text-red-600">❌ Error: ${error.message}</p>`;
+    }
+}
+
+// Timeline animation functions
+function resetSyncTimeline() {
+    const steps = ['step-1', 'step-2', 'step-3', 'step-4'];
+    steps.forEach(stepId => {
+        const step = document.getElementById(stepId);
+        const icon = step.querySelector('.step-icon');
+        step.className = 'timeline-item';
+        icon.className = 'step-icon pending';
+    });
+}
+
+function updateSyncStep(stepNumber, status) {
+    const stepId = `step-${stepNumber}`;
+    const step = document.getElementById(stepId);
+    const icon = step.querySelector('.step-icon');
+    
+    // Remove all status classes
+    step.classList.remove('active', 'completed', 'error');
+    icon.classList.remove('pending', 'active', 'completed', 'error');
+    
+    // Add new status
+    if (status === 'active') {
+        step.classList.add('active');
+        icon.classList.add('active');
+    } else if (status === 'completed') {
+        step.classList.add('completed');
+        icon.classList.add('completed');
+        icon.innerHTML = '✓';
+    } else if (status === 'error') {
+        step.classList.add('error');
+        icon.classList.add('error');
+        icon.innerHTML = '✗';
+    } else {
+        icon.classList.add('pending');
+        icon.innerHTML = stepNumber;
+    }
+}
+
+function animateSyncProgress(currentStep) {
+    // Mark previous steps as completed
+    for (let i = 1; i < currentStep; i++) {
+        updateSyncStep(i, 'completed');
+    }
+    
+    // Mark current step as active
+    if (currentStep <= 4) {
+        updateSyncStep(currentStep, 'active');
+    }
+    
+    // Keep remaining steps as pending
+    for (let i = currentStep + 1; i <= 4; i++) {
+        updateSyncStep(i, 'pending');
+    }
 }
 </script>
 {% endblock %} 
