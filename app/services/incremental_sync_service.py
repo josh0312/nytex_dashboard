@@ -549,12 +549,14 @@ class IncrementalSyncService:
         
         for item_data in items:
             item_info = item_data.get('item_data', {})
-            
+            categories = item_info.get('categories', [])
+            category_id = categories[0]['id'] if categories else None
+
             stmt = insert(CatalogItem).values(
                 id=item_data['id'],
                 name=item_info.get('name', ''),
                 description=item_info.get('description', ''),
-                category_id=item_info.get('category_id'),
+                category_id=category_id,
                 is_deleted=False,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
