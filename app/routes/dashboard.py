@@ -78,10 +78,32 @@ async def get_metrics(request: Request):
     try:
         logger.info("Loading metrics page")
         
-        # Get fresh metrics from Square API
-        logger.info("Fetching fresh metrics from Square API...")
-        square_service = SquareService()
-        metrics = await square_service.get_todays_sales()
+        # Try to get metrics from Square API, but handle gracefully if not available
+        metrics = None
+        try:
+            logger.info("Fetching fresh metrics from Square API...")
+            square_service = SquareService()
+            metrics = await square_service.get_todays_sales()
+        except ValueError as e:
+            logger.warning(f"Square API not configured: {str(e)}")
+            # Return demo/mock data when Square API is not available
+            metrics = {
+                'total_sales': 0,
+                'total_orders': 0,
+                'inventory_items': 0,
+                'low_stock_items': 0,
+                'locations': {}
+            }
+        except Exception as e:
+            logger.error(f"Error fetching Square metrics: {str(e)}")
+            # Return demo/mock data on any other error
+            metrics = {
+                'total_sales': 0,
+                'total_orders': 0,
+                'inventory_items': 0,
+                'low_stock_items': 0,
+                'locations': {}
+            }
         
         # Get seasonal sales
         sales_data, current_season = await get_cached_seasonal_sales()
@@ -132,29 +154,39 @@ async def get_metrics(request: Request):
 async def get_locations(request: Request):
     """Get location sales table"""
     try:
-        square_service = SquareService()
-        weather_service = WeatherService()
-        metrics = await square_service.get_todays_sales()
+        # Try to get Square data but handle gracefully if not available
         location_sales = []
-        
-        for location_id, location in metrics.get('locations', {}).items():
-            # Get weather if postal code is available
-            weather = None
-            postal_code = location.get('postal_code')
-            logger.info(f"Location {location['name']} has postal code: {postal_code}")
+        try:
+            square_service = SquareService()
+            weather_service = WeatherService()
+            metrics = await square_service.get_todays_sales()
             
-            if postal_code:
-                weather = await weather_service.get_weather_by_zip(postal_code)
-                logger.info(f"Got weather for {location['name']}: {weather}")
-            else:
-                logger.warning(f"No postal code for location: {location['name']}")
-            
-            location_sales.append({
-                'name': location['name'],
-                'sales': location['sales'],
-                'orders': location['orders'],
-                'weather': weather
-            })
+            for location_id, location in metrics.get('locations', {}).items():
+                # Get weather if postal code is available
+                weather = None
+                postal_code = location.get('postal_code')
+                logger.info(f"Location {location['name']} has postal code: {postal_code}")
+                
+                if postal_code:
+                    weather = await weather_service.get_weather_by_zip(postal_code)
+                    logger.info(f"Got weather for {location['name']}: {weather}")
+                else:
+                    logger.warning(f"No postal code for location: {location['name']}")
+                
+                location_sales.append({
+                    'name': location['name'],
+                    'sales': location['sales'],
+                    'orders': location['orders'],
+                    'weather': weather
+                })
+        except ValueError as e:
+            logger.warning(f"Square API not configured for locations: {str(e)}")
+            # Return empty location sales when Square API is not available
+            location_sales = []
+        except Exception as e:
+            logger.error(f"Error fetching Square location data: {str(e)}")
+            # Return empty location sales on any other error
+            location_sales = []
             
         return templates.TemplateResponse("dashboard/components/locations.html", {
             "request": request,
@@ -176,19 +208,24 @@ async def get_total_sales(request: Request):
         logger.info(f"Request headers: {dict(request.headers)}")
         logger.info(f"Request client: {request.client}")
         
-        logger.info("Creating Square service...")
-        square_service = SquareService()
-        
-        logger.info("Initiating Square API call for today's sales...")
-        metrics = await square_service.get_todays_sales()
-        logger.info(f"Received metrics from Square: {bool(metrics)}")
-        
-        if not metrics:
-            logger.warning("No metrics received from Square API")
+        total_sales = 0
+        try:
+            logger.info("Creating Square service...")
+            square_service = SquareService()
+            
+            logger.info("Initiating Square API call for today's sales...")
+            metrics = await square_service.get_todays_sales()
+            logger.info(f"Received metrics from Square: {bool(metrics)}")
+            
+            if metrics:
+                total_sales = metrics.get('total_sales', 0)
+                logger.info(f"Raw total sales value: {total_sales}")
+        except ValueError as e:
+            logger.warning(f"Square API not configured for total sales: {str(e)}")
             total_sales = 0
-        else:
-            total_sales = metrics.get('total_sales', 0)
-            logger.info(f"Raw total sales value: {total_sales}")
+        except Exception as e:
+            logger.error(f"Error fetching Square total sales: {str(e)}")
+            total_sales = 0
         
         formatted_sales = "{:,.2f}".format(float(total_sales))
         logger.info(f"Formatted total sales value: ${formatted_sales}")
@@ -216,21 +253,26 @@ async def get_total_sales(request: Request):
 async def get_total_orders(request: Request):
     """Get total orders component"""
     try:
-        logger.info("=== Starting total orders component fetch ===")
-        logger.info("Creating Square service...")
-        square_service = SquareService()
-        logger.info("Getting today's sales...")
-        metrics = await square_service.get_todays_sales()
-        total_orders = metrics.get('total_orders', 0) if metrics else 0
-        logger.info(f"Total orders value: {total_orders}")
-        logger.info("Rendering total orders template...")
+        total_orders = 0
+        try:
+            square_service = SquareService()
+            metrics = await square_service.get_todays_sales()
+            
+            if metrics:
+                total_orders = metrics.get('total_orders', 0)
+        except ValueError as e:
+            logger.warning(f"Square API not configured for total orders: {str(e)}")
+            total_orders = 0
+        except Exception as e:
+            logger.error(f"Error fetching Square total orders: {str(e)}")
+            total_orders = 0
         
         return templates.TemplateResponse("dashboard/components/total_orders.html", {
             "request": request,
             "total_orders": total_orders
         })
     except Exception as e:
-        logger.error(f"Error fetching total orders: {str(e)}", exc_info=True)
+        logger.error(f"Error loading total orders: {str(e)}", exc_info=True)
         return templates.TemplateResponse("dashboard/components/error.html", {
             "request": request,
             "title": "Total Orders",

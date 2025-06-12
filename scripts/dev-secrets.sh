@@ -21,7 +21,8 @@ print_usage() {
     echo "Commands:"
     echo "  init     - Initialize local environment and authenticate"
     echo "  push     - Push local .env.local to Google Secret Manager"
-    echo "  pull     - Pull secrets from Google Secret Manager to .env.local"
+    echo "  pull     - Pull secrets from Google Secret Manager to .env.local (dev mode)"
+    echo "  pull-prod - Pull ALL secrets including production configs"
     echo "  compare  - Compare local vs remote secrets"
     echo "  list     - List all secrets in Secret Manager"
     echo "  backup   - Backup current .env.local file"
@@ -30,7 +31,8 @@ print_usage() {
     echo "Examples:"
     echo "  $0 init     # Set up development environment"
     echo "  $0 push     # Upload your local secrets to production"
-    echo "  $0 pull     # Download production secrets to local"
+    echo "  $0 pull     # Download secrets with local dev overrides (recommended)"
+    echo "  $0 pull-prod # Download ALL production secrets (use with caution)"
 }
 
 check_auth() {
@@ -111,6 +113,15 @@ case "${1:-help}" in
         check_project
         backup_env
         python scripts/secrets_manager.py pull --env-file "$ENV_FILE"
+        ;;
+        
+    pull-prod)
+        echo -e "${BLUE}⬇️  Pulling ALL secrets from Google Secret Manager...${NC}"
+        echo -e "${YELLOW}⚠️  WARNING: This will overwrite local development settings!${NC}"
+        check_auth || exit 1
+        check_project
+        backup_env
+        python scripts/secrets_manager.py pull --env-file "$ENV_FILE" --production
         ;;
         
     compare)

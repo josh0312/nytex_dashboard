@@ -2,8 +2,10 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Get the project root directory (parent of the app directory)
+BASE_DIR = Path(__file__).resolve().parent.parent
+# Load environment variables from .env.local in the project root
+load_dotenv(BASE_DIR / '.env.local')
 
 def get_database_url():
     """Get database URL based on available environment variables"""
@@ -39,7 +41,7 @@ def get_database_url():
 
 class Config:
     # Get base directory
-    BASE_DIR = Path(__file__).resolve().parent.parent
+    BASE_DIR = BASE_DIR
     
     # Database settings - use class method to evaluate at runtime
     @classmethod

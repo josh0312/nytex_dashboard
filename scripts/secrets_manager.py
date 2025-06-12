@@ -44,6 +44,20 @@ class SecretsManager:
             "AZURE_REDIRECT_URI": "azure-redirect-uri",
             "SQLALCHEMY_DATABASE_URI": "database-uri"
         }
+        
+        # Secrets that should be excluded from development sync
+        # These are production-specific and should use local overrides
+        self.production_only_secrets = {
+            "SQLALCHEMY_DATABASE_URI",  # Always use local DB for development
+            "AZURE_REDIRECT_URI",       # Use local callback URL for development
+        }
+        
+        # Default local overrides for development
+        self.dev_overrides = {
+            "SQLALCHEMY_DATABASE_URI": "postgresql+asyncpg://joshgoble@localhost:5432/square_data_sync",
+            "AZURE_REDIRECT_URI": "http://localhost:8000/auth/callback",
+            "SQUARE_ENVIRONMENT": "production",  # Can override if needed
+        }
 
     def read_local_env(self, env_file: str = ".env.local") -> Dict[str, str]:
         """Read environment variables from local file"""
@@ -170,20 +184,40 @@ class SecretsManager:
         print(f"\n📊 Summary: {success_count}/{total_count} secrets updated successfully")
         return success_count == total_count
 
-    def pull_from_secret_manager(self, env_file: str = ".env.local") -> bool:
+    def pull_from_secret_manager(self, env_file: str = ".env.local", dev_mode: bool = True) -> bool:
         """Pull secrets from Secret Manager to local environment file"""
         print(f"🔄 Pulling secrets from Google Secret Manager to {env_file}...")
+        if dev_mode:
+            print("🛠️  Development mode: Using local overrides for environment-specific configs")
         
         env_vars = {}
         success_count = 0
+        skipped_count = 0
         total_count = len(self.secret_mappings)
         
         for env_key, secret_id in self.secret_mappings.items():
+            # Skip production-only secrets in development mode
+            if dev_mode and env_key in self.production_only_secrets:
+                if env_key in self.dev_overrides:
+                    env_vars[env_key] = self.dev_overrides[env_key]
+                    print(f"🔧 Local override: {env_key}")
+                    success_count += 1
+                else:
+                    print(f"⚠️  Skipped (production-only): {env_key}")
+                    skipped_count += 1
+                continue
+            
+            # Get value from Secret Manager
             value = self.get_secret_value(secret_id)
             if value:
-                env_vars[env_key] = value
+                # Apply development overrides if they exist
+                if dev_mode and env_key in self.dev_overrides:
+                    env_vars[env_key] = self.dev_overrides[env_key]
+                    print(f"🔧 Override applied: {env_key}")
+                else:
+                    env_vars[env_key] = value
+                    print(f"✅ Retrieved: {env_key}")
                 success_count += 1
-                print(f"✅ Retrieved: {env_key}")
             else:
                 print(f"⚠️  Not found: {env_key} (secret: {secret_id})")
         
@@ -191,6 +225,8 @@ class SecretsManager:
             self.write_local_env(env_vars, env_file)
             
         print(f"\n📊 Summary: {success_count}/{total_count} secrets retrieved successfully")
+        if skipped_count > 0:
+            print(f"🔧 Development overrides: {skipped_count} production configs replaced with local settings")
         return success_count > 0
 
     def compare_secrets(self, env_file: str = ".env.local"):
@@ -250,8 +286,17 @@ def main():
                        help="Environment file to use (default: .env.local)")
     parser.add_argument("--project-id", default="nytex-business-systems",
                        help="Google Cloud project ID")
+    parser.add_argument("--dev-mode", action="store_true", default=True,
+                       help="Use development mode with local overrides (default: True)")
+    parser.add_argument("--production", action="store_true",
+                       help="Use production mode (pulls all secrets including production configs)")
     
     args = parser.parse_args()
+    
+    # Determine mode
+    dev_mode = args.dev_mode and not args.production
+    if args.production:
+        print("🏭 Production mode: Pulling all secrets including production configurations")
     
     # Initialize secrets manager
     secrets_manager = SecretsManager(args.project_id)
@@ -266,7 +311,7 @@ def main():
         sys.exit(0 if success else 1)
         
     elif args.action == "pull":
-        success = secrets_manager.pull_from_secret_manager(args.env_file)
+        success = secrets_manager.pull_from_secret_manager(args.env_file, dev_mode)
         sys.exit(0 if success else 1)
         
     elif args.action == "list":
