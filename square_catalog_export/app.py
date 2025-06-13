@@ -395,15 +395,15 @@ class SquareCatalogExporter:
                     
                     variation_row = variation_result.fetchone()
                     if variation_row:
-                        sellable = 'TRUE' if variation_row[0] else 'FALSE'
-                        stockable = 'TRUE' if variation_row[1] else 'FALSE'
+                        sellable = 'Y' if variation_row[0] else 'N'
+                        stockable = 'Y' if variation_row[1] else 'N'
                         track_inventory = variation_row[2]
                         present_at_all_locations = variation_row[3]
                         units_per_case = variation_row[4]
                         default_unit_cost = variation_row[5]
                     else:
-                        sellable = 'TRUE'
-                        stockable = 'TRUE'
+                        sellable = 'Y'
+                        stockable = 'Y'
                         track_inventory = True
                         present_at_all_locations = True
                         units_per_case = None
@@ -421,13 +421,13 @@ class SquareCatalogExporter:
                     
                     item_row = item_result.fetchone()
                     if item_row:
-                        archived = 'TRUE' if item_row[0] else 'FALSE'
+                        archived = 'Y' if item_row[0] else 'N'
                         ecom_visibility = item_row[1] or 'UNINDEXED'
                         is_taxable = item_row[2]
                         category_name = item_row[3] or ''
                         reporting_category_name = item_row[4] or ''
                     else:
-                        archived = 'FALSE'
+                        archived = 'N'
                         ecom_visibility = 'UNINDEXED'
                         is_taxable = True
                         category_name = ''
@@ -479,70 +479,70 @@ class SquareCatalogExporter:
                         weight_lb='',  # Not available in API
                         social_media_link_title='',  # Not available in API
                         social_media_link_description='',  # Not available in API
-                        shipping_enabled='TRUE',  # Default
-                        self_serve_ordering_enabled='TRUE',  # Default
-                        delivery_enabled='TRUE',  # Default
-                        pickup_enabled='TRUE',  # Default
+                        shipping_enabled='N',  # Square uses N, not TRUE
+                        self_serve_ordering_enabled='N',  # Square uses N, not TRUE
+                        delivery_enabled='N',  # Square uses N, not TRUE
+                        pickup_enabled='Y' if present_at_all_locations else 'N',  # Square uses Y/N
                         price=price,
                         online_sale_price=price,  # Same as regular price
-                        archived=archived,
-                        sellable=sellable,
-                        contains_alcohol='FALSE',  # Default
-                        stockable=stockable,
-                        skip_detail_screen_in_pos='FALSE',  # Default
+                        archived=archived,  # Already in Y/N format
+                        sellable=sellable,  # Already in Y/N format
+                        contains_alcohol='N',  # Square uses N, not FALSE
+                        stockable=stockable,  # Already in Y/N format
+                        skip_detail_screen_in_pos='N',  # Square uses N, not FALSE
                         option_name_1=option_name_1,
                         option_value_1=option_value_1,
                         default_unit_cost=default_unit_cost,
                         default_vendor_name=default_vendor_name,
                         default_vendor_code=default_vendor_code,
                         
-                        # Location-specific fields
-                        enabled_aubrey='TRUE' if present_at_all_locations else 'FALSE',
+                        # Location-specific fields - Convert TRUE/FALSE to Y/N
+                        enabled_aubrey='Y' if present_at_all_locations else 'N',
                         current_quantity_aubrey=inventory_data.get('aubrey', '0'),
                         new_quantity_aubrey='',  # Leave blank for manual entry
-                        stock_alert_enabled_aubrey='FALSE',
+                        stock_alert_enabled_aubrey='N',  # Square uses N, not FALSE
                         stock_alert_count_aubrey='0',
                         price_aubrey=str(price) if price else '',
                         
-                        enabled_bridgefarmer='TRUE' if present_at_all_locations else 'FALSE',
+                        enabled_bridgefarmer='Y' if present_at_all_locations else 'N',
                         current_quantity_bridgefarmer=inventory_data.get('bridgefarmer', '0'),
                         new_quantity_bridgefarmer='',  # Leave blank for manual entry
-                        stock_alert_enabled_bridgefarmer='FALSE',
+                        stock_alert_enabled_bridgefarmer='N',  # Square uses N, not FALSE
                         stock_alert_count_bridgefarmer='0',
                         price_bridgefarmer=str(price) if price else '',
                         
-                        enabled_building='TRUE' if present_at_all_locations else 'FALSE',
+                        enabled_building='Y' if present_at_all_locations else 'N',
                         current_quantity_building=inventory_data.get('building', '0'),
                         new_quantity_building='',  # Leave blank for manual entry
-                        stock_alert_enabled_building='FALSE',
+                        stock_alert_enabled_building='N',  # Square uses N, not FALSE
                         stock_alert_count_building='0',
                         price_building=str(price) if price else '',
                         
-                        enabled_flomo='TRUE' if present_at_all_locations else 'FALSE',
+                        enabled_flomo='Y' if present_at_all_locations else 'N',
                         current_quantity_flomo=inventory_data.get('flomo', '0'),
                         new_quantity_flomo='',  # Leave blank for manual entry
-                        stock_alert_enabled_flomo='FALSE',
+                        stock_alert_enabled_flomo='N',  # Square uses N, not FALSE
                         stock_alert_count_flomo='0',
                         price_flomo=str(price) if price else '',
                         
-                        enabled_justin='TRUE' if present_at_all_locations else 'FALSE',
+                        enabled_justin='Y' if present_at_all_locations else 'N',
                         current_quantity_justin=inventory_data.get('justin', '0'),
                         new_quantity_justin='',  # Leave blank for manual entry
-                        stock_alert_enabled_justin='FALSE',
+                        stock_alert_enabled_justin='N',  # Square uses N, not FALSE
                         stock_alert_count_justin='0',
                         price_justin=str(price) if price else '',
                         
-                        enabled_quinlan='TRUE' if present_at_all_locations else 'FALSE',
+                        enabled_quinlan='Y' if present_at_all_locations else 'N',
                         current_quantity_quinlan=inventory_data.get('quinlan', '0'),
                         new_quantity_quinlan='',  # Leave blank for manual entry
-                        stock_alert_enabled_quinlan='FALSE',
+                        stock_alert_enabled_quinlan='N',  # Square uses N, not FALSE
                         stock_alert_count_quinlan='0',
                         price_quinlan=str(price) if price else '',
                         
-                        enabled_terrell='TRUE' if present_at_all_locations else 'FALSE',
+                        enabled_terrell='Y' if present_at_all_locations else 'N',
                         current_quantity_terrell=inventory_data.get('terrell', '0'),
                         new_quantity_terrell='',  # Leave blank for manual entry
-                        stock_alert_enabled_terrell='FALSE',
+                        stock_alert_enabled_terrell='N',  # Square uses N, not FALSE
                         stock_alert_count_terrell='0',
                         price_terrell=str(price) if price else '',
                         
