@@ -17,6 +17,7 @@ Welcome to the NyTex Dashboard documentation! This directory contains comprehens
 ### **Deployment & Operations**
 - **[Deployment Guide](./DEPLOYMENT.md)** - Production deployment and server management
 - **[Troubleshooting Guide](./TROUBLESHOOTING.md)** - Production issue diagnosis and solutions
+- **[Historical Orders Sync](./HISTORICAL_ORDERS_SYNC.md)** - Complete historical data synchronization
 - **[API Documentation](http://localhost:8080/docs)** - Interactive API docs (when running locally)
 
 ## 🚀 Quick Navigation

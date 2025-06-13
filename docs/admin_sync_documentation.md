@@ -33,11 +33,14 @@ The Admin Sync System provides comprehensive data synchronization between Square
 - **URL**: `/admin/sync`
 - **Location**: Admin navigation menu → "Admin"
 - **Authentication**: Requires admin-level access
+- **Additional Features**: Historical Orders Sync, Database Migration
 
-### API Endpoint
-- **Endpoint**: `POST /admin/complete-sync`
+### API Endpoints
+- **Complete Sync**: `POST /admin/complete-sync` - Current catalog and inventory
+- **Historical Sync**: `POST /admin/historical-orders-sync` - All orders from 2018-present
+- **Migration**: `POST /admin/migrate-order-line-items` - Database schema updates
 - **Content-Type**: `application/json`
-- **Body**: `{"full_refresh": true/false}`
+- **Body**: `{"full_refresh": true/false}` (for complete sync only)
 
 ## Complete Production Sync Process
 
