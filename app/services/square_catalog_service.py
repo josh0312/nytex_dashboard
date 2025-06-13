@@ -71,7 +71,7 @@ class SquareCatalogService:
                 'error': f"Service returned status {response.status}: {error_text}",
                 'status_code': response.status
             }
-    
+        
     async def export_catalog_to_database(self, session: AsyncSession) -> Dict[str, Any]:
         """Call the external square_catalog_export service to perform the export"""
         try:
@@ -82,7 +82,7 @@ class SquareCatalogService:
             
             if response_data['success']:
                 result_data = response_data['data']
-                
+                        
                 # Check if the external service indicates the export is still running
                 if result_data.get('status') == 'running':
                     logger.info(f"External export service started: {result_data}")
@@ -139,7 +139,7 @@ class SquareCatalogService:
         try:
             # Use the new helper method that tries multiple URLs
             response_data = await self._make_request('status', method='GET')
-            
+                
             if response_data['success']:
                 return {
                     'success': True,
