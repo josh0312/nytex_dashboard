@@ -206,11 +206,20 @@ python -m pytest tests/ --cov=app
 
 ## 📚 Documentation
 
+### **System Documentation**
 - **[Docker Development Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and workflow
 - **[Secrets Management Guide](./docs/SECRETS_GUIDE.md)** - Google Secret Manager integration
 - **[Square Catalog Export](./docs/SQUARE_CATALOG_EXPORT.md)** - Complete catalog export system
 - **[Authentication Setup](./docs/AUTHENTICATION.md)** - O365 and manual authentication
 - **[API Documentation](http://localhost:8080/docs)** - Interactive API docs (when running)
+
+### **Page Documentation**
+- **[Dashboard Page](./docs/DASHBOARD_PAGE.md)** - Main analytics and business intelligence hub
+- **[Reports Page](./docs/REPORTS_PAGE.md)** - Comprehensive inventory and business reports
+- **[Catalog Page](./docs/CATALOG_PAGE.md)** - Square catalog management and export system
+- **[Items Page](./docs/ITEMS_PAGE.md)** - Advanced inventory management and search
+- **[Tools Page](./docs/TOOLS_PAGE.md)** - Administrative utilities and system tools
+- **[Admin Page](./docs/ADMIN_PAGE.md)** - System administration and data synchronization
 
 ## 🔒 Security
 
