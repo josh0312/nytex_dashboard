@@ -388,7 +388,7 @@ class SquareCatalogExporter:
                     # Get variation-level data from our production tables
                     variation_result = session.execute(text("""
                         SELECT cv.sellable, cv.stockable, cv.track_inventory,
-                               cv.present_at_all_locations, cv.units_per_case, cv.default_unit_cost
+                               cv.units_per_case, cv.default_unit_cost
                         FROM catalog_variations cv
                         WHERE cv.id = :variation_id
                     """), {'variation_id': variation_id})
@@ -398,16 +398,33 @@ class SquareCatalogExporter:
                         sellable = 'Y' if variation_row[0] else 'N'
                         stockable = 'Y' if variation_row[1] else 'N'
                         track_inventory = variation_row[2]
-                        present_at_all_locations = variation_row[3]
-                        units_per_case = variation_row[4]
-                        default_unit_cost = variation_row[5]
+                        units_per_case = variation_row[3]
+                        default_unit_cost = variation_row[4]
                     else:
                         sellable = 'Y'
                         stockable = 'Y'
                         track_inventory = True
-                        present_at_all_locations = True
                         units_per_case = None
                         default_unit_cost = None
+                    
+                    # Get location availability for this item from catalog_location_availability
+                    item_id = item.get('id', '')
+                    location_availability = {}
+                    
+                    availability_result = session.execute(text("""
+                        SELECT l.name, cla.sold_out
+                        FROM catalog_location_availability cla
+                        JOIN locations l ON cla.location_id = l.id
+                        WHERE cla.item_id = :item_id AND l.status = 'ACTIVE'
+                    """), {'item_id': item_id})
+                    
+                    for avail_row in availability_result:
+                        location_name = avail_row[0].lower()
+                        is_sold_out = avail_row[1]
+                        # Available = not sold out, so enabled = 'Y' if not sold out
+                        location_availability[location_name] = 'N' if is_sold_out else 'Y'
+                    
+                    logger.debug(f"Location availability for {item_name}: {location_availability}")
                     
                     # Get item-level data from our production tables including categories
                     item_result = session.execute(text("""
@@ -482,7 +499,7 @@ class SquareCatalogExporter:
                         shipping_enabled='N',  # Square uses N, not TRUE
                         self_serve_ordering_enabled='N',  # Square uses N, not TRUE
                         delivery_enabled='N',  # Square uses N, not TRUE
-                        pickup_enabled='Y' if present_at_all_locations else 'N',  # Square uses Y/N
+                        pickup_enabled='Y',  # Most items support pickup
                         price=price,
                         online_sale_price=price,  # Same as regular price
                         archived=archived,  # Already in Y/N format
@@ -496,50 +513,50 @@ class SquareCatalogExporter:
                         default_vendor_name=default_vendor_name,
                         default_vendor_code=default_vendor_code,
                         
-                        # Location-specific fields - Convert TRUE/FALSE to Y/N
-                        enabled_aubrey='Y' if present_at_all_locations else 'N',
+                        # Location-specific fields - Use actual location availability data
+                        enabled_aubrey=location_availability.get('aubrey', 'N'),
                         current_quantity_aubrey=inventory_data.get('aubrey', '0'),
                         new_quantity_aubrey='',  # Leave blank for manual entry
                         stock_alert_enabled_aubrey='N',  # Square uses N, not FALSE
                         stock_alert_count_aubrey='0',
                         price_aubrey=str(price) if price else '',
                         
-                        enabled_bridgefarmer='Y' if present_at_all_locations else 'N',
+                        enabled_bridgefarmer=location_availability.get('bridgefarmer', 'N'),
                         current_quantity_bridgefarmer=inventory_data.get('bridgefarmer', '0'),
                         new_quantity_bridgefarmer='',  # Leave blank for manual entry
                         stock_alert_enabled_bridgefarmer='N',  # Square uses N, not FALSE
                         stock_alert_count_bridgefarmer='0',
                         price_bridgefarmer=str(price) if price else '',
                         
-                        enabled_building='Y' if present_at_all_locations else 'N',
+                        enabled_building=location_availability.get('building', 'N'),
                         current_quantity_building=inventory_data.get('building', '0'),
                         new_quantity_building='',  # Leave blank for manual entry
                         stock_alert_enabled_building='N',  # Square uses N, not FALSE
                         stock_alert_count_building='0',
                         price_building=str(price) if price else '',
                         
-                        enabled_flomo='Y' if present_at_all_locations else 'N',
+                        enabled_flomo=location_availability.get('flomo', 'N'),
                         current_quantity_flomo=inventory_data.get('flomo', '0'),
                         new_quantity_flomo='',  # Leave blank for manual entry
                         stock_alert_enabled_flomo='N',  # Square uses N, not FALSE
                         stock_alert_count_flomo='0',
                         price_flomo=str(price) if price else '',
                         
-                        enabled_justin='Y' if present_at_all_locations else 'N',
+                        enabled_justin=location_availability.get('justin', 'N'),
                         current_quantity_justin=inventory_data.get('justin', '0'),
                         new_quantity_justin='',  # Leave blank for manual entry
                         stock_alert_enabled_justin='N',  # Square uses N, not FALSE
                         stock_alert_count_justin='0',
                         price_justin=str(price) if price else '',
                         
-                        enabled_quinlan='Y' if present_at_all_locations else 'N',
+                        enabled_quinlan=location_availability.get('quinlan', 'N'),
                         current_quantity_quinlan=inventory_data.get('quinlan', '0'),
                         new_quantity_quinlan='',  # Leave blank for manual entry
                         stock_alert_enabled_quinlan='N',  # Square uses N, not FALSE
                         stock_alert_count_quinlan='0',
                         price_quinlan=str(price) if price else '',
                         
-                        enabled_terrell='Y' if present_at_all_locations else 'N',
+                        enabled_terrell=location_availability.get('terrell', 'N'),
                         current_quantity_terrell=inventory_data.get('terrell', '0'),
                         new_quantity_terrell='',  # Leave blank for manual entry
                         stock_alert_enabled_terrell='N',  # Square uses N, not FALSE
