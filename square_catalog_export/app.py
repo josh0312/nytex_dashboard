@@ -388,7 +388,7 @@ class SquareCatalogExporter:
                     # Get variation-level data from our production tables
                     variation_result = session.execute(text("""
                         SELECT cv.sellable, cv.stockable, cv.track_inventory,
-                               cv.units_per_case, cv.default_unit_cost
+                               cv.units_per_case
                         FROM catalog_variations cv
                         WHERE cv.id = :variation_id
                     """), {'variation_id': variation_id})
@@ -399,7 +399,7 @@ class SquareCatalogExporter:
                         stockable = 'Y' if variation_row[1] else 'N'
                         track_inventory = variation_row[2]
                         units_per_case = variation_row[3]
-                        default_unit_cost = variation_row[4]
+                        default_unit_cost = None  # Will get from vendor info if available
                     else:
                         sellable = 'Y'
                         stockable = 'Y'
