@@ -33,8 +33,11 @@ services:
       - AZURE_TENANT_ID=${AZURE_TENANT_ID}
       - AZURE_REDIRECT_URI=${AZURE_REDIRECT_URI:-http://localhost:8080/auth/callback}
       
-      # Database - using local Cloud SQL proxy or local PostgreSQL
-      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
+      # Database - Override for Docker networking
+      - SQLALCHEMY_DATABASE_URI=postgresql+asyncpg://joshgoble@host.docker.internal:5432/square_data_sync
+      
+      # Square Catalog Export Service URL
+      - SQUARE_CATALOG_EXPORT_URL=http://square-catalog-export:5001
       
       # Enable hot reload for development
       - RELOAD_TEMPLATES=True
@@ -59,17 +62,48 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    depends_on:
+      - square-catalog-export
+
+  # Square Catalog Export Service
+  square-catalog-export:
+    build:
+      context: ./square_catalog_export
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      # Core service settings
+      - PORT=5001
+      - ENVIRONMENT=development
+      
+      # Square API credentials (from .env.local)
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - SQUARE_ENVIRONMENT=${SQUARE_ENVIRONMENT:-production}
+      
+      # Database connection (same as main app)
+      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
+      
+    env_file:
+      - .env.local
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # Cloud SQL Proxy for local development
   cloud-sql-proxy:
     image: gcr.io/cloudsql-docker/gce-proxy:1.33.2
-    command: /cloud_sql_proxy -instances=${CLOUD_SQL_CONNECTION_NAME}=tcp:0.0.0.0:5432
+    command: /cloud_sql_proxy -instances=${CLOUD_SQL_CONNECTION_NAME:-nytex-business-systems:us-central1:nytex-main-db}=tcp:0.0.0.0:5432
     ports:
       - "5432:5432"
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/config/credentials.json
     volumes:
-      - ${GOOGLE_APPLICATION_CREDENTIALS}:/config/credentials.json:ro
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-/dev/null}:/config/credentials.json:ro
     restart: unless-stopped
     profiles:
       - cloud-sql  # Optional service, enable with --profile cloud-sql

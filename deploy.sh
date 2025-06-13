@@ -35,6 +35,7 @@ gcloud run deploy nytex-dashboard \
     --set-env-vars "CLOUD_SQL_CONNECTION_NAME=nytex-business-systems:us-central1:nytex-main-db" \
     --set-env-vars "DEBUG=false" \
     --set-env-vars "ENVIRONMENT=production" \
+    --set-env-vars "SQUARE_CATALOG_EXPORT_URL=https://square-catalog-export-932676587025.us-central1.run.app" \
     --update-secrets "SECRET_KEY=secret-key:latest" \
     --update-secrets "SQLALCHEMY_DATABASE_URI=database-uri:latest" \
     --update-secrets "SQUARE_ACCESS_TOKEN=square-access-token:latest" \

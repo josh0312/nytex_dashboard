@@ -13,6 +13,7 @@ import pandas as pd
 from fastapi.responses import FileResponse
 import os
 import tempfile
+from app.config import Config
 
 router = APIRouter(tags=["catalog"])
 
@@ -204,12 +205,19 @@ async def check_export_status(request: Request):
 async def check_api_health():
     """Check if the external export API is running"""
     try:
-        # Try host.docker.internal first (for Docker environments)
-        # Then fallback to localhost (for local development)
-        api_urls = [
-            "http://host.docker.internal:5001/health",
-            "http://localhost:5001/health"
-        ]
+        # Get the configured Square Catalog Export URL
+        base_url = getattr(Config, 'SQUARE_CATALOG_EXPORT_URL', 'http://localhost:5001')
+        
+        # Support multiple URLs for different environments
+        if base_url == 'http://localhost:5001':
+            # Local development - try Docker-aware URLs
+            api_urls = [
+                "http://host.docker.internal:5001/health",
+                "http://localhost:5001/health"
+            ]
+        else:
+            # Production or custom URL - use the configured URL
+            api_urls = [f"{base_url}/health"]
         
         timeout = aiohttp.ClientTimeout(total=5)  # 5 second timeout
         
