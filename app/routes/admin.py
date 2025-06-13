@@ -2,7 +2,7 @@ import logging
 import os
 import json
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from app.database import get_session
@@ -14,8 +14,22 @@ from sqlalchemy import text
 import aiohttp
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from typing import List, Dict, Any
+import time
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+# Global progress tracking for historical sync
+historical_sync_progress = {
+    "is_running": False,
+    "total_chunks": 0,
+    "completed_chunks": 0,
+    "current_chunk_info": "",
+    "total_orders_synced": 0,
+    "errors": [],
+    "start_time": None,
+    "estimated_completion": None,
+    "last_update": None
+}
 
 @router.get("/sync")
 async def admin_sync_page(request: Request):
@@ -853,31 +867,244 @@ async def fetch_catalog_objects_direct(access_token, base_url, object_type):
         logger.error(f"Error fetching {object_type}: {str(e)}")
         return []
 
-@router.get("/table-counts")
-async def table_counts():
-    """Get counts of all major tables for debugging"""
+@router.get("/database-stats")
+async def get_database_stats():
+    """Get comprehensive database statistics including counts, latest records, and health metrics"""
     try:
         async with get_session() as session:
-            counts = {}
+            stats = {
+                "summary": {},
+                "tables": {},
+                "orders": {},
+                "catalog": {},
+                "health": {},
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
             
-            tables = [
-                "locations",
-                "catalog_categories", 
-                "catalog_items",
-                "catalog_variations",
-                "catalog_inventory"
-            ]
+            # === TABLE COUNTS ===
+            table_definitions = {
+                "locations": "Square store locations",
+                "catalog_categories": "Product categories",
+                "catalog_items": "Product items",
+                "catalog_variations": "Product variations/SKUs",
+                "catalog_inventory": "Inventory quantities",
+                "orders": "Customer orders",
+                "order_line_items": "Order line items",
+                "payments": "Payment records",
+                "tenders": "Payment tenders",
+                "operating_seasons": "Operating seasons",
+                "catalog_location_availability": "Location-specific product availability",
+                "catalog_vendor_info": "Vendor information",
+                "vendors": "Vendor master data",
+                "inventory_counts": "Physical inventory counts",
+                "square_item_library_export": "Square item library exports"
+            }
             
-            for table in tables:
-                result = await session.execute(text(f"SELECT COUNT(*) FROM {table}"))
-                counts[table] = result.scalar()
+            for table, description in table_definitions.items():
+                try:
+                    result = await session.execute(text(f"SELECT COUNT(*) FROM {table}"))
+                    count = result.scalar()
+                    stats["tables"][table] = {
+                        "count": count,
+                        "description": description
+                    }
+                except Exception as e:
+                    stats["tables"][table] = {
+                        "count": "ERROR",
+                        "description": description,
+                        "error": str(e)
+                    }
             
-            return JSONResponse(counts)
+            # === ORDERS DETAILED STATS ===
+            try:
+                # Total orders and line items
+                orders_count = stats["tables"]["orders"]["count"]
+                line_items_count = stats["tables"]["order_line_items"]["count"]
+                
+                # Latest order date
+                result = await session.execute(text("SELECT MAX(created_at) FROM orders"))
+                latest_order = result.scalar()
+                
+                # Oldest order date
+                result = await session.execute(text("SELECT MIN(created_at) FROM orders"))
+                oldest_order = result.scalar()
+                
+                # Orders by state
+                result = await session.execute(text("""
+                    SELECT state, COUNT(*) as count 
+                    FROM orders 
+                    GROUP BY state 
+                    ORDER BY count DESC
+                """))
+                orders_by_state = {row[0]: row[1] for row in result.fetchall()}
+                
+                # Recent orders (last 30 days)
+                result = await session.execute(text("""
+                    SELECT COUNT(*) 
+                    FROM orders 
+                    WHERE created_at >= NOW() - INTERVAL '30 days'
+                """))
+                recent_orders = result.scalar()
+                
+                # Orders by location
+                result = await session.execute(text("""
+                    SELECT l.name as location_name, COUNT(o.id) as order_count
+                    FROM orders o
+                    LEFT JOIN locations l ON o.location_id = l.id
+                    GROUP BY l.name
+                    ORDER BY order_count DESC
+                    LIMIT 10
+                """))
+                orders_by_location = {row[0] or 'Unknown': row[1] for row in result.fetchall()}
+                
+                # Average order value (if total_money exists)
+                result = await session.execute(text("""
+                    SELECT AVG(CAST(total_money->>'amount' AS INTEGER)) as avg_amount
+                    FROM orders 
+                    WHERE total_money IS NOT NULL 
+                    AND total_money->>'amount' IS NOT NULL
+                """))
+                avg_order_value = result.scalar()
+                
+                stats["orders"] = {
+                    "total_orders": orders_count,
+                    "total_line_items": line_items_count,
+                    "date_range": {
+                        "oldest": oldest_order.isoformat() if oldest_order else None,
+                        "latest": latest_order.isoformat() if latest_order else None,
+                        "span_days": (latest_order - oldest_order).days if oldest_order and latest_order else None
+                    },
+                    "recent_activity": {
+                        "last_30_days": recent_orders
+                    },
+                    "by_state": orders_by_state,
+                    "by_location": orders_by_location,
+                    "metrics": {
+                        "avg_order_value_cents": int(avg_order_value) if avg_order_value else None,
+                        "avg_line_items_per_order": round(line_items_count / orders_count, 2) if orders_count > 0 else 0
+                    }
+                }
+            except Exception as e:
+                stats["orders"] = {"error": str(e)}
+            
+            # === CATALOG STATS ===
+            try:
+                # Items with/without SKUs
+                result = await session.execute(text("""
+                    SELECT 
+                        COUNT(*) FILTER (WHERE sku IS NOT NULL AND sku != '') as with_sku,
+                        COUNT(*) FILTER (WHERE sku IS NULL OR sku = '') as without_sku,
+                        COUNT(*) as total
+                    FROM catalog_variations
+                    WHERE is_deleted = false
+                """))
+                sku_stats = result.fetchone()
+                
+                # Top categories by item count
+                result = await session.execute(text("""
+                    SELECT c.name, COUNT(i.id) as item_count
+                    FROM catalog_categories c
+                    LEFT JOIN catalog_items i ON i.category_id = c.id
+                    WHERE c.is_deleted = false AND (i.is_deleted = false OR i.is_deleted IS NULL)
+                    GROUP BY c.name
+                    ORDER BY item_count DESC
+                    LIMIT 10
+                """))
+                top_categories = {row[0]: row[1] for row in result.fetchall()}
+                
+                # Inventory summary
+                result = await session.execute(text("""
+                    SELECT 
+                        COUNT(*) FILTER (WHERE quantity > 0) as in_stock,
+                        COUNT(*) FILTER (WHERE quantity = 0) as out_of_stock,
+                        COUNT(*) FILTER (WHERE quantity IS NULL) as no_inventory,
+                        SUM(quantity) as total_quantity
+                    FROM catalog_inventory
+                """))
+                inventory_stats = result.fetchone()
+                
+                stats["catalog"] = {
+                    "variations": {
+                        "total": sku_stats[2] if sku_stats else 0,
+                        "with_sku": sku_stats[0] if sku_stats else 0,
+                        "without_sku": sku_stats[1] if sku_stats else 0
+                    },
+                    "top_categories": top_categories,
+                    "inventory": {
+                        "in_stock": inventory_stats[0] if inventory_stats else 0,
+                        "out_of_stock": inventory_stats[1] if inventory_stats else 0,
+                        "no_inventory": inventory_stats[2] if inventory_stats else 0,
+                        "total_quantity": inventory_stats[3] if inventory_stats else 0
+                    }
+                }
+            except Exception as e:
+                stats["catalog"] = {"error": str(e)}
+            
+            # === HEALTH METRICS ===
+            try:
+                # Database size
+                result = await session.execute(text("""
+                    SELECT pg_size_pretty(pg_database_size(current_database())) as db_size
+                """))
+                db_size = result.scalar()
+                
+                # Table sizes
+                result = await session.execute(text("""
+                    SELECT 
+                        schemaname,
+                        tablename,
+                        pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+                    FROM pg_tables 
+                    WHERE schemaname = 'public'
+                    ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+                    LIMIT 10
+                """))
+                table_sizes = {f"{row[0]}.{row[1]}": row[2] for row in result.fetchall()}
+                
+                # Recent table updates (check for recent activity)
+                recent_activity = {}
+                for table in ["orders", "catalog_items", "catalog_inventory"]:
+                    try:
+                        if table == "orders":
+                            result = await session.execute(text(f"SELECT MAX(created_at) FROM {table}"))
+                        else:
+                            result = await session.execute(text(f"SELECT MAX(updated_at) FROM {table}"))
+                        last_update = result.scalar()
+                        recent_activity[table] = last_update.isoformat() if last_update else None
+                    except:
+                        recent_activity[table] = None
+                
+                stats["health"] = {
+                    "database_size": db_size,
+                    "largest_tables": table_sizes,
+                    "last_activity": recent_activity
+                }
+            except Exception as e:
+                stats["health"] = {"error": str(e)}
+            
+            # === SUMMARY ===
+            total_records = sum(
+                table["count"] for table in stats["tables"].values() 
+                if isinstance(table["count"], int)
+            )
+            
+            stats["summary"] = {
+                "total_tables": len(stats["tables"]),
+                "total_records": total_records,
+                "key_metrics": {
+                    "orders": stats["tables"]["orders"]["count"],
+                    "catalog_items": stats["tables"]["catalog_items"]["count"],
+                    "locations": stats["tables"]["locations"]["count"]
+                }
+            }
+            
+            return JSONResponse(stats)
             
     except Exception as e:
-        logger.error(f"Error getting table counts: {str(e)}", exc_info=True)
+        logger.error(f"Error getting database stats: {str(e)}", exc_info=True)
         return JSONResponse({
-            "error": str(e)
+            "error": str(e),
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }, status_code=500)
 
 @router.get("/test-missing-sku")
@@ -2054,6 +2281,19 @@ async def historical_orders_sync_api(request: Request):
                         'pricing_blocklists': json.dumps(line_item.get('pricing_blocklists', {}))
                     })
         
+        # Initialize progress tracking
+        global historical_sync_progress
+        historical_sync_progress.update({
+            "is_running": True,
+            "total_chunks": 0,
+            "completed_chunks": 0,
+            "current_chunk_info": "Initializing...",
+            "total_orders_synced": 0,
+            "errors": [],
+            "start_time": time.time(),
+            "last_update": datetime.now(timezone.utc).isoformat()
+        })
+        
         # Start the actual sync process
         start_time = time.time()
         logger.info("🚀 Starting historical orders sync...")
@@ -2070,10 +2310,26 @@ async def historical_orders_sync_api(request: Request):
         date_chunks = generate_date_chunks()
         logger.info(f"Generated {len(date_chunks)} date chunks to process")
         
+        # Update progress with total chunks
+        historical_sync_progress.update({
+            "total_chunks": len(date_chunks),
+            "current_chunk_info": f"Ready to process {len(date_chunks)} chunks",
+            "last_update": datetime.now(timezone.utc).isoformat()
+        })
+        
         # Process each chunk
         async with get_session() as db_session:
             for i, (start_date, end_date) in enumerate(date_chunks, 1):
-                logger.info(f"\n📅 Processing chunk {i}/{len(date_chunks)}: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+                period_str = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
+                logger.info(f"\n📅 Processing chunk {i}/{len(date_chunks)}: {period_str}")
+                
+                # Update progress
+                historical_sync_progress.update({
+                    "current_chunk_info": f"Processing chunk {i}/{len(date_chunks)}: {period_str}",
+                    "completed_chunks": i - 1,
+                    "total_orders_synced": total_orders_synced,
+                    "last_update": datetime.now(timezone.utc).isoformat()
+                })
                 
                 try:
                     chunk_orders = await fetch_orders_for_period(location_ids, start_date, end_date)
@@ -2091,12 +2347,26 @@ async def historical_orders_sync_api(request: Request):
                             
                             total_orders_synced += len(batch)
                             logger.info(f"  💾 Inserted batch of {len(batch)} orders (total: {total_orders_synced})")
+                            
+                            # Update progress for batch completion
+                            historical_sync_progress.update({
+                                "total_orders_synced": total_orders_synced,
+                                "current_chunk_info": f"Chunk {i}/{len(date_chunks)}: processed {total_orders_synced} orders",
+                                "last_update": datetime.now(timezone.utc).isoformat()
+                            })
                         
                         logger.info(f"✅ Processed {len(chunk_orders)} orders for period")
                     else:
                         logger.info(f"📭 No orders found for period")
                     
                     total_chunks_processed += 1
+                    
+                    # Update progress for chunk completion
+                    historical_sync_progress.update({
+                        "completed_chunks": total_chunks_processed,
+                        "current_chunk_info": f"Completed chunk {i}/{len(date_chunks)} - {total_orders_synced} total orders",
+                        "last_update": datetime.now(timezone.utc).isoformat()
+                    })
                     
                     # Commit after each chunk
                     await db_session.commit()
@@ -2106,13 +2376,31 @@ async def historical_orders_sync_api(request: Request):
                     
                 except Exception as e:
                     logger.error(f"❌ Error processing chunk {i}: {str(e)}")
-                    errors.append(f"Chunk {i} ({start_date} to {end_date}): {str(e)}")
+                    error_msg = f"Chunk {i} ({start_date} to {end_date}): {str(e)}"
+                    errors.append(error_msg)
+                    
+                    # Update progress with error
+                    historical_sync_progress["errors"].append(error_msg)
+                    historical_sync_progress.update({
+                        "current_chunk_info": f"Error in chunk {i}/{len(date_chunks)} - continuing...",
+                        "last_update": datetime.now(timezone.utc).isoformat()
+                    })
+                    
                     await db_session.rollback()
                     # Continue with next chunk
                     continue
         
         end_time = time.time()
         duration = end_time - start_time
+        
+        # Mark sync as completed
+        historical_sync_progress.update({
+            "is_running": False,
+            "completed_chunks": total_chunks_processed,
+            "current_chunk_info": f"✅ Sync completed! {total_orders_synced} orders synced in {total_chunks_processed}/{len(date_chunks)} chunks",
+            "total_orders_synced": total_orders_synced,
+            "last_update": datetime.now(timezone.utc).isoformat()
+        })
         
         result = {
             'success': True,
@@ -2140,7 +2428,53 @@ async def historical_orders_sync_api(request: Request):
             
     except Exception as e:
         logger.error(f"❌ Error in historical orders sync: {str(e)}", exc_info=True)
+        
+        # Mark sync as failed
+        historical_sync_progress.update({
+            "is_running": False,
+            "current_chunk_info": f"❌ Sync failed: {str(e)}",
+            "last_update": datetime.now(timezone.utc).isoformat()
+        })
+        
         return {
             "success": False,
             "error": str(e)
         } 
+
+@router.get("/historical-orders-sync-status")
+async def get_historical_sync_status():
+    """Get current status of historical orders sync"""
+    global historical_sync_progress
+    
+    if not historical_sync_progress["is_running"] and historical_sync_progress["completed_chunks"] == 0:
+        return JSONResponse({
+            "is_running": False,
+            "message": "No historical sync has been started",
+            "progress_percentage": 0
+        })
+    
+    # Calculate progress percentage
+    progress_percentage = 0
+    if historical_sync_progress["total_chunks"] > 0:
+        progress_percentage = (historical_sync_progress["completed_chunks"] / historical_sync_progress["total_chunks"]) * 100
+    
+    # Calculate estimated time remaining
+    estimated_remaining = None
+    if historical_sync_progress["start_time"] and historical_sync_progress["completed_chunks"] > 0:
+        elapsed_time = time.time() - historical_sync_progress["start_time"]
+        avg_time_per_chunk = elapsed_time / historical_sync_progress["completed_chunks"]
+        remaining_chunks = historical_sync_progress["total_chunks"] - historical_sync_progress["completed_chunks"]
+        estimated_remaining = remaining_chunks * avg_time_per_chunk
+    
+    return JSONResponse({
+        "is_running": historical_sync_progress["is_running"],
+        "total_chunks": historical_sync_progress["total_chunks"],
+        "completed_chunks": historical_sync_progress["completed_chunks"],
+        "current_chunk_info": historical_sync_progress["current_chunk_info"],
+        "total_orders_synced": historical_sync_progress["total_orders_synced"],
+        "progress_percentage": round(progress_percentage, 1),
+        "errors": historical_sync_progress["errors"],
+        "estimated_remaining_seconds": estimated_remaining,
+        "last_update": historical_sync_progress["last_update"],
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })

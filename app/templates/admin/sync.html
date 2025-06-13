@@ -516,23 +516,23 @@
                     <button onclick="refreshLogs()" class="sync-btn w-full text-sm">
                         🔄 Refresh Logs
                     </button>
-                    <button onclick="clearLogViewer()" class="sync-btn w-full text-sm">
-                        🗑️ Clear Log Display
+                    <button onclick="downloadLogs()" class="sync-btn w-full text-sm">
+                        💾 Download Logs
                     </button>
                 </div>
                 
                 <!-- Admin Tools -->
                 <div class="space-y-2">
                     <h3 class="text-sm font-semibold text-gray-700 mb-2">🔧 Admin Tools</h3>
-                    <button onclick="openDashboard()" class="sync-btn w-full text-sm">
-                        🏠 Main Dashboard
+                    <button onclick="toggleConfigDetails()" class="sync-btn w-full text-sm" id="config-details-btn">
+                        ⚙️ Show Config Details
                     </button>
-                    <button onclick="checkTableCounts()" class="sync-btn w-full text-sm">
-                        📋 Database Status
+                    <button onclick="toggleDatabaseStatus()" class="sync-btn w-full text-sm" id="database-status-btn">
+                        📋 Show Database Status
                     </button>
-                    <button onclick="checkSystemHealth()" class="sync-btn w-full text-sm">
-                        💚 System Health Check
-                </button>
+                    <button onclick="toggleSystemHealth()" class="sync-btn w-full text-sm" id="system-health-btn">
+                        💚 Show System Health
+                    </button>
                 </div>
             </div>
             
@@ -546,14 +546,66 @@
                     <div id="log-content" class="whitespace-pre-wrap">
                         Click "Show Recent Logs" to load log entries...
                     </div>
-        </div>
-        </div>
+                </div>
+            </div>
 
             <!-- Quick Status Display -->
             <div id="quick-status" class="mt-4 p-3 bg-gray-50 rounded hidden">
                 <!-- Dynamic status content will be loaded here -->
             </div>
         </div>
+
+        <!-- Historical Orders Sync -->
+        <div class="sync-card" style="border: 2px solid #EF4444; background: linear-gradient(135deg, #FEF2F2 0%, #FDE8E8 100%);">
+            <h2 class="text-xl font-semibold mb-4">📅 Historical Orders Sync (2018-Present)</h2>
+            <p class="text-gray-700 mb-4">
+                <strong>Important:</strong> This will sync ALL historical orders from January 2018 to present.
+                This is required for the annual sales comparison chart to work properly in production.
+                <strong>This is a one-time process that may take several hours.</strong>
+            </p>
+            
+            <!-- Warning Box -->
+            <div class="mb-4 p-4 bg-yellow-50 border border-yellow-300 rounded-lg">
+                <div class="flex items-start">
+                    <div class="text-yellow-600 mr-3">⚠️</div>
+                    <div>
+                        <div class="font-semibold text-yellow-800 mb-1">Large Data Operation</div>
+                        <div class="text-sm text-yellow-700">
+                            • This will fetch ~7 years of order data from Square API<br>
+                            • Expected to take 2-4 hours depending on order volume<br>
+                            • Processes data in 30-day chunks with rate limiting<br>
+                            • Can be resumed if interrupted<br>
+                            • Uses upsert so safe to re-run
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Display -->
+            <div id="historical-sync-progress" class="mb-4 hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700">Historical Sync Progress</span>
+                    <span class="text-sm text-gray-500" id="historical-percentage">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="historical-progress-bar"></div>
+                </div>
+                <div class="text-xs text-gray-600 mt-1" id="historical-details">Preparing to sync...</div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button id="historical-sync-btn" class="sync-btn" style="background: #EF4444; font-size: 16px; padding: 16px 32px;" onclick="runHistoricalOrdersSync()">
+                    <span id="historical-btn-text">📅 Start Historical Orders Sync</span>
+                </button>
+                <div id="historical-status" class="flex items-center">
+                    <span class="status-indicator status-ready"></span>
+                    <span>Ready to sync 2018-present orders</span>
+                </div>
+            </div>
+            <div id="historical-log" class="log-output hidden"></div>
+        </div>
+
+        <!-- End of Historical Orders Sync Section -->
     </div>
 </div>
 
@@ -1063,55 +1115,449 @@ gcloud run services logs tail nytex-dashboard --region us-central1`;
     }
 }
 
-function clearLogViewer() {
-    const logContent = document.getElementById('log-content');
-    const logTimestamp = document.getElementById('log-timestamp');
-    
-    logContent.textContent = 'Log display cleared. Click "Refresh Logs" to reload.';
-    logTimestamp.textContent = 'Cleared';
+function downloadLogs() {
+    // Create a download link for the current logs
+    try {
+        const logContent = document.getElementById('log-content').textContent;
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `nytex-admin-logs-${timestamp}.txt`;
+        
+        const blob = new Blob([logContent], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        // Show temporary feedback
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✅ Downloaded!';
+        setTimeout(() => {
+            btn.textContent = originalText;
+        }, 2000);
+    } catch (error) {
+        alert('Error downloading logs: ' + error.message);
+    }
 }
 
-function openDashboard() {
-    window.open('/', '_blank');
-}
-
-async function checkTableCounts() {
+// Toggle Config Details with proper button text updates
+async function toggleConfigDetails() {
     const statusEl = document.getElementById('quick-status');
+    const btn = document.getElementById('config-details-btn');
+    
+    // If currently visible, hide it
+    if (!statusEl.classList.contains('hidden')) {
+        statusEl.classList.add('hidden');
+        btn.textContent = '⚙️ Show Config Details';
+        return;
+    }
+    
+    // Show and load data
     statusEl.classList.remove('hidden');
-    statusEl.innerHTML = '<p class="text-gray-600">Loading database status...</p>';
+    btn.textContent = '⚙️ Hide Config Details';
+    await loadConfigDetails();
+}
+
+// Function to load configuration details
+async function loadConfigDetails() {
+    const statusEl = document.getElementById('quick-status');
+    statusEl.innerHTML = '<p class="text-gray-600">Loading configuration details...</p>';
     
     try {
-        const response = await fetch('/admin/table-counts');
+        const response = await fetch('/admin/debug-db-config');
         const result = await response.json();
         
         if (response.ok && result) {
-            let statusHtml = '<h4 class="font-semibold text-gray-800 mb-2">📋 Database Table Counts</h4>';
-            statusHtml += '<div class="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">';
+            let statusHtml = '<div class="bg-gradient-to-r from-cyan-50 to-blue-50 p-4 rounded-lg border border-cyan-200">';
+            statusHtml += '<h4 class="font-bold text-gray-800 mb-3 flex items-center">⚙️ Configuration Details</h4>';
+            statusHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
             
-            for (const [table, count] of Object.entries(result)) {
-                if (typeof count === 'number') {
-                    statusHtml += `
-                        <div class="bg-white p-2 rounded border">
-                            <div class="font-medium text-gray-700">${table}</div>
-                            <div class="text-lg font-bold text-blue-600">${count.toLocaleString()}</div>
-                        </div>
-                    `;
+            // Left column - Environment Variables
+            statusHtml += '<div class="space-y-3">';
+            statusHtml += '<div class="font-medium text-gray-700 mb-2">Environment Variables</div>';
+            
+            if (result.environment_variables) {
+                // Define which variables are expected in different environments
+                const productionVars = ['DATABASE_URL', 'CLOUD_SQL_CONNECTION_NAME'];
+                const developmentVars = ['SQLALCHEMY_DATABASE_URI'];
+                const optionalVars = ['DB_USER', 'DB_PASS', 'DB_NAME'];
+                
+                for (const [key, value] of Object.entries(result.environment_variables)) {
+                    const isSet = value !== 'NOT_SET';
+                    let statusColor, statusIcon, statusText;
+                    
+                    if (isSet) {
+                        statusColor = 'text-green-600';
+                        statusIcon = '✅';
+                        statusText = 'Set';
+                    } else if (productionVars.includes(key)) {
+                        statusColor = 'text-yellow-600';
+                        statusIcon = '⚠️';
+                        statusText = 'Production Only';
+                    } else if (optionalVars.includes(key)) {
+                        statusColor = 'text-gray-500';
+                        statusIcon = 'ℹ️';
+                        statusText = 'Optional';
+                    } else {
+                        statusColor = 'text-red-600';
+                        statusIcon = '❌';
+                        statusText = 'Missing';
+                    }
+                    
+                    statusHtml += `<div class="flex justify-between items-center text-sm">
+                        <span class="font-mono">${key}:</span>
+                        <span class="${statusColor}">${statusIcon} ${statusText}</span>
+                    </div>`;
                 }
             }
             
-            statusHtml += '</div>';
+            statusHtml += '</div>'; // Close left column
+            
+            // Right column - URL Configuration
+            statusHtml += '<div class="space-y-3">';
+            statusHtml += '<div class="font-medium text-gray-700 mb-2">Database URLs</div>';
+            
+            if (result.constructed_urls) {
+                for (const [key, url] of Object.entries(result.constructed_urls)) {
+                    statusHtml += `<div class="text-sm">
+                        <div class="font-mono text-xs text-gray-600">${key}:</div>
+                        <div class="text-xs break-all bg-gray-100 p-1 rounded">${url}</div>
+                    </div>`;
+                }
+            }
+            
+            // URL Matches
+            if (result.url_matches) {
+                statusHtml += '<div class="mt-3 pt-2 border-t border-gray-200">';
+                statusHtml += '<div class="font-medium text-gray-700 mb-2 text-sm">Database Connection Status</div>';
+                
+                // Check if we have any actual database URL set
+                const hasDbUrl = result.constructed_urls && 
+                    Object.values(result.constructed_urls).some(url => url && url !== 'NOT_SET' && !url.includes('NOT_SET'));
+                
+                if (hasDbUrl) {
+                    statusHtml += `<div class="flex justify-between items-center text-xs">
+                        <span>Database Connection:</span>
+                        <span class="text-green-600">✅ Active</span>
+                    </div>`;
+                    
+                    for (const [key, matches] of Object.entries(result.url_matches)) {
+                        let statusColor, statusIcon, statusText;
+                        if (key === 'runtime_vs_static' && !matches) {
+                            // This is expected in development
+                            statusColor = 'text-gray-500';
+                            statusIcon = 'ℹ️';
+                            statusText = 'Expected (Dev Mode)';
+                        } else if (matches) {
+                            statusColor = 'text-green-600';
+                            statusIcon = '✅';
+                            statusText = 'Consistent';
+                        } else {
+                            statusColor = 'text-yellow-600';
+                            statusIcon = '⚠️';
+                            statusText = 'Check Config';
+                        }
+                        
+                        statusHtml += `<div class="flex justify-between items-center text-xs">
+                            <span>${key.replace(/_/g, ' ')}:</span>
+                            <span class="${statusColor}">${statusIcon} ${statusText}</span>
+                        </div>`;
+                    }
+                } else {
+                    statusHtml += `<div class="flex justify-between items-center text-xs">
+                        <span>Database Connection:</span>
+                        <span class="text-red-600">❌ No URL Found</span>
+                    </div>`;
+                }
+                statusHtml += '</div>';
+            }
+            
+            statusHtml += '</div>'; // Close right column
+            statusHtml += '</div>'; // Close grid
+            
+            // Add helpful explanation
+            statusHtml += `<div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs">
+                <div class="font-semibold text-blue-800 mb-1">Configuration Notes:</div>
+                <div class="text-blue-700 space-y-1">
+                    <div>• <strong>Production Only</strong> variables are used in Google Cloud Run deployment</div>
+                    <div>• <strong>Optional</strong> variables are fallbacks and not required for local development</div>
+                    <div>• <strong>Expected (Dev Mode)</strong> indicates normal differences between environments</div>
+                    <div>• Your current setup is working correctly for development</div>
+                </div>
+            </div>`;
+            
+            // Add timestamp
+            statusHtml += `<div class="mt-3 pt-2 border-t border-gray-200 text-xs text-gray-500">
+                Last checked: ${new Date().toLocaleString()}
+            </div>`;
+            
+            statusHtml += '</div>'; // Close container
+            
             statusEl.innerHTML = statusHtml;
         } else {
-            statusEl.innerHTML = '<p class="text-red-600">❌ Error loading table counts</p>';
+            statusEl.innerHTML = '<p class="text-red-600">❌ Error loading configuration details</p>';
         }
     } catch (error) {
         statusEl.innerHTML = `<p class="text-red-600">❌ Error: ${error.message}</p>`;
     }
 }
 
-async function checkSystemHealth() {
+// Toggle Database Status with proper button text updates
+async function toggleDatabaseStatus() {
     const statusEl = document.getElementById('quick-status');
+    const btn = document.getElementById('database-status-btn');
+    
+    // If currently visible, hide it
+    if (!statusEl.classList.contains('hidden')) {
+        statusEl.classList.add('hidden');
+        btn.textContent = '📋 Show Database Status';
+        return;
+    }
+    
+    // Show and load data
     statusEl.classList.remove('hidden');
+    btn.textContent = '📋 Hide Database Status';
+    await loadDatabaseStatus();
+}
+
+// Function to load database status data
+async function loadDatabaseStatus() {
+    const statusEl = document.getElementById('quick-status');
+    statusEl.innerHTML = '<p class="text-gray-600">Loading comprehensive database statistics...</p>';
+    
+    try {
+        const response = await fetch('/admin/database-stats');
+        const result = await response.json();
+        
+        if (response.ok && result) {
+            let statusHtml = '<div class="space-y-6">';
+            
+            // === SUMMARY SECTION ===
+            statusHtml += `
+                <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                    <h4 class="font-bold text-gray-800 mb-3 flex items-center">
+                        📊 Database Summary
+                        <span class="ml-2 text-xs text-gray-500">${new Date(result.timestamp).toLocaleString()}</span>
+                    </h4>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-blue-600">${result.summary.total_records?.toLocaleString() || 'N/A'}</div>
+                            <div class="text-sm text-gray-600">Total Records</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-600">${result.summary.key_metrics?.orders?.toLocaleString() || 'N/A'}</div>
+                            <div class="text-sm text-gray-600">Orders</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-purple-600">${result.summary.key_metrics?.catalog_items?.toLocaleString() || 'N/A'}</div>
+                            <div class="text-sm text-gray-600">Catalog Items</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-orange-600">${result.summary.key_metrics?.locations?.toLocaleString() || 'N/A'}</div>
+                            <div class="text-sm text-gray-600">Locations</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // === ORDERS SECTION ===
+            if (result.orders && !result.orders.error) {
+                statusHtml += `
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h4 class="font-bold text-gray-800 mb-3">📦 Orders Analytics</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <div class="space-y-2 text-sm">
+                                    <div class="flex justify-between">
+                                        <span>Total Orders:</span>
+                                        <span class="font-semibold">${result.orders.total_orders?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Total Line Items:</span>
+                                        <span class="font-semibold">${result.orders.total_line_items?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Avg Items/Order:</span>
+                                        <span class="font-semibold">${result.orders.metrics?.avg_line_items_per_order || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Last 30 Days:</span>
+                                        <span class="font-semibold">${result.orders.recent_activity?.last_30_days?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-sm">
+                                    <div class="font-medium mb-1">Date Range:</div>
+                                    <div class="text-xs text-gray-600">
+                                        ${result.orders.date_range?.oldest ? new Date(result.orders.date_range.oldest).toLocaleDateString() : 'N/A'} - 
+                                        ${result.orders.date_range?.latest ? new Date(result.orders.date_range.latest).toLocaleDateString() : 'N/A'}
+                                    </div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        ${result.orders.date_range?.span_days ? `(${result.orders.date_range.span_days} days)` : ''}
+                                    </div>
+                                    ${result.orders.metrics?.avg_order_value_cents ? `
+                                        <div class="mt-2">
+                                            <div class="font-medium">Avg Order Value:</div>
+                                            <div class="text-green-600 font-semibold">$${(result.orders.metrics.avg_order_value_cents / 100).toFixed(2)}</div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // === CATALOG SECTION ===
+            if (result.catalog && !result.catalog.error) {
+                statusHtml += `
+                    <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <h4 class="font-bold text-gray-800 mb-3">🏪 Catalog & Inventory</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <div class="font-medium mb-2">Product Variations:</div>
+                                <div class="space-y-1 text-sm">
+                                    <div class="flex justify-between">
+                                        <span>Total:</span>
+                                        <span class="font-semibold">${result.catalog.variations?.total?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>With SKU:</span>
+                                        <span class="text-green-600 font-semibold">${result.catalog.variations?.with_sku?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Without SKU:</span>
+                                        <span class="text-red-600 font-semibold">${result.catalog.variations?.without_sku?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="font-medium mb-2">Inventory Status:</div>
+                                <div class="space-y-1 text-sm">
+                                    <div class="flex justify-between">
+                                        <span>In Stock:</span>
+                                        <span class="text-green-600 font-semibold">${result.catalog.inventory?.in_stock?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Out of Stock:</span>
+                                        <span class="text-red-600 font-semibold">${result.catalog.inventory?.out_of_stock?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span>Total Quantity:</span>
+                                        <span class="font-semibold">${result.catalog.inventory?.total_quantity?.toLocaleString() || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // === ALL TABLES SECTION ===
+            statusHtml += `
+                <div class="bg-gray-50 p-4 rounded-lg border">
+                    <h4 class="font-bold text-gray-800 mb-3">📋 All Database Tables</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
+            `;
+            
+            // Sort tables by count (descending)
+            const sortedTables = Object.entries(result.tables || {})
+                .filter(([_, tableData]) => typeof tableData.count === 'number')
+                .sort(([,a], [,b]) => b.count - a.count);
+            
+            for (const [tableName, tableData] of sortedTables) {
+                const countColor = tableData.count > 0 ? 'text-blue-600' : 'text-gray-400';
+                statusHtml += `
+                    <div class="bg-white p-2 rounded border" title="${tableData.description}">
+                        <div class="font-medium text-gray-700 truncate">${tableName}</div>
+                        <div class="text-lg font-bold ${countColor}">${tableData.count.toLocaleString()}</div>
+                    </div>
+                `;
+            }
+            
+            // Show error tables
+            for (const [tableName, tableData] of Object.entries(result.tables || {})) {
+                if (tableData.count === 'ERROR') {
+                    statusHtml += `
+                        <div class="bg-red-50 p-2 rounded border border-red-200" title="${tableData.error}">
+                            <div class="font-medium text-red-700 truncate">${tableName}</div>
+                            <div class="text-sm text-red-500">ERROR</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            statusHtml += '</div></div>';
+            
+            // === HEALTH SECTION ===
+            if (result.health && !result.health.error) {
+                statusHtml += `
+                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <h4 class="font-bold text-gray-800 mb-3">💽 Database Health</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <div class="font-medium mb-1">Database Size: <span class="text-blue-600">${result.health.database_size || 'N/A'}</span></div>
+                                <div class="font-medium mb-2">Last Activity:</div>
+                                <div class="space-y-1 text-xs text-gray-600">
+                `;
+                
+                for (const [table, lastUpdate] of Object.entries(result.health.last_activity || {})) {
+                    const timeAgo = lastUpdate ? new Date(lastUpdate).toLocaleString() : 'Never';
+                    statusHtml += `<div>${table}: ${timeAgo}</div>`;
+                }
+                
+                statusHtml += `
+                                </div>
+                            </div>
+                            <div>
+                                <div class="font-medium mb-2">Largest Tables:</div>
+                                <div class="space-y-1 text-xs">
+                `;
+                
+                for (const [table, size] of Object.entries(result.health.largest_tables || {})) {
+                    statusHtml += `<div class="flex justify-between"><span>${table.replace('public.', '')}:</span><span class="font-medium">${size}</span></div>`;
+                }
+                
+                statusHtml += '</div></div></div></div>';
+            }
+            
+            statusHtml += '</div>'; // Close main container
+            
+            statusEl.innerHTML = statusHtml;
+        } else {
+            statusEl.innerHTML = '<p class="text-red-600">❌ Error loading database statistics</p>';
+        }
+    } catch (error) {
+        statusEl.innerHTML = `<p class="text-red-600">❌ Error: ${error.message}</p>`;
+    }
+}
+
+// Toggle System Health with proper button text updates
+async function toggleSystemHealth() {
+    const statusEl = document.getElementById('quick-status');
+    const btn = document.getElementById('system-health-btn');
+    
+    // If currently visible, hide it
+    if (!statusEl.classList.contains('hidden')) {
+        statusEl.classList.add('hidden');
+        btn.textContent = '💚 Show System Health';
+        return;
+    }
+    
+    // Show and load data
+    statusEl.classList.remove('hidden');
+    btn.textContent = '💚 Hide System Health';
+    await loadSystemHealth();
+}
+
+// Function to load system health data
+async function loadSystemHealth() {
+    const statusEl = document.getElementById('quick-status');
     statusEl.innerHTML = '<p class="text-gray-600">Checking system health...</p>';
     
     try {
@@ -1119,27 +1565,75 @@ async function checkSystemHealth() {
         const result = await response.json();
         
         if (response.ok && result) {
-            let statusHtml = '<h4 class="font-semibold text-gray-800 mb-2">💚 System Health Check</h4>';
-            statusHtml += '<div class="space-y-2 text-sm">';
+            let statusHtml = '<div class="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">';
+            statusHtml += '<h4 class="font-bold text-gray-800 mb-3 flex items-center">💚 System Health Check</h4>';
+            statusHtml += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+            
+            // Left column - Core Systems
+            statusHtml += '<div class="space-y-3">';
+            statusHtml += '<div class="font-medium text-gray-700 mb-2">Core Systems</div>';
             
             // Database status
             const dbStatus = result.database === 'connected' ? '✅' : '❌';
-            statusHtml += `<div class="flex justify-between"><span>Database:</span><span>${dbStatus} ${result.database}</span></div>`;
+            const dbColor = result.database === 'connected' ? 'text-green-600' : 'text-red-600';
+            statusHtml += `<div class="flex justify-between items-center">
+                <span>Database:</span>
+                <span class="${dbColor} font-semibold">${dbStatus} ${result.database}</span>
+            </div>`;
             
             // Square config status
             const squareStatus = result.square_config === 'configured' ? '✅' : '❌';
-            statusHtml += `<div class="flex justify-between"><span>Square API:</span><span>${squareStatus} ${result.square_config}</span></div>`;
+            const squareColor = result.square_config === 'configured' ? 'text-green-600' : 'text-red-600';
+            statusHtml += `<div class="flex justify-between items-center">
+                <span>Square API:</span>
+                <span class="${squareColor} font-semibold">${squareStatus} ${result.square_config}</span>
+            </div>`;
             
             // Table existence
             const tablesStatus = result.tables_exist ? '✅' : '❌';
-            statusHtml += `<div class="flex justify-between"><span>Tables:</span><span>${tablesStatus} ${result.tables_exist ? 'Exist' : 'Missing'}</span></div>`;
+            const tablesColor = result.tables_exist ? 'text-green-600' : 'text-red-600';
+            statusHtml += `<div class="flex justify-between items-center">
+                <span>Tables:</span>
+                <span class="${tablesColor} font-semibold">${tablesStatus} ${result.tables_exist ? 'Exist' : 'Missing'}</span>
+            </div>`;
+            
+            statusHtml += '</div>'; // Close left column
+            
+            // Right column - Data Status
+            statusHtml += '<div class="space-y-3">';
+            statusHtml += '<div class="font-medium text-gray-700 mb-2">Data Status</div>';
             
             // Location count
             if (result.location_count !== undefined) {
-                statusHtml += `<div class="flex justify-between"><span>Locations:</span><span>📍 ${result.location_count}</span></div>`;
+                statusHtml += `<div class="flex justify-between items-center">
+                    <span>Locations:</span>
+                    <span class="text-blue-600 font-semibold">📍 ${result.location_count}</span>
+                </div>`;
             }
             
-            statusHtml += '</div>';
+            // Add timestamp
+            statusHtml += `<div class="flex justify-between items-center">
+                <span>Last Check:</span>
+                <span class="text-gray-500 text-sm">${new Date().toLocaleTimeString()}</span>
+            </div>`;
+            
+            // Overall status
+            const allHealthy = result.database === 'connected' && 
+                             result.square_config === 'configured' && 
+                             result.tables_exist;
+            const overallStatus = allHealthy ? '🟢 System Healthy' : '🟡 Issues Detected';
+            const overallColor = allHealthy ? 'text-green-600' : 'text-yellow-600';
+            statusHtml += `<div class="pt-2 border-t border-gray-200">
+                <div class="flex justify-between items-center font-semibold">
+                    <span>Overall Status:</span>
+                    <span class="${overallColor}">${overallStatus}</span>
+                </div>
+            </div>`;
+            
+            statusHtml += '</div>'; // Close right column
+            statusHtml += '</div>'; // Close grid
+            statusHtml += '</div>'; // Close container
+            
             statusEl.innerHTML = statusHtml;
         } else {
             statusEl.innerHTML = '<p class="text-red-600">❌ Error checking system health</p>';
@@ -1201,6 +1695,185 @@ function animateSyncProgress(currentStep) {
     // Keep remaining steps as pending
     for (let i = currentStep + 1; i <= 4; i++) {
         updateSyncStep(i, 'pending');
+    }
+}
+
+// Progress polling variables
+let progressPollingInterval = null;
+let syncStartTime = null;
+
+// Start progress polling
+function startProgressPolling() {
+    // Poll every 3 seconds
+    progressPollingInterval = setInterval(updateProgressFromServer, 3000);
+    updateProgressFromServer(); // Initial update
+}
+
+// Stop progress polling
+function stopProgressPolling() {
+    if (progressPollingInterval) {
+        clearInterval(progressPollingInterval);
+        progressPollingInterval = null;
+    }
+}
+
+// Update progress from server
+async function updateProgressFromServer() {
+    try {
+        const response = await fetch('/admin/historical-orders-sync-status');
+        const status = await response.json();
+        
+        const progressBar = document.getElementById('historical-progress-bar');
+        const percentage = document.getElementById('historical-percentage');
+        const details = document.getElementById('historical-details');
+        const logDiv = document.getElementById('historical-log');
+        const statusEl = document.getElementById('historical-status');
+        
+        if (status.is_running) {
+            // Update progress bar
+            progressBar.style.width = `${status.progress_percentage}%`;
+            percentage.textContent = `${status.progress_percentage}%`;
+            
+            // Update details
+            let detailsText = status.current_chunk_info;
+            if (status.estimated_remaining_seconds) {
+                const minutes = Math.round(status.estimated_remaining_seconds / 60);
+                detailsText += ` (Est. ${minutes} min remaining)`;
+            }
+            details.textContent = detailsText;
+            
+            // Update status
+            statusEl.innerHTML = '<span class="status-indicator status-running"></span>Running historical sync...';
+            
+            // Update log with current progress
+            const progressLog = `Progress: ${status.completed_chunks}/${status.total_chunks} chunks, ${status.total_orders_synced} orders synced
+Current: ${status.current_chunk_info}
+Last update: ${new Date(status.last_update).toLocaleTimeString()}`;
+            
+            // Find existing progress log and replace it, or append
+            const logContent = logDiv.textContent;
+            const progressStartIndex = logContent.indexOf('Progress: ');
+            if (progressStartIndex !== -1) {
+                const beforeProgress = logContent.substring(0, progressStartIndex);
+                logDiv.textContent = beforeProgress + progressLog;
+            } else {
+                logDiv.textContent += '\n\n' + progressLog;
+            }
+            
+        } else if (status.completed_chunks > 0) {
+            // Sync completed
+            stopProgressPolling();
+            
+            progressBar.style.width = '100%';
+            percentage.textContent = '100%';
+            details.textContent = status.current_chunk_info;
+            
+            if (status.current_chunk_info.includes('✅')) {
+                // Success
+                statusEl.innerHTML = '<span class="status-indicator status-ready"></span>Historical sync completed successfully!';
+                document.getElementById('historical-btn-text').textContent = '✅ Historical Sync Completed';
+                
+                logDiv.textContent += `\n\n🎉 SYNC COMPLETED!
+Total orders synced: ${status.total_orders_synced}
+Chunks processed: ${status.completed_chunks}/${status.total_chunks}
+Your annual sales comparison should now work in production!`;
+            } else {
+                // Failed
+                statusEl.innerHTML = '<span class="status-indicator status-error"></span>Historical sync failed';
+                document.getElementById('historical-btn-text').textContent = '❌ Historical Sync Failed';
+                
+                logDiv.textContent += `\n\n❌ SYNC FAILED: ${status.current_chunk_info}`;
+            }
+            
+            if (status.errors && status.errors.length > 0) {
+                logDiv.textContent += `\n\nErrors encountered:\n${status.errors.join('\n')}`;
+            }
+            
+            // Re-enable button
+            document.getElementById('historical-sync-btn').disabled = false;
+            syncInProgress = false;
+        }
+        
+    } catch (error) {
+        console.error('Error polling progress:', error);
+        // Continue polling unless it's a critical error
+    }
+}
+
+// Historical Orders Sync Function
+async function runHistoricalOrdersSync() {
+    if (syncInProgress) {
+        alert('Another sync is already in progress. Please wait for it to complete.');
+        return;
+    }
+
+    // Confirm with user due to long-running nature
+    const confirmed = confirm(`⚠️ IMPORTANT: Historical Orders Sync
+
+This will sync ALL orders from January 2018 to present. This process:
+• May take 2-4 hours to complete
+• Will fetch thousands of orders from Square API
+• Cannot be easily stopped once started
+• Is required for annual sales comparison to work
+
+Are you sure you want to proceed?`);
+    
+    if (!confirmed) {
+        return;
+    }
+
+    syncInProgress = true;
+    syncStartTime = Date.now();
+    
+    const btn = document.getElementById('historical-sync-btn');
+    const btnText = document.getElementById('historical-btn-text');
+    const status = document.getElementById('historical-status');
+    const logDiv = document.getElementById('historical-log');
+    const progressDiv = document.getElementById('historical-sync-progress');
+    const progressBar = document.getElementById('historical-progress-bar');
+    const percentage = document.getElementById('historical-percentage');
+    const details = document.getElementById('historical-details');
+    
+    // Update UI
+    btn.disabled = true;
+    btnText.textContent = '📅 Syncing Historical Orders...';
+    status.innerHTML = '<span class="status-indicator status-running"></span>Starting historical sync...';
+    logDiv.classList.remove('hidden');
+    progressDiv.classList.remove('hidden');
+    logDiv.textContent = 'Starting historical orders sync...\nThis will take 2-4 hours. Progress will update automatically.\n';
+    
+    // Reset progress
+    progressBar.style.width = '0%';
+    percentage.textContent = '0%';
+    details.textContent = 'Initializing sync...';
+    
+    // Start progress polling
+    startProgressPolling();
+    
+    try {
+        // Start the sync (this will run in background and update progress)
+        const response = await fetch('/admin/historical-orders-sync', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        // The response will come immediately but sync continues in background
+        // Progress polling will handle the updates
+        logDiv.textContent += 'Sync initiated successfully. Monitoring progress...\n';
+        
+    } catch (error) {
+        stopProgressPolling();
+        
+        status.innerHTML = '<span class="status-indicator status-error"></span>Historical sync error';
+        details.textContent = 'Failed to start sync';
+        
+        logDiv.textContent += `\n❌ ERROR: Failed to start sync: ${error.message}`;
+        
+        btnText.textContent = '❌ Failed to Start Sync';
+        btn.disabled = false;
+        syncInProgress = false;
     }
 }
 </script>
