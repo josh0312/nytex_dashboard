@@ -149,11 +149,11 @@ async def get_catalog_status(request: Request):
                 'last_sync_central': last_sync_central,  # Central Time for display
                 'has_data': has_data
             }
-            
-            return JSONResponse({
-                "success": True,
+        
+        return JSONResponse({
+            "success": True,
                 "data": status_data
-            })
+        })
         
     except Exception as e:
         logger.error(f"Error getting catalog status: {str(e)}", exc_info=True)
