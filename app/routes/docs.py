@@ -95,7 +95,7 @@ def process_cross_references(html_content: str, current_topic: str = None) -> st
         # Check if term is not already part of a link by looking for <a...>term</a> pattern
         if f'>{term}<' not in html_content and f'>{term.lower()}<' not in html_content:
             pattern = rf'\b{re.escape(term)}\b'
-            replacement = f'<a href="{link}" class="help-link text-blue-600 dark:text-blue-400 hover:underline">{term}</a>'
+            replacement = f'<a href="{link}" class="help-link text-blue-600 dark:text-blue-400 underline font-medium hover:text-blue-800 dark:hover:text-blue-300 decoration-2 decoration-blue-400">{term}</a>'
             html_content = re.sub(pattern, replacement, html_content, flags=re.IGNORECASE)
     
     return html_content

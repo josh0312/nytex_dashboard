@@ -46,7 +46,15 @@
     }
     
     .help-link {
-        @apply text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline;
+        @apply text-blue-600 dark:text-blue-400 underline font-medium hover:text-blue-800 dark:hover:text-blue-300 decoration-2 decoration-blue-400 dark:decoration-blue-500;
+    }
+    
+    .help-content a {
+        @apply text-blue-600 dark:text-blue-400 underline font-medium hover:text-blue-800 dark:hover:text-blue-300 decoration-2 decoration-blue-400 dark:decoration-blue-500;
+    }
+    
+    .help-content a:not(.help-link) {
+        @apply bg-blue-50 dark:bg-blue-900/20 px-1 py-0.5 rounded;
     }
     
     .breadcrumb {
