@@ -62,4 +62,115 @@ def format_utc_datetime(dt: datetime) -> str:
     utc_dt = dt.astimezone(timezone.utc)
     formatted = utc_dt.isoformat()
     logger.debug(f"Formatted UTC datetime: {formatted}")
-    return formatted 
+    return formatted
+
+def convert_utc_to_central(utc_dt: datetime) -> datetime:
+    """
+    Convert UTC datetime (stored in database) to Central Time for display.
+    Handles timezone-naive UTC datetimes from database storage.
+    """
+    if utc_dt is None:
+        return None
+    
+    # If timezone-naive, assume it's UTC (our database storage format)
+    if utc_dt.tzinfo is None:
+        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+    
+    # Convert to Central Time
+    central_dt = utc_dt.astimezone(CENTRAL_TZ)
+    logger.debug(f"Converted UTC {utc_dt} to Central {central_dt}")
+    return central_dt
+
+def convert_central_to_utc(central_dt: datetime) -> datetime:
+    """
+    Convert Central Time datetime to UTC for database storage.
+    Handles DST transitions properly.
+    """
+    if central_dt is None:
+        return None
+    
+    # If timezone-naive, assume it's Central Time
+    if central_dt.tzinfo is None:
+        central_dt = central_dt.replace(tzinfo=CENTRAL_TZ)
+    
+    # Convert to UTC
+    utc_dt = central_dt.astimezone(timezone.utc)
+    logger.debug(f"Converted Central {central_dt} to UTC {utc_dt}")
+    return utc_dt
+
+def get_business_timezone_for_location(location_timezone: str = None) -> ZoneInfo:
+    """
+    Get the appropriate timezone for a business location.
+    If location_timezone is provided, use it; otherwise default to Central.
+    """
+    if location_timezone:
+        try:
+            return ZoneInfo(location_timezone)
+        except Exception as e:
+            logger.warning(f"Invalid timezone '{location_timezone}', falling back to Central: {e}")
+    
+    return CENTRAL_TZ
+
+def convert_order_time_to_display(order_created_at: datetime, location_timezone: str = None) -> datetime:
+    """
+    Convert order timestamp from database UTC storage to the appropriate local time for display.
+    This ensures orders appear with the correct local time they were actually placed.
+    
+    Args:
+        order_created_at: UTC datetime from database (timezone-naive)
+        location_timezone: Optional timezone string from location (e.g., "America/Chicago")
+    
+    Returns:
+        Datetime in the appropriate local timezone for display
+    """
+    if order_created_at is None:
+        return None
+    
+    # Ensure we have a timezone-aware UTC datetime
+    if order_created_at.tzinfo is None:
+        utc_dt = order_created_at.replace(tzinfo=timezone.utc)
+    else:
+        utc_dt = order_created_at.astimezone(timezone.utc)
+    
+    # Get the target timezone (location's timezone or Central as fallback)
+    target_tz = get_business_timezone_for_location(location_timezone)
+    
+    # Convert to local time
+    local_dt = utc_dt.astimezone(target_tz)
+    logger.debug(f"Converted order time from UTC {utc_dt} to {target_tz.key} {local_dt}")
+    
+    return local_dt
+
+def format_datetime_for_display(dt: datetime, format_str: str = "%Y-%m-%d %I:%M %p") -> str:
+    """
+    Format datetime for display with timezone abbreviation.
+    Default format shows: 2025-01-15 2:30 PM
+    """
+    if dt is None:
+        return ""
+    
+    # Get timezone abbreviation (CST/CDT)
+    tz_abbr = dt.strftime("%Z")
+    formatted = dt.strftime(format_str)
+    
+    return f"{formatted} {tz_abbr}"
+
+def is_central_time_location(location_timezone: str = None) -> bool:
+    """
+    Check if the given location timezone is in Central Time zone.
+    """
+    if not location_timezone:
+        return True  # Default assumption
+    
+    central_zones = [
+        "America/Chicago", 
+        "America/Indiana/Knox", 
+        "America/Indiana/Tell_City",
+        "America/Menominee",
+        "America/North_Dakota/Beulah",
+        "America/North_Dakota/Center", 
+        "America/North_Dakota/New_Salem",
+        "CST", "CDT", "UTC-6", "UTC-5"
+    ]
+    
+    return any(zone in location_timezone for zone in central_zones) 
