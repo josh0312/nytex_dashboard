@@ -204,13 +204,27 @@ python -m pytest tests/ --cov=app
 | `PORT` | Server port | `8080` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
-## 📚 Documentation
+## 📚 Integrated Documentation System
+
+The NyTex Dashboard includes a comprehensive **web-based documentation system** accessible at `/docs`. This wiki-style knowledge base provides:
+
+- **🌐 Web interface** - Browse all documentation without leaving the app
+- **🔗 Automatic cross-linking** - Key terms link to relevant documentation
+- **🎯 Contextual help** - Help icons and floating help button throughout the interface
+- **📱 Responsive design** - Works on desktop and mobile devices
+- **📖 Rich formatting** - Full Markdown support with syntax highlighting
+
+### **Quick Access**
+- **Main navigation**: Click "Help" in the top menu
+- **Floating button**: Blue help button (bottom-right corner) 
+- **Direct URL**: Visit `/docs` for the documentation homepage
+- **Contextual links**: Help icons next to page titles
 
 ### **System Documentation**
 - **[Docker Development Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and workflow
 - **[Secrets Management Guide](./docs/SECRETS_GUIDE.md)** - Google Secret Manager integration
-- **[Catalog Management](./docs/CATALOG_PAGE.md)** - Square catalog management and export system
 - **[Authentication Setup](./docs/AUTHENTICATION.md)** - O365 and manual authentication
+- **[Documentation System](./docs/DOCUMENTATION_SYSTEM.md)** - How the integrated docs work
 - **[API Documentation](http://localhost:8080/docs)** - Interactive API docs (when running)
 
 ### **Page Documentation**
@@ -220,6 +234,8 @@ python -m pytest tests/ --cov=app
 - **[Items Page](./docs/ITEMS_PAGE.md)** - Advanced inventory management and search
 - **[Tools Page](./docs/TOOLS_PAGE.md)** - Administrative utilities and system tools
 - **[Admin Page](./docs/ADMIN_PAGE.md)** - System administration and data synchronization
+
+> 💡 **Tip**: All documentation is also available through the integrated web interface at `/docs` with enhanced navigation, search, and cross-linking between topics.
 
 ## 🔒 Security
 

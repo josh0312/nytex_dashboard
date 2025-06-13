@@ -98,6 +98,14 @@
         <i x-show="darkMode" data-lucide="moon" class="h-5 w-5 text-blue-400"></i>
     </button>
 
+    <!-- Fixed Help Button -->
+    <a href="/docs" 
+       class="fixed bottom-20 right-4 z-50 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-colors"
+       title="View Documentation">
+        <i data-lucide="help-circle" class="h-5 w-5"></i>
+        <span class="sr-only">View Documentation</span>
+    </a>
+
     <!-- Navigation -->
     <nav class="bg-white dark:bg-gray-800 shadow-lg" x-data="{ mobileMenuOpen: false }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -155,8 +163,8 @@
                         <a href="#" class="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                             Staff Schedule
                         </a>
-                        <a href="#" class="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            Links
+                        <a href="/docs" class="border-transparent text-gray-500 dark:text-gray-300 hover:border-gray-300 hover:text-gray-700 dark:hover:text-white inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Help
                         </a>
                     </div>
                 </div>
@@ -207,7 +215,7 @@
                 <a href="/admin/sync" class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-800 dark:hover:text-white">Admin</a>
                 <a href="/items/" class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-800 dark:hover:text-white">Items</a>
                 <a href="#" class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-800 dark:hover:text-white">Staff Schedule</a>
-                <a href="#" class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-800 dark:hover:text-white">Links</a>
+                <a href="/docs" class="block pl-3 pr-4 py-2 border-l-4 text-base font-medium border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 hover:text-gray-800 dark:hover:text-white">Help</a>
             </div>
         </div>
     </nav>

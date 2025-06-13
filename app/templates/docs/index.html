@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation - NyTex Fireworks{% endblock %}
+
+{% block head %}
+<style>
+    /* Documentation-specific styles */
+    .doc-card {
+        @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow duration-200;
+    }
+    
+    .doc-card:hover {
+        @apply border-blue-300 dark:border-blue-600;
+    }
+    
+    .doc-link {
+        @apply text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline;
+    }
+    
+    .docs-nav {
+        @apply bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700;
+    }
+    
+    .docs-content {
+        @apply prose dark:prose-invert max-w-none;
+    }
+    
+    /* Code block styling */
+    .highlight {
+        @apply bg-gray-100 dark:bg-gray-800 rounded-md p-4 overflow-x-auto;
+    }
+    
+    /* Table of contents styling */
+    .toc {
+        @apply bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6;
+    }
+    
+    .toc ul {
+        @apply list-none pl-0;
+    }
+    
+    .toc li {
+        @apply mb-1;
+    }
+    
+    .toc a {
+        @apply text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm;
+    }
+    
+    /* Breadcrumb styling */
+    .breadcrumb {
+        @apply flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6;
+    }
+    
+    .breadcrumb a {
+        @apply hover:text-gray-900 dark:hover:text-gray-200;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    📚 Documentation
+                </h1>
+                <p class="text-lg text-gray-600 dark:text-gray-400">
+                    Complete documentation for the NyTex Fireworks Dashboard system
+                </p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <!-- Search functionality can be added here -->
+                <div class="relative">
+                    <input type="search" 
+                           placeholder="Search docs..." 
+                           class="w-64 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <i data-lucide="search" class="absolute right-3 top-2.5 h-4 w-4 text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Documentation Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- System Overview -->
+        <div class="lg:col-span-3 mb-8">
+            <div class="doc-card">
+                <div class="flex items-center mb-4">
+                    <i data-lucide="book-open" class="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3"></i>
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
+                        System Overview
+                    </h2>
+                </div>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                    Get started with a complete overview of the NyTex Fireworks Dashboard system, its features, and architecture.
+                </p>
+                <a href="/docs/overview" 
+                   class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i data-lucide="arrow-right" class="h-4 w-4 mr-2"></i>
+                    Read Overview
+                </a>
+            </div>
+        </div>
+
+        <!-- Page Documentation -->
+        <div class="lg:col-span-2">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <i data-lucide="layout-dashboard" class="h-6 w-6 mr-3 text-green-600 dark:text-green-400"></i>
+                Page Documentation
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for key, page in docs_structure.pages.children.items() %}
+                <div class="doc-card">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">
+                        {{ page.title }}
+                    </h3>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                        {{ page.description }}
+                    </p>
+                    <a href="/docs/pages/{{ key }}" 
+                       class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
+                        Read More
+                        <i data-lucide="arrow-right" class="h-3 w-3 ml-1"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Technical Documentation -->
+        <div class="lg:col-span-1">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                <i data-lucide="wrench" class="h-6 w-6 mr-3 text-orange-600 dark:text-orange-400"></i>
+                Technical Docs
+            </h2>
+            <div class="space-y-4">
+                {% for key, doc in docs_structure.technical.children.items() %}
+                <div class="doc-card">
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">
+                        {{ doc.title }}
+                    </h3>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-3">
+                        {{ doc.description }}
+                    </p>
+                    <a href="/docs/technical/{{ key }}" 
+                       class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
+                        Read More
+                        <i data-lucide="arrow-right" class="h-3 w-3 ml-1"></i>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="mt-12 border-t border-gray-200 dark:border-gray-700 pt-8">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-6">Quick Links</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <a href="/dashboard" 
+               class="flex items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i data-lucide="bar-chart-3" class="h-5 w-5 text-blue-600 dark:text-blue-400 mr-3"></i>
+                <span class="font-medium text-gray-900 dark:text-white">Dashboard</span>
+            </a>
+            <a href="/reports" 
+               class="flex items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i data-lucide="file-text" class="h-5 w-5 text-green-600 dark:text-green-400 mr-3"></i>
+                <span class="font-medium text-gray-900 dark:text-white">Reports</span>
+            </a>
+            <a href="/catalog" 
+               class="flex items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i data-lucide="package" class="h-5 w-5 text-purple-600 dark:text-purple-400 mr-3"></i>
+                <span class="font-medium text-gray-900 dark:text-white">Catalog</span>
+            </a>
+            <a href="/admin/sync" 
+               class="flex items-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <i data-lucide="settings" class="h-5 w-5 text-red-600 dark:text-red-400 mr-3"></i>
+                <span class="font-medium text-gray-900 dark:text-white">Admin</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Lucide icons
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %} 

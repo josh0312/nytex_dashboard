@@ -1,0 +1,14 @@
+<!-- Help Link Component -->
+<!-- Usage: {% include 'components/shared/help_link.html' with context %} -->
+<!-- Parameters: help_url, help_text (optional), icon_size (optional, default: 4) -->
+
+{% set help_text = help_text or "View documentation" %}
+{% set icon_size = icon_size or 4 %}
+
+<a href="{{ help_url }}" 
+   target="_blank"
+   class="inline-flex items-center text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+   title="{{ help_text }}">
+    <i data-lucide="help-circle" class="h-{{ icon_size }} w-{{ icon_size }}"></i>
+    <span class="sr-only">{{ help_text }}</span>
+</a> 

@@ -16,6 +16,7 @@ import logging
 # Import additional routes from original app
 from .routes import tools_router, admin_router
 from .routes.items_routes import router as items_router
+from .routes.docs import router as docs_router
 
 # Configure logging
 logging.basicConfig(
@@ -50,6 +51,7 @@ app.include_router(catalog_router, prefix="/catalog", tags=["catalog"])
 app.include_router(tools_router, prefix="/tools")
 app.include_router(items_router, prefix="/items")
 app.include_router(admin_router)  # Admin routes with /admin prefix
+app.include_router(docs_router, prefix="/docs", tags=["documentation"])
 
 # Root redirect to dashboard
 @app.get("/")
