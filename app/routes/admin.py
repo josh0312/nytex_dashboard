@@ -238,39 +238,12 @@ async def complete_sync(request: Request):
         else:
             sync_stats["vendors"] = vendor_result["stats"]
         
-        # Helper function to ensure stats are integers
-        def ensure_integer_stats(stats_dict):
-            """Ensure all stats values are integers, converting any strings/None to 0"""
-            for key in ["created", "updated", "deleted"]:
-                if key in stats_dict:
-                    try:
-                        stats_dict[key] = int(stats_dict[key]) if stats_dict[key] is not None else 0
-                    except (ValueError, TypeError):
-                        stats_dict[key] = 0
-            return stats_dict
-        
-        # Ensure all stats are integers before calculation
-        for key, stats in sync_stats.items():
-            if isinstance(stats, dict) and "created" in stats and "error" not in stats:
-                sync_stats[key] = ensure_integer_stats(stats)
-        
-        # Calculate totals with detailed error handling
-        total_changes = 0
-        try:
-            logger.info(f"🔍 Debug: sync_stats before calculation: {sync_stats}")
-            for key, stats in sync_stats.items():
-                if isinstance(stats, dict) and "created" in stats and "error" not in stats:
-                    logger.info(f"🔍 Debug: Processing {key} stats: {stats}")
-                    logger.info(f"🔍 Debug: Types - created: {type(stats['created'])}, updated: {type(stats['updated'])}, deleted: {type(stats['deleted'])}")
-                    change_count = stats["created"] + stats["updated"] + stats["deleted"]
-                    logger.info(f"🔍 Debug: {key} change_count: {change_count}")
-                    total_changes += change_count
-            logger.info(f"🔍 Debug: Final total_changes: {total_changes}")
-        except Exception as calc_error:
-            logger.error(f"🔍 Debug: Error in total calculation: {str(calc_error)}", exc_info=True)
-            logger.error(f"🔍 Debug: sync_stats at error: {sync_stats}")
-            # Fallback calculation
-            total_changes = 0
+        # Calculate totals
+        total_changes = sum(
+            stats["created"] + stats["updated"] + stats["deleted"] 
+            for stats in sync_stats.values() 
+            if isinstance(stats, dict) and "created" in stats and "error" not in stats
+        )
         
         success_message = f"Complete production sync successful ({sync_mode}) - {total_changes} total changes"
         logger.info(success_message)
