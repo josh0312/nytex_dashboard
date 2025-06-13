@@ -499,49 +499,49 @@ class SquareCatalogExporter:
                         # Location-specific fields
                         enabled_aubrey='TRUE' if present_at_all_locations else 'FALSE',
                         current_quantity_aubrey=inventory_data.get('aubrey', '0'),
-                        new_quantity_aubrey=inventory_data.get('aubrey', '0'),
+                        new_quantity_aubrey='',  # Leave blank for manual entry
                         stock_alert_enabled_aubrey='FALSE',
                         stock_alert_count_aubrey='0',
                         price_aubrey=str(price) if price else '',
                         
                         enabled_bridgefarmer='TRUE' if present_at_all_locations else 'FALSE',
                         current_quantity_bridgefarmer=inventory_data.get('bridgefarmer', '0'),
-                        new_quantity_bridgefarmer=inventory_data.get('bridgefarmer', '0'),
+                        new_quantity_bridgefarmer='',  # Leave blank for manual entry
                         stock_alert_enabled_bridgefarmer='FALSE',
                         stock_alert_count_bridgefarmer='0',
                         price_bridgefarmer=str(price) if price else '',
                         
                         enabled_building='TRUE' if present_at_all_locations else 'FALSE',
                         current_quantity_building=inventory_data.get('building', '0'),
-                        new_quantity_building=inventory_data.get('building', '0'),
+                        new_quantity_building='',  # Leave blank for manual entry
                         stock_alert_enabled_building='FALSE',
                         stock_alert_count_building='0',
                         price_building=str(price) if price else '',
                         
                         enabled_flomo='TRUE' if present_at_all_locations else 'FALSE',
                         current_quantity_flomo=inventory_data.get('flomo', '0'),
-                        new_quantity_flomo=inventory_data.get('flomo', '0'),
+                        new_quantity_flomo='',  # Leave blank for manual entry
                         stock_alert_enabled_flomo='FALSE',
                         stock_alert_count_flomo='0',
                         price_flomo=str(price) if price else '',
                         
                         enabled_justin='TRUE' if present_at_all_locations else 'FALSE',
                         current_quantity_justin=inventory_data.get('justin', '0'),
-                        new_quantity_justin=inventory_data.get('justin', '0'),
+                        new_quantity_justin='',  # Leave blank for manual entry
                         stock_alert_enabled_justin='FALSE',
                         stock_alert_count_justin='0',
                         price_justin=str(price) if price else '',
                         
                         enabled_quinlan='TRUE' if present_at_all_locations else 'FALSE',
                         current_quantity_quinlan=inventory_data.get('quinlan', '0'),
-                        new_quantity_quinlan=inventory_data.get('quinlan', '0'),
+                        new_quantity_quinlan='',  # Leave blank for manual entry
                         stock_alert_enabled_quinlan='FALSE',
                         stock_alert_count_quinlan='0',
                         price_quinlan=str(price) if price else '',
                         
                         enabled_terrell='TRUE' if present_at_all_locations else 'FALSE',
                         current_quantity_terrell=inventory_data.get('terrell', '0'),
-                        new_quantity_terrell=inventory_data.get('terrell', '0'),
+                        new_quantity_terrell='',  # Leave blank for manual entry
                         stock_alert_enabled_terrell='FALSE',
                         stock_alert_count_terrell='0',
                         price_terrell=str(price) if price else '',
