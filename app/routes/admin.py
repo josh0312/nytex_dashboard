@@ -172,7 +172,8 @@ async def complete_sync(request: Request):
             "categories": {"created": 0, "updated": 0, "deleted": 0},
             "items": {"created": 0, "updated": 0, "deleted": 0},
             "variations": {"created": 0, "updated": 0, "deleted": 0},
-            "inventory": {"created": 0, "updated": 0, "deleted": 0}
+            "inventory": {"created": 0, "updated": 0, "deleted": 0},
+            "vendors": {"created": 0, "updated": 0, "deleted": 0}
         }
         
         # Step 1: Sync Locations
@@ -213,19 +214,63 @@ async def complete_sync(request: Request):
         # Add catalog updates from inventory sync to the overall stats
         if "catalog_updates" in inventory_result:
             catalog_updates = inventory_result["catalog_updates"]
-            # Add to existing catalog stats
-            sync_stats["categories"]["updated"] += catalog_updates.get("items_updated", 0)
-            sync_stats["variations"]["updated"] += catalog_updates.get("variations_updated", 0)
+            # Add to existing catalog stats - ensure type safety
+            items_updated = catalog_updates.get("items_updated", 0)
+            variations_updated = catalog_updates.get("variations_updated", 0)
+            
+            # Ensure we're adding integers to integers
+            if isinstance(items_updated, int) and isinstance(sync_stats["categories"]["updated"], int):
+                sync_stats["categories"]["updated"] += items_updated
+            if isinstance(variations_updated, int) and isinstance(sync_stats["variations"]["updated"], int):
+                sync_stats["variations"]["updated"] += variations_updated
             
             # Log the enhanced features
             logger.info(f"📋 Catalog enhancements: {catalog_updates['items_updated']} items updated with Units Per Case, {catalog_updates['variations_updated']} variations updated")
             logger.info(f"📊 Inventory processing: {inventory_result.get('total_raw_items', 0)} raw items deduplicated to {inventory_result.get('unique_records', 0)} unique records")
         
-        # Calculate totals
-        total_changes = sum(
-            stats["created"] + stats["updated"] + stats["deleted"] 
-            for stats in sync_stats.values()
-        )
+        # Step 4: Sync Vendors
+        logger.info("Step 4: Syncing vendors...")
+        vendor_result = await sync_vendors_incremental(square_access_token, base_url, db_url, full_refresh)
+        if not vendor_result["success"]:
+            # Log vendor sync failure but don't fail entire sync since vendors might not be available
+            logger.warning(f"Vendor sync failed (continuing with other data): {vendor_result['error']}")
+            sync_stats["vendors"]["error"] = vendor_result["error"]
+        else:
+            sync_stats["vendors"] = vendor_result["stats"]
+        
+        # Helper function to ensure stats are integers
+        def ensure_integer_stats(stats_dict):
+            """Ensure all stats values are integers, converting any strings/None to 0"""
+            for key in ["created", "updated", "deleted"]:
+                if key in stats_dict:
+                    try:
+                        stats_dict[key] = int(stats_dict[key]) if stats_dict[key] is not None else 0
+                    except (ValueError, TypeError):
+                        stats_dict[key] = 0
+            return stats_dict
+        
+        # Ensure all stats are integers before calculation
+        for key, stats in sync_stats.items():
+            if isinstance(stats, dict) and "created" in stats and "error" not in stats:
+                sync_stats[key] = ensure_integer_stats(stats)
+        
+        # Calculate totals with detailed error handling
+        total_changes = 0
+        try:
+            logger.info(f"🔍 Debug: sync_stats before calculation: {sync_stats}")
+            for key, stats in sync_stats.items():
+                if isinstance(stats, dict) and "created" in stats and "error" not in stats:
+                    logger.info(f"🔍 Debug: Processing {key} stats: {stats}")
+                    logger.info(f"🔍 Debug: Types - created: {type(stats['created'])}, updated: {type(stats['updated'])}, deleted: {type(stats['deleted'])}")
+                    change_count = stats["created"] + stats["updated"] + stats["deleted"]
+                    logger.info(f"🔍 Debug: {key} change_count: {change_count}")
+                    total_changes += change_count
+            logger.info(f"🔍 Debug: Final total_changes: {total_changes}")
+        except Exception as calc_error:
+            logger.error(f"🔍 Debug: Error in total calculation: {str(calc_error)}", exc_info=True)
+            logger.error(f"🔍 Debug: sync_stats at error: {sync_stats}")
+            # Fallback calculation
+            total_changes = 0
         
         success_message = f"Complete production sync successful ({sync_mode}) - {total_changes} total changes"
         logger.info(success_message)
@@ -621,6 +666,9 @@ async def sync_locations_direct(access_token, base_url, db_url):
                     async with engine.begin() as conn:
                         # Clear existing data in correct order (child tables first)
                         await conn.execute(text("DELETE FROM catalog_inventory"))
+                        await conn.execute(text("DELETE FROM catalog_vendor_info"))
+                        await conn.execute(text("DELETE FROM vendors"))
+                        await conn.execute(text("DELETE FROM catalog_location_availability"))
                         await conn.execute(text("DELETE FROM catalog_variations"))
                         await conn.execute(text("DELETE FROM catalog_items"))
                         await conn.execute(text("DELETE FROM catalog_categories"))
@@ -979,7 +1027,7 @@ async def debug_db_config():
     except Exception as e:
         return JSONResponse({
             "error": str(e)
-        }, status_code=500)
+        }, status_code=500) 
 
 async def sync_locations_incremental(access_token, base_url, db_url, full_refresh=False):
     """Sync locations with incremental updates or full refresh"""
@@ -1004,14 +1052,11 @@ async def sync_locations_incremental(access_token, base_url, db_url, full_refres
                 
                 async with engine.begin() as conn:
                     if full_refresh:
-                        # Full refresh mode - clear all data in proper order
-                        logger.info("🔥 FULL REFRESH MODE: Clearing all existing data")
-                        await conn.execute(text("DELETE FROM catalog_inventory"))
-                        await conn.execute(text("DELETE FROM catalog_variations"))
-                        await conn.execute(text("DELETE FROM catalog_items"))
-                        await conn.execute(text("DELETE FROM catalog_categories"))
-                        await conn.execute(text("DELETE FROM locations"))
-                        stats["deleted"] = "ALL"
+                        # Full refresh mode - clear all data using TRUNCATE CASCADE
+                        logger.info("🔥 FULL REFRESH MODE: Truncating all tables with CASCADE")
+                        # Use TRUNCATE CASCADE to automatically handle all foreign key constraints
+                        await conn.execute(text("TRUNCATE TABLE locations, catalog_categories, catalog_items, catalog_variations, catalog_inventory, catalog_location_availability, catalog_vendor_info, vendors CASCADE"))
+                        stats["deleted"] = 0  # Reset to 0 since we truncated everything
                     else:
                         # Incremental mode - get existing locations
                         existing_result = await conn.execute(text("SELECT id FROM locations"))
@@ -1645,4 +1690,127 @@ async def get_recent_logs():
             "success": False,
             "message": f"Error reading logs: {str(e)}",
             "timestamp": datetime.now(timezone.utc).isoformat()
-        }, status_code=500) 
+        }, status_code=500)
+
+async def sync_vendors_incremental(access_token, base_url, db_url, full_refresh=False):
+    """Sync vendor data with incremental updates or full refresh"""
+    try:
+        timeout = aiohttp.ClientTimeout(total=300)
+        engine = create_async_engine(db_url, echo=False)
+        stats = {"created": 0, "updated": 0, "deleted": 0}
+        
+        async with engine.begin() as conn:
+            if full_refresh:
+                # Full refresh mode - clear vendor tables
+                logger.info("🔥 FULL REFRESH MODE: Clearing vendor tables")
+                await conn.execute(text("DELETE FROM catalog_vendor_info"))
+                await conn.execute(text("DELETE FROM vendors"))
+            
+            # Fetch vendors from Square using correct API endpoint
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                url = f"{base_url}/v2/vendors/search"
+                headers = {
+                    'Authorization': f'Bearer {access_token}',
+                    'Content-Type': 'application/json'
+                }
+                
+                # Use search endpoint with empty query to get all vendors
+                payload = {
+                    "filter": {
+                        "status": ["ACTIVE", "INACTIVE"]
+                    }
+                }
+                
+                async with session.post(url, headers=headers, json=payload) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        vendors = data.get('vendors', [])
+                        logger.info(f"📦 Retrieved {len(vendors)} vendors from Square")
+                        
+                        # Process vendors
+                        for vendor_data in vendors:
+                            vendor_id = vendor_data['id']
+                            vendor_name = vendor_data.get('name', '')
+                            account_number = vendor_data.get('account_number', '')
+                            status = vendor_data.get('status', 'ACTIVE')
+                            
+                            if full_refresh:
+                                # Insert new vendor
+                                await conn.execute(text("""
+                                    INSERT INTO vendors (id, name, account_number, status, created_at, updated_at)
+                                    VALUES (:id, :name, :account_number, :status, :created_at, :updated_at)
+                                """), {
+                                    'id': vendor_id,
+                                    'name': vendor_name,
+                                    'account_number': account_number,
+                                    'status': status,
+                                    'created_at': datetime.now(),
+                                    'updated_at': datetime.now()
+                                })
+                                stats["created"] += 1
+                            else:
+                                # Incremental mode - check if vendor exists
+                                existing_result = await conn.execute(text("""
+                                    SELECT name, account_number, status FROM vendors WHERE id = :id
+                                """), {'id': vendor_id})
+                                existing = existing_result.fetchone()
+                                
+                                if existing is None:
+                                    # Insert new vendor
+                                    await conn.execute(text("""
+                                        INSERT INTO vendors (id, name, account_number, status, created_at, updated_at)
+                                        VALUES (:id, :name, :account_number, :status, :created_at, :updated_at)
+                                    """), {
+                                        'id': vendor_id,
+                                        'name': vendor_name,
+                                        'account_number': account_number,
+                                        'status': status,
+                                        'created_at': datetime.now(),
+                                        'updated_at': datetime.now()
+                                    })
+                                    stats["created"] += 1
+                                elif (existing[0] != vendor_name or 
+                                      existing[1] != account_number or 
+                                      existing[2] != status):
+                                    # Update existing vendor
+                                    await conn.execute(text("""
+                                        UPDATE vendors 
+                                        SET name = :name, account_number = :account_number, 
+                                            status = :status, updated_at = :updated_at
+                                        WHERE id = :id
+                                    """), {
+                                        'id': vendor_id,
+                                        'name': vendor_name,
+                                        'account_number': account_number,
+                                        'status': status,
+                                        'updated_at': datetime.now()
+                                    })
+                                    stats["updated"] += 1
+                        
+                        mode_text = "FULL REFRESH" if full_refresh else "INCREMENTAL"
+                        logger.info(f"✅ Vendor sync completed ({mode_text}): {stats}")
+                        
+                    elif response.status == 404:
+                        # Vendors API not available or no permission
+                        error_text = await response.text()
+                        logger.warning(f"Vendors API not available (404): {error_text}")
+                        return {
+                            "success": False, 
+                            "error": "Vendors API not available - may require special permissions or account upgrade",
+                            "stats": stats
+                        }
+                    else:
+                        error_text = await response.text()
+                        logger.error(f"Error fetching vendors: {response.status} - {error_text}")
+                        return {
+                            "success": False, 
+                            "error": f"Square API error: {response.status} - {error_text}",
+                            "stats": stats
+                        }
+        
+        await engine.dispose()
+        return {"success": True, "stats": stats}
+        
+    except Exception as e:
+        logger.error(f"Error in vendor sync: {str(e)}")
+        return {"success": False, "error": str(e), "stats": stats} 
