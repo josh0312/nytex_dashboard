@@ -18,6 +18,7 @@ class OrderLineItem(Base):
     variation_name = Column(String)
     item_type = Column(String)
     base_price_money = Column(JSON)
+    variation_total_price_money = Column(JSON)
     gross_sales_money = Column(JSON)
     total_tax_money = Column(JSON)
     total_discount_money = Column(JSON)
@@ -26,6 +27,7 @@ class OrderLineItem(Base):
     applied_discounts = Column(JSON)
     modifiers = Column(JSON)
     pricing_blocklists = Column(JSON)
+    item_variation_metadata = Column(JSON)
 
     # Use string reference for relationship
     order = relationship("Order", back_populates="line_items", lazy="joined")

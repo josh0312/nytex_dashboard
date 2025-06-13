@@ -2003,14 +2003,16 @@ async def historical_orders_sync_api(request: Request):
                             uid, order_id, catalog_object_id, catalog_version, name, 
                             quantity, item_type, base_price_money, variation_total_price_money,
                             gross_sales_money, total_discount_money, total_tax_money, total_money,
-                            variation_name, item_variation_metadata
+                            variation_name, item_variation_metadata, note, applied_taxes, 
+                            applied_discounts, modifiers, pricing_blocklists
                         ) VALUES (
                             :uid, :order_id, :catalog_object_id, :catalog_version, :name,
                             :quantity, :item_type, :base_price_money, :variation_total_price_money,
                             :gross_sales_money, :total_discount_money, :total_tax_money, :total_money,
-                            :variation_name, :item_variation_metadata
+                            :variation_name, :item_variation_metadata, :note, :applied_taxes,
+                            :applied_discounts, :modifiers, :pricing_blocklists
                         )
-                        ON CONFLICT (uid) DO UPDATE SET
+                        ON CONFLICT (order_id, uid) DO UPDATE SET
                             catalog_object_id = EXCLUDED.catalog_object_id,
                             catalog_version = EXCLUDED.catalog_version,
                             name = EXCLUDED.name,
@@ -2023,7 +2025,12 @@ async def historical_orders_sync_api(request: Request):
                             total_tax_money = EXCLUDED.total_tax_money,
                             total_money = EXCLUDED.total_money,
                             variation_name = EXCLUDED.variation_name,
-                            item_variation_metadata = EXCLUDED.item_variation_metadata
+                            item_variation_metadata = EXCLUDED.item_variation_metadata,
+                            note = EXCLUDED.note,
+                            applied_taxes = EXCLUDED.applied_taxes,
+                            applied_discounts = EXCLUDED.applied_discounts,
+                            modifiers = EXCLUDED.modifiers,
+                            pricing_blocklists = EXCLUDED.pricing_blocklists
                     """), {
                         'uid': line_item['uid'],
                         'order_id': order_data['id'],
@@ -2039,7 +2046,12 @@ async def historical_orders_sync_api(request: Request):
                         'total_tax_money': json.dumps(line_item.get('total_tax_money', {})),
                         'total_money': json.dumps(line_item.get('total_money', {})),
                         'variation_name': line_item.get('variation_name'),
-                        'item_variation_metadata': json.dumps(line_item.get('item_variation_metadata', {}))
+                        'item_variation_metadata': json.dumps(line_item.get('metadata', {})),
+                        'note': line_item.get('note'),
+                        'applied_taxes': json.dumps(line_item.get('applied_taxes', [])),
+                        'applied_discounts': json.dumps(line_item.get('applied_discounts', [])),
+                        'modifiers': json.dumps(line_item.get('modifiers', [])),
+                        'pricing_blocklists': json.dumps(line_item.get('pricing_blocklists', {}))
                     })
         
         # Start the actual sync process
