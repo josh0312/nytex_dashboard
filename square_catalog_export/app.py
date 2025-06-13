@@ -593,6 +593,30 @@ def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'service': 'square-catalog-export'})
 
+@app.route('/', methods=['GET'])
+def service_info():
+    """Root endpoint with service information and available endpoints"""
+    return jsonify({
+        'service': 'square-catalog-export',
+        'version': '1.0.0',
+        'status': 'running',
+        'description': 'Square Catalog Export Service - Exports Square catalog data to database',
+        'endpoints': {
+            '/': 'Service information (this endpoint)',
+            '/health': 'Health check',
+            '/status': 'Export status',
+            '/export': 'Start catalog export (POST)',
+            '/query/categories': 'Check category data',
+            '/query/category-comparison': 'Compare category fields',
+            '/query/vendors': 'Check vendor data'
+        },
+        'usage': {
+            'health_check': 'GET /',
+            'start_export': 'POST /export',
+            'check_status': 'GET /status'
+        }
+    })
+
 @app.route('/status', methods=['GET'])
 def get_status():
     """Get current export status"""
