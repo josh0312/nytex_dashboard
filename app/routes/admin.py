@@ -1541,13 +1541,13 @@ async def sync_inventory_incremental(access_token, base_url, db_url, full_refres
                             # If this combination doesn't exist or has a newer timestamp, update it
                             if (unique_key not in unique_inventory or 
                                 (calculated_datetime and 
-                                 unique_inventory[unique_key]['calculated_datetime'] < calculated_datetime)):
+                                 unique_inventory[unique_key]['calculated_at'] < calculated_datetime)):
                                 
                                 unique_inventory[unique_key] = {
                                     'variation_id': catalog_object_id,
                                     'location_id': location_id,
                                     'quantity': quantity_int,
-                                    'calculated_datetime': calculated_datetime
+                                    'calculated_at': calculated_datetime
                                 }
                 
                 logger.info(f"📊 Deduplicated to {len(unique_inventory)} unique inventory records")
