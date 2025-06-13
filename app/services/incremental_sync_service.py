@@ -299,10 +299,20 @@ class IncrementalSyncService:
         """Fetch vendor changes from Square API"""
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as client_session:
-                url = f"{self.base_url}/v2/vendors"
-                headers = {'Authorization': f'Bearer {self.square_access_token}'}
+                url = f"{self.base_url}/v2/vendors/search"
+                headers = {
+                    'Authorization': f'Bearer {self.square_access_token}',
+                    'Content-Type': 'application/json'
+                }
                 
-                async with client_session.get(url, headers=headers) as response:
+                # Use search endpoint with query to get all vendors
+                payload = {
+                    "filter": {
+                        "status": ["ACTIVE", "INACTIVE"]
+                    }
+                }
+                
+                async with client_session.post(url, headers=headers, json=payload) as response:
                     if response.status == 200:
                         data = await response.json()
                         vendors = data.get('vendors', [])
@@ -311,6 +321,12 @@ class IncrementalSyncService:
                             'success': True,
                             'data': vendors,
                             'total_items': len(vendors)
+                        }
+                    elif response.status == 404:
+                        # Vendors API not available
+                        return {
+                            'success': False,
+                            'error': 'Vendors API not available - may require special permissions or account upgrade'
                         }
                     else:
                         error_text = await response.text()

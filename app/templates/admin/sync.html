@@ -392,8 +392,8 @@
                         <div class="flex items-center">
                             <div class="step-icon pending">4</div>
                             <div class="flex-1">
-                                <div class="font-medium">✅ Validation & Cleanup</div>
-                                <div class="text-sm text-gray-600">Verify data relationships and ensure consistency</div>
+                                <div class="font-medium">🏪 Vendor Sync</div>
+                                <div class="text-sm text-gray-600">Import vendor information and catalog associations</div>
                             </div>
                         </div>
                     </div>
@@ -532,7 +532,7 @@
                     </button>
                     <button onclick="checkSystemHealth()" class="sync-btn w-full text-sm">
                         💚 System Health Check
-                    </button>
+                </button>
                 </div>
             </div>
             
@@ -546,9 +546,9 @@
                     <div id="log-content" class="whitespace-pre-wrap">
                         Click "Show Recent Logs" to load log entries...
                     </div>
-                </div>
-            </div>
-            
+        </div>
+        </div>
+
             <!-- Quick Status Display -->
             <div id="quick-status" class="mt-4 p-3 bg-gray-50 rounded hidden">
                 <!-- Dynamic status content will be loaded here -->
@@ -853,6 +853,16 @@ async function runCompleteSync() {
                 log.textContent += `🏷️  Items: ${stats.items.created} created, ${stats.items.updated} updated, ${stats.items.deleted} deleted\n`;
                 log.textContent += `🔧 Variations: ${stats.variations.created} created, ${stats.variations.updated} updated, ${stats.variations.deleted} deleted\n`;
                 log.textContent += `📦 Inventory: ${stats.inventory.created} created, ${stats.inventory.updated} updated, ${stats.inventory.deleted} deleted\n`;
+                
+                // Display vendor sync results
+                if (stats.vendors) {
+                    if (stats.vendors.error) {
+                        log.textContent += `🏪 Vendors: ⚠️  ${stats.vendors.error}\n`;
+                    } else {
+                        log.textContent += `🏪 Vendors: ${stats.vendors.created} created, ${stats.vendors.updated} updated, ${stats.vendors.deleted} deleted\n`;
+                    }
+                }
+                
                 log.textContent += `\n🔢 Total Changes: ${result.total_changes}\n\n`;
             }
             

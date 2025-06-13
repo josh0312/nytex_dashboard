@@ -37,7 +37,7 @@ gcloud run deploy ${SERVICE_NAME} \
 
 echo "✅ Deployment completed successfully!"
 echo "🌐 Service URL: https://${SERVICE_NAME}-932676587025.${REGION}.run.app"
-echo "🔍 Health check: https://${SERVICE_NAME}-932676587025.${REGION}.run.app/health"
+echo "🔍 Health check: https://${SERVICE_NAME}-932676587025.${REGION}.run.app/health" 
 echo ""
 echo "📋 Next steps:"
 echo "1. Verify the service is healthy: curl https://${SERVICE_NAME}-932676587025.${REGION}.run.app/health"
