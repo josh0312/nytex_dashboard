@@ -6,11 +6,11 @@
 <style>
     /* Help page styles */
     .help-content {
-        @apply prose dark:prose-invert max-w-none;
+        @apply prose dark:prose-invert max-w-none prose-lg;
     }
     
     .help-content h1 {
-        @apply text-3xl font-bold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-4 mb-6;
+        @apply text-3xl font-bold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-4 mb-6 !mt-0;
     }
     
     .help-content h2 {
@@ -21,16 +21,20 @@
         @apply text-xl font-semibold text-gray-900 dark:text-white mt-6 mb-3;
     }
     
+    .help-content p {
+        @apply mb-4 text-gray-700 dark:text-gray-300 leading-relaxed;
+    }
+    
     .help-content ul {
-        @apply list-disc pl-6 mb-4;
+        @apply list-disc pl-6 mb-6 space-y-2;
     }
     
     .help-content ol {
-        @apply list-decimal pl-6 mb-4;
+        @apply list-decimal pl-6 mb-6 space-y-2;
     }
     
     .help-content li {
-        @apply mb-2;
+        @apply text-gray-700 dark:text-gray-300;
     }
     
     .help-content strong {
@@ -39,6 +43,10 @@
     
     .help-content code {
         @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1 rounded text-sm;
+    }
+    
+    .help-link {
+        @apply text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline;
     }
     
     .breadcrumb {
@@ -96,7 +104,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+<div class="min-h-screen">
     <div class="flex">
         <!-- Sidebar Navigation -->
         <div class="help-sidebar help-nav">

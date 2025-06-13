@@ -404,45 +404,42 @@ HELP_CROSS_REFERENCES = {
 
 # Removed file reading functions since we're using inline content now
 
-def process_cross_references(html_content: str) -> str:
+def process_cross_references(html_content: str, current_topic: str = None) -> str:
     """Add automatic cross-reference links to help content"""
     for term, link in HELP_CROSS_REFERENCES.items():
+        # Skip self-references (don't link "Dashboard" on the dashboard page)
+        if current_topic and link.endswith(f"/{current_topic}"):
+            continue
+            
         # Simple replacement - just avoid replacing if already in a link
         # Check if term is not already part of a link by looking for <a...>term</a> pattern
         if f'>{term}<' not in html_content and f'>{term.lower()}<' not in html_content:
             pattern = rf'\b{re.escape(term)}\b'
-            replacement = f'<a href="{link}" class="doc-link">{term}</a>'
+            replacement = f'<a href="{link}" class="help-link text-blue-600 dark:text-blue-400 hover:underline">{term}</a>'
             html_content = re.sub(pattern, replacement, html_content, flags=re.IGNORECASE)
     
     return html_content
 
-def convert_markdown_to_html(markdown_content: str) -> tuple[str, str]:
+def convert_markdown_to_html(markdown_content: str, current_topic: str = None) -> tuple[str, str]:
     """Convert markdown to HTML with extensions"""
     md = markdown.Markdown(
         extensions=[
             'toc',          # Table of contents
-            'codehilite',   # Code highlighting  
             'tables',       # Table support
             'fenced_code',  # Fenced code blocks
-            'attr_list'     # Attribute lists
         ],
         extension_configs={
             'toc': {
-                'permalink': True,
-                'permalink_class': 'anchor-link',
-                'permalink_title': 'Link to this section'
-            },
-            'codehilite': {
-                'css_class': 'highlight',
-                'use_pygments': False  # Use CSS classes instead
+                'permalink': False,  # Disable paragraph symbols
+                'anchorlink': False  # Disable anchor links completely
             }
         }
     )
     
     html = md.convert(markdown_content)
     
-    # Add cross-reference links
-    html = process_cross_references(html)
+    # Add cross-reference links (but avoid self-references)
+    html = process_cross_references(html, current_topic)
     
     return html, getattr(md, 'toc', '')
 
@@ -473,7 +470,7 @@ async def help_page(request: Request, help_topic: str):
         help_entry = HELP_STRUCTURE[help_topic]
         
         # Convert markdown content to HTML
-        html_content, toc = convert_markdown_to_html(help_entry['content'])
+        html_content, toc = convert_markdown_to_html(help_entry['content'], help_topic)
         
         # Generate breadcrumbs
         breadcrumbs = [
