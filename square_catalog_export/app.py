@@ -14,6 +14,10 @@ from sqlalchemy.orm import sessionmaker
 import logging
 import json
 
+# Configure logging first (before any other code that might use it)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Secret Manager integration for production
 try:
     from google.cloud import secretmanager
@@ -54,10 +58,6 @@ try:
     
 except ImportError:
     logger.info("📝 Google Cloud Secret Manager not available (development mode)")
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
