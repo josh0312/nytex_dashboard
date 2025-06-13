@@ -32,9 +32,14 @@ gcloud run deploy ${SERVICE_NAME} \
     --cpu=1 \
     --timeout=900 \
     --max-instances=10 \
-    --set-env-vars="ENVIRONMENT=production,CLOUD_SQL_CONNECTION_NAME=nytex-business-systems:us-central1:nytex-main-db,DB_USER=nytex_user,DB_PASSWORD=NytexSecure2024!,DB_NAME=nytex_dashboard,SQUARE_ACCESS_TOKEN=EAAAEFDHpn3wkuJNGsyLdK1NMl8c0g7c2J-cIVnCLwKJtf1PWqq7zSM-fJwbnNWZ,SQUARE_ENVIRONMENT=sandbox" \
+    --set-env-vars="ENVIRONMENT=production,GOOGLE_CLOUD_PROJECT=${PROJECT_ID}" \
     --add-cloudsql-instances=nytex-business-systems:us-central1:nytex-main-db
 
 echo "✅ Deployment completed successfully!"
 echo "🌐 Service URL: https://${SERVICE_NAME}-932676587025.${REGION}.run.app"
-echo "🔍 Health check: https://${SERVICE_NAME}-932676587025.${REGION}.run.app/health" 
+echo "🔍 Health check: https://${SERVICE_NAME}-932676587025.${REGION}.run.app/health"
+echo ""
+echo "📋 Next steps:"
+echo "1. Verify the service is healthy: curl https://${SERVICE_NAME}-932676587025.${REGION}.run.app/health"
+echo "2. Update main application SQUARE_CATALOG_EXPORT_URL to: https://${SERVICE_NAME}-932676587025.${REGION}.run.app"
+echo "3. Ensure all secrets are configured in Google Secret Manager" 

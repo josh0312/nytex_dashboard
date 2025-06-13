@@ -14,6 +14,47 @@ from sqlalchemy.orm import sessionmaker
 import logging
 import json
 
+# Secret Manager integration for production
+try:
+    from google.cloud import secretmanager
+    GOOGLE_CLOUD_PROJECT = os.environ.get('GOOGLE_CLOUD_PROJECT')
+    
+    def load_secrets_from_gcp():
+        """Load secrets from Google Secret Manager in production"""
+        if not GOOGLE_CLOUD_PROJECT or os.environ.get('ENVIRONMENT') != 'production':
+            return
+        
+        try:
+            client = secretmanager.SecretManagerServiceClient()
+            project_path = f"projects/{GOOGLE_CLOUD_PROJECT}"
+            
+            # Secret mappings (same as main application)
+            secret_mappings = {
+                "SQUARE_ACCESS_TOKEN": "square-access-token",
+                "SQUARE_ENVIRONMENT": "square-environment", 
+                "SQLALCHEMY_DATABASE_URI": "database-uri"
+            }
+            
+            for env_key, secret_id in secret_mappings.items():
+                if env_key not in os.environ:  # Only load if not already set
+                    try:
+                        name = f"{project_path}/secrets/{secret_id}/versions/latest"
+                        response = client.access_secret_version(request={"name": name})
+                        secret_value = response.payload.data.decode("UTF-8")
+                        os.environ[env_key] = secret_value
+                        logger.info(f"✅ Loaded secret: {env_key}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to load secret {env_key}: {e}")
+                        
+        except Exception as e:
+            logger.warning(f"⚠️ Secret Manager not available: {e}")
+    
+    # Load secrets on startup in production
+    load_secrets_from_gcp()
+    
+except ImportError:
+    logger.info("📝 Google Cloud Secret Manager not available (development mode)")
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
