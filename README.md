@@ -81,7 +81,7 @@ nytex_dashboard/
 │   ├── DOCKER_GUIDE.md       # Docker development guide
 │   ├── SECRETS_GUIDE.md      # Secrets management guide
 │   ├── DEPLOYMENT.md         # Production deployment
-│   └── SQUARE_CATALOG_EXPORT.md  # Square catalog export guide
+│   └── CATALOG_PAGE.md           # Square catalog management guide
 ├── docker-compose.yml         # Full development environment
 ├── docker-compose.simple.yml  # Simplified development
 └── docker-compose.prod.yml    # Production testing
@@ -209,7 +209,7 @@ python -m pytest tests/ --cov=app
 ### **System Documentation**
 - **[Docker Development Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and workflow
 - **[Secrets Management Guide](./docs/SECRETS_GUIDE.md)** - Google Secret Manager integration
-- **[Square Catalog Export](./docs/SQUARE_CATALOG_EXPORT.md)** - Complete catalog export system
+- **[Catalog Management](./docs/CATALOG_PAGE.md)** - Square catalog management and export system
 - **[Authentication Setup](./docs/AUTHENTICATION.md)** - O365 and manual authentication
 - **[API Documentation](http://localhost:8080/docs)** - Interactive API docs (when running)
 

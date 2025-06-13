@@ -129,6 +129,8 @@ async def complete_sync(request: Request):
 
 **Purpose**: Specialized synchronization for historical order data with advanced progress tracking.
 
+> 📚 **Detailed Reference**: For comprehensive technical details about historical orders sync, see [HISTORICAL_ORDERS_SYNC.md](./HISTORICAL_ORDERS_SYNC.md)
+
 **Configuration**:
 ```python
 @dataclass

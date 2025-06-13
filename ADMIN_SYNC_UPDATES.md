@@ -43,7 +43,7 @@ The admin sync system has been completely overhauled to support both **increment
 
 ### 5. **Documentation**
 **New Files:**
-- `docs/admin_sync_documentation.md` - Comprehensive documentation
+- `docs/ADMIN_PAGE.md` - Comprehensive admin and sync documentation
 - `ADMIN_SYNC_UPDATES.md` - This summary document
 
 ## Benefits
