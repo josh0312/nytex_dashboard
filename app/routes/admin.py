@@ -2478,3 +2478,63 @@ async def get_historical_sync_status():
         "last_update": historical_sync_progress["last_update"],
         "timestamp": datetime.now(timezone.utc).isoformat()
     })
+
+@router.post("/migrate-order-line-items")
+async def migrate_order_line_items():
+    """Add missing columns to order_line_items table to match Square API"""
+    try:
+        async with get_session() as session:
+            logger.info("🔧 Starting order_line_items table migration...")
+            
+            # Check if columns already exist
+            check_query = text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'order_line_items' 
+                AND column_name IN ('variation_total_price_money', 'item_variation_metadata')
+            """)
+            result = await session.execute(check_query)
+            existing_columns = [row[0] for row in result.fetchall()]
+            
+            if 'variation_total_price_money' in existing_columns and 'item_variation_metadata' in existing_columns:
+                logger.info("✅ All columns already exist, no migration needed")
+                return {
+                    "success": True,
+                    "message": "Migration not needed - columns already exist",
+                    "existing_columns": existing_columns
+                }
+            
+            # Add variation_total_price_money column
+            if 'variation_total_price_money' not in existing_columns:
+                await session.execute(text("""
+                    ALTER TABLE order_line_items 
+                    ADD COLUMN variation_total_price_money JSON;
+                """))
+                logger.info("✅ Added variation_total_price_money column")
+            
+            # Add item_variation_metadata column
+            if 'item_variation_metadata' not in existing_columns:
+                await session.execute(text("""
+                    ALTER TABLE order_line_items 
+                    ADD COLUMN item_variation_metadata JSON;
+                """))
+                logger.info("✅ Added item_variation_metadata column")
+            
+            await session.commit()
+            logger.info("✅ Migration completed successfully!")
+            
+            return {
+                "success": True,
+                "message": "Migration completed successfully",
+                "added_columns": [
+                    col for col in ['variation_total_price_money', 'item_variation_metadata'] 
+                    if col not in existing_columns
+                ]
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Error during migration: {str(e)}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }

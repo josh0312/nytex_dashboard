@@ -1,0 +1,234 @@
+<!-- Annual Sales Comparison Component -->
+<div class="bg-white dark:bg-gray-800 shadow rounded-lg p-4">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Annual Sales Comparison</h3>
+    </div>
+
+    <!-- Chart container -->
+    <div class="h-64">
+        <canvas id="yearlyComparisonChart"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function() {
+            function createChart() {
+                // Destroy existing chart if it exists
+                const existingChart = Chart.getChart('yearlyComparisonChart');
+                if (existingChart) {
+                    existingChart.destroy();
+                }
+
+                const canvas = document.getElementById('yearlyComparisonChart');
+                if (!canvas) {
+                    return;
+                }
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    return;
+                }
+
+                // Simplified and more reliable dark mode detection
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                
+                // Debug logging
+                console.log('HTML element classes:', document.documentElement.className);
+                console.log('Dark mode detected:', isDarkMode);
+                
+                // Text colors - ALWAYS default to light mode colors unless explicitly dark
+                const textColor = isDarkMode ? '#FFFFFF' : '#1F2937';
+                const gridColor = isDarkMode ? '#9CA3AF' : '#E5E7EB';
+                
+                console.log('Using text color:', textColor);
+                console.log('Using grid color:', gridColor);
+                
+                const seasonTotals = [{"seasons": [{"end_date": "2025-03-02", "name": "Texas Independence Day", "order_count": 0, "start_date": "2025-02-25", "total_amount": 0.0}, {"end_date": "2025-04-21", "name": "San Jacinto Day", "order_count": 0, "start_date": "2025-04-16", "total_amount": 0.0}, {"end_date": "2025-05-26", "name": "Memorial Day", "order_count": 0, "start_date": "2025-05-21", "total_amount": 0.0}, {"end_date": "2025-07-04", "name": "July 4th", "order_count": 0, "start_date": "2025-06-24", "total_amount": 0.0}, {"end_date": "2025-10-23", "name": "Diwali", "order_count": 0, "start_date": "2025-10-12", "total_amount": 0.0}, {"end_date": "2026-01-01", "name": "New Years Eve", "order_count": 0, "start_date": "2025-12-20", "total_amount": 0.0}], "year": 2025}, {"seasons": [{"end_date": "2024-03-02", "name": "Texas Independence Day", "order_count": 0, "start_date": "2024-02-25", "total_amount": 0.0}, {"end_date": "2024-04-21", "name": "San Jacinto Day", "order_count": 0, "start_date": "2024-04-16", "total_amount": 0.0}, {"end_date": "2024-05-27", "name": "Memorial Day", "order_count": 0, "start_date": "2024-05-22", "total_amount": 0.0}, {"end_date": "2024-07-04", "name": "July 4th", "order_count": 0, "start_date": "2024-06-24", "total_amount": 0.0}, {"end_date": "2024-11-03", "name": "Diwali", "order_count": 0, "start_date": "2024-10-26", "total_amount": 0.0}, {"end_date": "2025-01-01", "name": "New Years Eve", "order_count": 0, "start_date": "2024-12-20", "total_amount": 0.0}], "year": 2024}, {"seasons": [{"end_date": "2023-03-02", "name": "Texas Independence Day", "order_count": 0, "start_date": "2023-02-25", "total_amount": 0.0}, {"end_date": "2023-04-21", "name": "San Jacinto Day", "order_count": 0, "start_date": "2023-04-16", "total_amount": 0.0}, {"end_date": "2023-05-29", "name": "Memorial Day", "order_count": 0, "start_date": "2023-05-24", "total_amount": 0.0}, {"end_date": "2023-07-04", "name": "July 4th", "order_count": 0, "start_date": "2023-06-24", "total_amount": 0.0}, {"end_date": "2024-01-01", "name": "New Years Eve", "order_count": 0, "start_date": "2023-12-20", "total_amount": 0.0}], "year": 2023}, {"seasons": [{"end_date": "2022-03-02", "name": "Texas Independence Day", "order_count": 0, "start_date": "2022-02-25", "total_amount": 0.0}, {"end_date": "2022-04-21", "name": "San Jacinto Day", "order_count": 0, "start_date": "2022-04-16", "total_amount": 0.0}, {"end_date": "2022-05-30", "name": "Memorial Day", "order_count": 0, "start_date": "2022-05-25", "total_amount": 0.0}, {"end_date": "2022-07-04", "name": "July 4th", "order_count": 0, "start_date": "2022-06-24", "total_amount": 0.0}, {"end_date": "2023-01-01", "name": "New Years Eve", "order_count": 0, "start_date": "2022-12-20", "total_amount": 0.0}], "year": 2022}, {"seasons": [{"end_date": "2021-03-02", "name": "Texas Independence Day", "order_count": 0, "start_date": "2021-02-25", "total_amount": 0.0}, {"end_date": "2021-04-21", "name": "San Jacinto Day", "order_count": 0, "start_date": "2021-04-16", "total_amount": 0.0}, {"end_date": "2021-05-31", "name": "Memorial Day", "order_count": 0, "start_date": "2021-05-26", "total_amount": 0.0}, {"end_date": "2021-07-04", "name": "July 4th", "order_count": 0, "start_date": "2021-06-24", "total_amount": 0.0}, {"end_date": "2022-01-01", "name": "New Years Eve", "order_count": 0, "start_date": "2021-12-20", "total_amount": 0.0}], "year": 2021}, {"seasons": [{"end_date": "2020-03-02", "name": "Texas Independence Day", "order_count": 0, "start_date": "2020-02-25", "total_amount": 0.0}, {"end_date": "2020-04-21", "name": "San Jacinto Day", "order_count": 0, "start_date": "2020-04-16", "total_amount": 0.0}, {"end_date": "2020-05-25", "name": "Memorial Day", "order_count": 0, "start_date": "2020-05-20", "total_amount": 0.0}, {"end_date": "2020-07-04", "name": "July 4th", "order_count": 0, "start_date": "2020-06-24", "total_amount": 0.0}, {"end_date": "2021-01-01", "name": "New Years Eve", "order_count": 0, "start_date": "2020-12-20", "total_amount": 0.0}], "year": 2020}];
+                
+                if (!seasonTotals || seasonTotals.length === 0) {
+                    const container = canvas.parentElement;
+                    container.innerHTML = `
+                        <div class="flex items-center justify-center h-full">
+                            <p class="text-gray-500 dark:text-gray-400">No sales data available</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Process data for the chart
+                const seasons = new Set();
+                const years = new Set();
+                const dataByYearAndSeason = {};
+
+                // First pass: collect all unique seasons and years
+                seasonTotals.forEach(yearData => {
+                    const year = yearData.year;
+                    years.add(year);
+                    yearData.seasons.forEach(season => {
+                        seasons.add(season.name);
+                        if (!dataByYearAndSeason[year]) {
+                            dataByYearAndSeason[year] = {};
+                        }
+                        dataByYearAndSeason[year][season.name] = season.total_amount;
+                    });
+                });
+
+                // Convert sets to sorted arrays
+                const sortedSeasons = Array.from(seasons);
+                const sortedYears = Array.from(years).sort();
+
+                // Create datasets (one for each year)
+                const datasets = sortedYears.map(year => {
+                    const yearColor = getColorForYear(year, isDarkMode);
+                    console.log(`Year ${year} colors:`, yearColor);
+                    return {
+                        label: year.toString(),
+                        data: sortedSeasons.map(season => dataByYearAndSeason[year]?.[season] || 0),
+                        backgroundColor: yearColor.background,
+                        borderColor: yearColor.border,
+                        borderWidth: 2,
+                        borderRadius: 4
+                    };
+                });
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: sortedSeasons,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    color: textColor,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    font: {
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const year = context.dataset.label;
+                                        const season = context.label;
+                                        let tooltip = year + ': $' + context.raw.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        });
+                                        
+                                        // Add day of week for July 4th
+                                        if (season === 'July 4th') {
+                                            const july4th = new Date(parseInt(year), 6, 4); // Month is 0-indexed, so 6 = July
+                                            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                            const dayOfWeek = dayNames[july4th.getDay()];
+                                            tooltip += ` (${dayOfWeek})`;
+                                        }
+                                        
+                                        return tooltip;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                type: 'logarithmic',
+                                beginAtZero: false,
+                                grid: {
+                                    color: gridColor,
+                                    lineWidth: 1
+                                },
+                                ticks: {
+                                    color: textColor,
+                                    font: {
+                                        size: 11
+                                    },
+                                    callback: function(value) {
+                                        if (value === 0) return '$0';
+                                        return '$' + value.toLocaleString();
+                                    }
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    display: false
+                                },
+                                ticks: {
+                                    color: textColor,
+                                    font: {
+                                        size: 11
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Helper function to generate colors for each year
+            function getColorForYear(year, isDarkMode) {
+                const colors = [
+                    { 
+                        background: isDarkMode ? '#EA580C' : '#FED7AA', 
+                        border: isDarkMode ? '#F97316' : '#EA580C' 
+                    }, // Orange - 2020
+                    { 
+                        background: isDarkMode ? '#059669' : '#A7F3D0', 
+                        border: isDarkMode ? '#10B981' : '#059669' 
+                    }, // Green - 2021
+                    { 
+                        background: isDarkMode ? '#D97706' : '#FDE68A', 
+                        border: isDarkMode ? '#F59E0B' : '#D97706' 
+                    }, // Yellow - 2022
+                    { 
+                        background: isDarkMode ? '#DC2626' : '#FECACA', 
+                        border: isDarkMode ? '#EF4444' : '#DC2626' 
+                    }, // Red - 2023
+                    { 
+                        background: isDarkMode ? '#7C3AED' : '#DDD6FE', 
+                        border: isDarkMode ? '#8B5CF6' : '#7C3AED' 
+                    }, // Purple - 2024
+                    { 
+                        background: isDarkMode ? '#2563EB' : '#BFDBFE', 
+                        border: isDarkMode ? '#3B82F6' : '#2563EB' 
+                    }, // Blue - 2025
+                    { 
+                        background: isDarkMode ? '#0891B2' : '#A5F3FC', 
+                        border: isDarkMode ? '#0EA5E9' : '#0891B2' 
+                    }  // Cyan - 2026+
+                ];
+                const index = (year - 2020) % colors.length;
+                return colors[index];
+            }
+
+            // Create chart initially with a small delay to ensure Alpine.js is ready
+            setTimeout(createChart, 200);
+
+            // Also try to create chart when Alpine is ready
+            document.addEventListener('alpine:init', () => {
+                console.log('Alpine initialized, creating chart');
+                setTimeout(createChart, 100);
+            });
+
+            // Listen for theme changes and recreate chart
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                        console.log('Theme changed, recreating chart');
+                        setTimeout(createChart, 100); // Small delay to ensure DOM is updated
+                    }
+                });
+            });
+
+            observer.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['class']
+            });
+        })();
+    </script>
+</div> 
