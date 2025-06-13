@@ -5,7 +5,13 @@
     <div class="flex items-center justify-between">
         <div class="flex items-center space-x-2">
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-            {% include 'components/shared/help_link.html' with help_url="/docs/pages/dashboard", help_text="View Dashboard documentation" %}
+            <a href="/docs/pages/dashboard" 
+               target="_blank"
+               class="inline-flex items-center text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+               title="View Dashboard documentation">
+                <i data-lucide="help-circle" class="h-4 w-4"></i>
+                <span class="sr-only">View Dashboard documentation</span>
+            </a>
         </div>
         <div class="flex items-center space-x-4">
             <span class="text-sm text-gray-500 dark:text-gray-400">
