@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Help Center - NyTex Fireworks{% endblock %}
+
+{% block head %}
+<style>
+    /* Help page styles */
+    .help-content {
+        @apply prose dark:prose-invert max-w-none;
+    }
+    
+    .help-content h1 {
+        @apply text-3xl font-bold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-4 mb-6;
+    }
+    
+    .help-content h2 {
+        @apply text-2xl font-semibold text-gray-900 dark:text-white mt-8 mb-4;
+    }
+    
+    .help-content h3 {
+        @apply text-xl font-semibold text-gray-900 dark:text-white mt-6 mb-3;
+    }
+    
+    .help-content ul {
+        @apply list-disc pl-6 mb-4;
+    }
+    
+    .help-content ol {
+        @apply list-decimal pl-6 mb-4;
+    }
+    
+    .help-content li {
+        @apply mb-2;
+    }
+    
+    .help-content strong {
+        @apply font-semibold text-gray-900 dark:text-white;
+    }
+    
+    .help-content code {
+        @apply bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-2 py-1 rounded text-sm;
+    }
+    
+    .breadcrumb {
+        @apply flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 mb-6;
+    }
+    
+    .breadcrumb a {
+        @apply hover:text-gray-900 dark:hover:text-gray-200;
+    }
+    
+    .help-nav {
+        @apply bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-full sticky top-0;
+    }
+    
+    .help-sidebar {
+        @apply w-64 flex-shrink-0;
+    }
+    
+    .help-sidebar ul {
+        @apply space-y-1;
+    }
+    
+    .help-sidebar li {
+        @apply list-none;
+    }
+    
+    .help-sidebar a {
+        @apply block px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md;
+    }
+    
+    .help-sidebar a.active {
+        @apply bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium;
+    }
+
+    .toc {
+        @apply bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6;
+    }
+    
+    .toc h3 {
+        @apply text-lg font-semibold text-gray-900 dark:text-white mb-3 !mt-0;
+    }
+    
+    .toc ul {
+        @apply list-none !pl-0 space-y-1;
+    }
+    
+    .toc li {
+        @apply !mb-0;
+    }
+    
+    .toc a {
+        @apply text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm block py-1 px-2 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div class="flex">
+        <!-- Sidebar Navigation -->
+        <div class="help-sidebar help-nav">
+            <div class="p-6">
+                <div class="flex items-center mb-6">
+                    <i data-lucide="help-circle" class="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2"></i>
+                    <a href="/help" class="text-lg font-semibold text-gray-900 dark:text-white">Help Center</a>
+                </div>
+                
+                <!-- Navigation Tree -->
+                <nav class="space-y-4">
+                    <!-- Getting Started -->
+                    <div>
+                        <a href="/help/getting-started" 
+                           class="flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                            <i data-lucide="play-circle" class="h-4 w-4 mr-2"></i>
+                            Getting Started
+                        </a>
+                    </div>
+                    
+                    <!-- Feature Guides -->
+                    <div>
+                        <h3 class="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                            Features
+                        </h3>
+                        <ul class="space-y-1">
+                            {% for key, help_item in help_structure.items() %}
+                                {% if key != 'getting-started' %}
+                                <li>
+                                    <a href="/help/{{ key }}" 
+                                       class="block px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md">
+                                        {{ help_item.title }}
+                                    </a>
+                                </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 min-w-0">
+            <div class="max-w-4xl mx-auto px-6 py-8">
+                <!-- Breadcrumbs -->
+                <nav class="breadcrumb">
+                    {% for crumb in breadcrumbs %}
+                        {% if loop.last %}
+                            <span class="text-gray-900 dark:text-white font-medium">{{ crumb.title }}</span>
+                        {% else %}
+                            <a href="{{ crumb.url }}" class="hover:text-gray-900 dark:hover:text-gray-200">
+                                {{ crumb.title }}
+                            </a>
+                            <i data-lucide="chevron-right" class="h-4 w-4"></i>
+                        {% endif %}
+                    {% endfor %}
+                </nav>
+
+                <!-- Page Header -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                        {{ page_title }}
+                    </h1>
+                    {% if description %}
+                    <p class="text-lg text-gray-600 dark:text-gray-400">
+                        {{ description }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <!-- Table of Contents -->
+                {% if toc %}
+                <div class="toc">
+                    <h3>On This Page</h3>
+                    {{ toc|safe }}
+                </div>
+                {% endif %}
+
+                <!-- Help Content -->
+                <div class="help-content">
+                    {{ content|safe }}
+                </div>
+
+                <!-- Footer Navigation -->
+                <div class="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+                    <div class="flex justify-between items-center">
+                        <a href="/help" 
+                           class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
+                            <i data-lucide="arrow-left" class="h-4 w-4 mr-2"></i>
+                            Back to Help Center
+                        </a>
+                        
+                        <div class="flex items-center space-x-4">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">
+                                Was this helpful?
+                            </span>
+                            <button class="text-gray-400 hover:text-green-600 dark:hover:text-green-400">
+                                <i data-lucide="thumbs-up" class="h-4 w-4"></i>
+                            </button>
+                            <button class="text-gray-400 hover:text-red-600 dark:hover:text-red-400">
+                                <i data-lucide="thumbs-down" class="h-4 w-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize Lucide icons
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+        
+        // Highlight current page in navigation
+        const currentPath = window.location.pathname;
+        const navLinks = document.querySelectorAll('.help-sidebar a');
+        
+        navLinks.forEach(link => {
+            if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+            }
+        });
+    });
+</script>
+{% endblock %} 

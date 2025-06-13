@@ -30,7 +30,12 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="NyTex Dashboard", version="1.0.0")
+app = FastAPI(
+    title="NyTex Dashboard", 
+    version="1.0.0",
+    docs_url=None,  # Disable Swagger docs for security
+    redoc_url=None  # Disable ReDoc as well
+)
 
 # Initialize models
 init_models()
@@ -51,7 +56,7 @@ app.include_router(catalog_router, prefix="/catalog", tags=["catalog"])
 app.include_router(tools_router, prefix="/tools")
 app.include_router(items_router, prefix="/items")
 app.include_router(admin_router)  # Admin routes with /admin prefix
-app.include_router(docs_router, prefix="/docs", tags=["documentation"])
+app.include_router(docs_router, prefix="/help", tags=["help"])
 
 # Root redirect to dashboard
 @app.get("/")
