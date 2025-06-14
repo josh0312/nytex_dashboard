@@ -74,29 +74,42 @@ def discover_help_files() -> Dict[str, Dict]:
 
 # Cross-reference mappings for user help - SAFE INTERNAL LINKS ONLY
 HELP_CROSS_REFERENCES = {
+    "Getting Started": "/help/getting-started",
+    "getting started": "/help/getting-started",
     "Dashboard": "/help/dashboard",
-    "Reports": "/help/reports", 
+    "dashboard": "/help/dashboard",
+    "Reports": "/help/reports",
+    "reports": "/help/reports",
     "Catalog": "/help/catalog",
+    "catalog": "/help/catalog",
     "Items": "/help/items",
-    "search": "/help/items",
+    "items": "/help/items",
     "inventory": "/help/items",
-    "export": "/help/catalog",
-    "getting started": "/help/getting-started"
+    "search": "/help/items"
 }
 
 def process_cross_references(html_content: str, current_topic: str = None) -> str:
     """Add automatic cross-reference links to help content"""
-    for term, link in HELP_CROSS_REFERENCES.items():
+    # Sort terms by length (longest first) to avoid partial matches
+    sorted_terms = sorted(HELP_CROSS_REFERENCES.items(), key=lambda x: len(x[0]), reverse=True)
+    
+    for term, link in sorted_terms:
         # Skip self-references (don't link "Dashboard" on the dashboard page)
         if current_topic and link.endswith(f"/{current_topic}"):
             continue
             
-        # Simple replacement - just avoid replacing if already in a link
-        # Check if term is not already part of a link by looking for <a...>term</a> pattern
-        if f'>{term}<' not in html_content and f'>{term.lower()}<' not in html_content:
+        # Skip if already processed (avoid nested links)
+        if f'href="{link}"' in html_content:
+            continue
+            
+        # Check if term is not already part of a link
+        if (f'>{term}<' not in html_content and 
+            f'>{term.lower()}<' not in html_content):
+            
+            # Simple word boundary matching
             pattern = rf'\b{re.escape(term)}\b'
-            replacement = f'<a href="{link}" class="help-link text-blue-600 dark:text-blue-400 underline font-medium hover:text-blue-800 dark:hover:text-blue-300 decoration-2 decoration-blue-400">{term}</a>'
-            html_content = re.sub(pattern, replacement, html_content, flags=re.IGNORECASE)
+            replacement = f'<a href="{link}" class="help-link">{term}</a>'
+            html_content = re.sub(pattern, replacement, html_content, flags=re.IGNORECASE, count=1)
     
     return html_content
 
