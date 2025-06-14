@@ -55,6 +55,7 @@ class CatalogVariation(Base):
     ordinal = Column(Integer)
     pricing_type = Column(String)
     price_money = Column(JSONB)
+    default_unit_cost = Column(JSONB)
     sellable = Column(Boolean, default=True)
     stockable = Column(Boolean, default=True)
     track_inventory = Column(Boolean, default=True)

@@ -633,12 +633,17 @@ class IncrementalSyncService:
         for variation_data in variations:
             variation_info = variation_data.get('item_variation_data', {})
             
+            # Extract unit cost from default_unit_cost field
+            default_unit_cost = variation_info.get('default_unit_cost')
+            default_unit_cost_json = json.dumps(default_unit_cost) if default_unit_cost else None
+            
             stmt = insert(CatalogVariation).values(
                 id=variation_data['id'],
                 name=variation_info.get('name', ''),
                 item_id=variation_info.get('item_id'),
                 sku=variation_info.get('sku', ''),
                 price_money=json.dumps(variation_info.get('price_money', {})),
+                default_unit_cost=default_unit_cost_json,
                 is_deleted=False,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
@@ -651,6 +656,7 @@ class IncrementalSyncService:
                     item_id=stmt.excluded.item_id,
                     sku=stmt.excluded.sku,
                     price_money=stmt.excluded.price_money,
+                    default_unit_cost=stmt.excluded.default_unit_cost,
                     is_deleted=stmt.excluded.is_deleted,
                     updated_at=stmt.excluded.updated_at
                 )

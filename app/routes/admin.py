@@ -1467,12 +1467,18 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
             # Sync variations
             for variation in variations:
                 variation_data_obj = variation.get('item_variation_data', {})
+                
+                # Extract unit cost data
+                default_unit_cost = variation_data_obj.get('default_unit_cost')
+                default_unit_cost_json = json.dumps(default_unit_cost) if default_unit_cost else None
+                
                 variation_data = {
                     'id': variation['id'],
                     'name': variation_data_obj.get('name', ''),
                     'item_id': variation_data_obj.get('item_id'),
                     'sku': variation_data_obj.get('sku', ''),
                     'price_money': json.dumps(variation_data_obj.get('price_money', {})),
+                    'default_unit_cost': default_unit_cost_json,
                     'is_deleted': False,
                     'created_at': datetime.now(),
                     'updated_at': datetime.now()
@@ -1480,19 +1486,20 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
                 
                 if full_refresh:
                     await conn.execute(text("""
-                        INSERT INTO catalog_variations (id, name, item_id, sku, price_money, is_deleted, created_at, updated_at)
-                        VALUES (:id, :name, :item_id, :sku, :price_money, :is_deleted, :created_at, :updated_at)
+                        INSERT INTO catalog_variations (id, name, item_id, sku, price_money, default_unit_cost, is_deleted, created_at, updated_at)
+                        VALUES (:id, :name, :item_id, :sku, :price_money, :default_unit_cost, :is_deleted, :created_at, :updated_at)
                     """), variation_data)
                     stats["variations"]["created"] += 1
                 else:
                     result = await conn.execute(text("""
-                        INSERT INTO catalog_variations (id, name, item_id, sku, price_money, is_deleted, created_at, updated_at)
-                        VALUES (:id, :name, :item_id, :sku, :price_money, :is_deleted, :created_at, :updated_at)
+                        INSERT INTO catalog_variations (id, name, item_id, sku, price_money, default_unit_cost, is_deleted, created_at, updated_at)
+                        VALUES (:id, :name, :item_id, :sku, :price_money, :default_unit_cost, :is_deleted, :created_at, :updated_at)
                         ON CONFLICT (id) DO UPDATE SET
                             name = EXCLUDED.name,
                             item_id = EXCLUDED.item_id,
                             sku = EXCLUDED.sku,
                             price_money = EXCLUDED.price_money,
+                            default_unit_cost = EXCLUDED.default_unit_cost,
                             is_deleted = EXCLUDED.is_deleted,
                             updated_at = EXCLUDED.updated_at
                         RETURNING (xmax = 0) AS inserted
