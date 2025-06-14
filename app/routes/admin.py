@@ -1421,11 +1421,19 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
             # Sync items
             for item in items:
                 item_data_obj = item.get('item_data', {})
+                
+                # Extract category_id from categories array (Square API structure)
+                categories_list = item_data_obj.get('categories', [])
+                category_id = None
+                if categories_list:
+                    # Get the first category's ID (items can have multiple categories)
+                    category_id = categories_list[0].get('id')
+                
                 item_data = {
                     'id': item['id'],
                     'name': item_data_obj.get('name', ''),
                     'description': item_data_obj.get('description', ''),
-                    'category_id': item_data_obj.get('category_id'),
+                    'category_id': category_id,
                     'is_deleted': False,
                     'created_at': datetime.now(),
                     'updated_at': datetime.now()
