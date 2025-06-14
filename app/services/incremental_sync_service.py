@@ -77,28 +77,32 @@ class IncrementalSyncService:
                 'api_endpoint': '/v2/vendors',
                 'method': 'GET',
                 'update_strategy': 'timestamp',
-                'dependencies': []
+                'dependencies': [],
+                'enabled': False  # Disable due to data type issues
             },
             'orders': {
                 'model': None,  # We'll need to create these models
                 'api_endpoint': '/v2/orders/search',
                 'method': 'POST',
                 'update_strategy': 'timestamp',
-                'dependencies': ['locations']
+                'dependencies': ['locations'],
+                'enabled': False  # Disable until properly implemented
             },
             'payments': {
                 'model': None,  # We'll need to create these models
                 'api_endpoint': '/v2/payments',
                 'method': 'GET', 
                 'update_strategy': 'timestamp',
-                'dependencies': ['locations']
+                'dependencies': ['locations'],
+                'enabled': False  # Disable until properly implemented
             },
             'transactions': {
                 'model': None,  # We'll need to create these models  
                 'api_endpoint': '/v2/transactions',
                 'method': 'GET',
                 'update_strategy': 'timestamp',
-                'dependencies': ['locations']
+                'dependencies': ['locations'],
+                'enabled': False  # Disable - deprecated by Square
             }
         }
 
@@ -120,10 +124,20 @@ class IncrementalSyncService:
             
             # Determine which syncs to run
             if sync_types is None:
-                sync_types = list(self.sync_configs.keys())
+                # Only include enabled sync types by default
+                sync_types = [
+                    sync_type for sync_type, config in self.sync_configs.items() 
+                    if config.get('enabled', True)  # Default to enabled if not specified
+                ]
+            
+            # Filter out disabled sync types
+            enabled_sync_types = [
+                sync_type for sync_type in sync_types 
+                if self.sync_configs.get(sync_type, {}).get('enabled', True)
+            ]
             
             # Order syncs by dependencies
-            ordered_syncs = self._order_syncs_by_dependencies(sync_types)
+            ordered_syncs = self._order_syncs_by_dependencies(enabled_sync_types)
             
             results = {}
             total_changes = 0
@@ -341,7 +355,30 @@ class IncrementalSyncService:
     async def _fetch_orders_changes(self, last_sync: Optional[datetime]) -> Dict[str, Any]:
         """Fetch orders changes from Square API"""
         try:
+            # First get active location IDs
             async with aiohttp.ClientSession(timeout=self.timeout) as client_session:
+                locations_url = f"{self.base_url}/v2/locations"
+                headers = {'Authorization': f'Bearer {self.square_access_token}'}
+                
+                async with client_session.get(locations_url, headers=headers) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        return {
+                            'success': False,
+                            'error': f'Failed to fetch locations: {response.status} - {error_text}'
+                        }
+                    
+                    locations_data = await response.json()
+                    location_ids = [loc['id'] for loc in locations_data.get('locations', [])]
+                    
+                    if not location_ids:
+                        return {
+                            'success': True,
+                            'data': [],
+                            'total_items': 0
+                        }
+                
+                # Now fetch orders with location_ids
                 url = f"{self.base_url}/v2/orders/search"
                 headers = {
                     'Authorization': f'Bearer {self.square_access_token}',
@@ -349,6 +386,7 @@ class IncrementalSyncService:
                 }
                 
                 payload = {
+                    "location_ids": location_ids,
                     "query": {
                         "filter": {
                             "updated_at": {
@@ -382,22 +420,43 @@ class IncrementalSyncService:
     async def _fetch_payments_changes(self, last_sync: Optional[datetime]) -> Dict[str, Any]:
         """Fetch payments changes from Square API"""
         try:
+            # Get location IDs first
             async with aiohttp.ClientSession(timeout=self.timeout) as client_session:
+                locations_url = f"{self.base_url}/v2/locations"
+                headers = {'Authorization': f'Bearer {self.square_access_token}'}
+                
+                async with client_session.get(locations_url, headers=headers) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        return {
+                            'success': False,
+                            'error': f'Failed to fetch locations: {response.status} - {error_text}'
+                        }
+                    
+                    locations_data = await response.json()
+                    location_ids = [loc['id'] for loc in locations_data.get('locations', [])]
+                    
+                    if not location_ids:
+                        return {
+                            'success': True,
+                            'data': [],
+                            'total_items': 0
+                        }
+                
+                # Use payments list endpoint with query parameters
                 url = f"{self.base_url}/v2/payments"
                 headers = {'Authorization': f'Bearer {self.square_access_token}'}
                 
-                payload = {
-                    "query": {
-                        "filter": {
-                            "updated_at": {
-                                "start_at": last_sync.isoformat() if last_sync else None,
-                                "end_at": datetime.now(timezone.utc).isoformat()
-                            }
-                        }
-                    }
+                params = {
+                    'location_id': location_ids[0],  # Use first location for now
+                    'limit': 100
                 }
                 
-                async with client_session.post(url, headers=headers, json=payload) as response:
+                if last_sync:
+                    params['begin_time'] = last_sync.isoformat()
+                    params['end_time'] = datetime.now(timezone.utc).isoformat()
+                
+                async with client_session.get(url, headers=headers, params=params) as response:
                     if response.status == 200:
                         data = await response.json()
                         payments = data.get('payments', [])
@@ -418,42 +477,15 @@ class IncrementalSyncService:
             return {'success': False, 'error': str(e)}
 
     async def _fetch_transactions_changes(self, last_sync: Optional[datetime]) -> Dict[str, Any]:
-        """Fetch transactions changes from Square API"""
-        try:
-            async with aiohttp.ClientSession(timeout=self.timeout) as client_session:
-                url = f"{self.base_url}/v2/transactions"
-                headers = {'Authorization': f'Bearer {self.square_access_token}'}
-                
-                payload = {
-                    "query": {
-                        "filter": {
-                            "updated_at": {
-                                "start_at": last_sync.isoformat() if last_sync else None,
-                                "end_at": datetime.now(timezone.utc).isoformat()
-                            }
-                        }
-                    }
-                }
-                
-                async with client_session.post(url, headers=headers, json=payload) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        transactions = data.get('transactions', [])
-                        
-                        return {
-                            'success': True,
-                            'data': transactions,
-                            'total_items': len(transactions)
-                        }
-                    else:
-                        error_text = await response.text()
-                        return {
-                            'success': False,
-                            'error': f'Square API error: {response.status} - {error_text}'
-                        }
-                        
-        except Exception as e:
-            return {'success': False, 'error': str(e)}
+        """Fetch transactions changes from Square API - DEPRECATED ENDPOINT"""
+        # The transactions API endpoint is deprecated by Square
+        # Return empty result to avoid errors
+        return {
+            'success': True,
+            'data': [],
+            'total_items': 0,
+            'note': 'Transactions API is deprecated by Square'
+        }
 
     async def _apply_changes(self, session: AsyncSession, sync_type: str, data: List[Dict[str, Any]]) -> int:
         """Apply changes to the database using upsert strategy"""
@@ -649,7 +681,7 @@ class IncrementalSyncService:
                 account_number=vendor_data.get('account_number', ''),
                 note=vendor_data.get('note', ''),
                 status=vendor_data.get('status', 'ACTIVE'),
-                version=vendor_data.get('version', ''),
+                version=str(vendor_data.get('version', '')),  # Convert to string
                 address=json.dumps(vendor_data.get('address', {})),
                 contacts=json.dumps(vendor_data.get('contacts', [])),
                 created_at=datetime.utcnow(),
