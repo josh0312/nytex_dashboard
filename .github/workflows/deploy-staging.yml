@@ -1,0 +1,152 @@
+name: Deploy to Staging
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+  push:
+    branches:
+      - develop
+      - staging
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: nytex-business-systems
+  SERVICE_NAME: nytex-dashboard-staging
+  REGION: us-central1
+  GAR_LOCATION: us-central1-docker.pkg.dev
+  REPOSITORY: nytex-dashboard
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -v
+
+      - name: Lint code
+        run: |
+          pip install flake8
+          flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to use gcloud as a credential helper
+        run: |
+          gcloud auth configure-docker ${GAR_LOCATION}
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${GAR_LOCATION}/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${{ github.sha }} .
+
+      - name: Push Docker image
+        run: |
+          docker push ${GAR_LOCATION}/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${{ github.sha }}
+
+      - name: Deploy to Cloud Run (Staging)
+        run: |
+          gcloud run deploy ${SERVICE_NAME} \
+            --image ${GAR_LOCATION}/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${{ github.sha }} \
+            --platform managed \
+            --region ${REGION} \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 0.5 \
+            --max-instances 3 \
+            --min-instances 0 \
+            --timeout 300 \
+            --concurrency 40 \
+            --add-cloudsql-instances ${PROJECT_ID}:${REGION}:nytex-main-db \
+            --set-env-vars "CLOUD_SQL_CONNECTION_NAME=${PROJECT_ID}:${REGION}:nytex-main-db" \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}" \
+            --set-env-vars "DEBUG=true" \
+            --set-env-vars "SQLALCHEMY_ECHO=true" \
+            --set-env-vars "ENVIRONMENT=staging" \
+            --set-env-vars "SQUARE_CATALOG_EXPORT_URL=https://square-catalog-export-932676587025.us-central1.run.app" \
+            --update-secrets "SECRET_KEY=secret-key:latest" \
+            --update-secrets "SQLALCHEMY_DATABASE_URI=database-uri:latest" \
+            --update-secrets "SQUARE_ACCESS_TOKEN=square-access-token:latest" \
+            --update-secrets "SQUARE_ENVIRONMENT=square-environment:latest" \
+            --update-secrets "OPENWEATHER_API_KEY=openweather-api-key:latest" \
+            --update-secrets "MANUAL_USER_EMAIL=manual-user-email:latest" \
+            --update-secrets "MANUAL_USER_PASSWORD=manual-user-password:latest" \
+            --update-secrets "MANUAL_USER_NAME=manual-user-name:latest" \
+            --update-secrets "AZURE_CLIENT_ID=azure-client-id:latest" \
+            --update-secrets "AZURE_CLIENT_SECRET=azure-client-secret:latest" \
+            --update-secrets "AZURE_TENANT_ID=azure-tenant-id:latest" \
+            --update-secrets "AZURE_REDIRECT_URI=azure-redirect-uri:latest"
+
+      - name: Health check
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.url)')
+          echo "Staging URL: $SERVICE_URL"
+          
+          # Wait for deployment
+          sleep 20
+          
+          # Test connectivity
+          for i in {1..3}; do
+            if curl -f -s "${SERVICE_URL}/admin/status" > /dev/null; then
+              echo "✅ Staging health check passed"
+              break
+            else
+              echo "❌ Staging health check failed on attempt $i"
+              sleep 10
+            fi
+          done
+
+      - name: Comment PR with staging URL
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: service } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const comment = `🚀 **Staging Deployment Ready**
+            
+            Your changes have been deployed to staging:
+            - **URL**: https://nytex-dashboard-staging-nndn66l4ua-uc.a.run.app
+            - **Admin**: https://nytex-dashboard-staging-nndn66l4ua-uc.a.run.app/admin/status
+            - **Commit**: \`${context.sha.substring(0, 7)}\`
+            
+            Please test your changes before merging to production.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            }); 
