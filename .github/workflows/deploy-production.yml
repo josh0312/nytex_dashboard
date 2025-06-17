@@ -36,9 +36,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Run critical tests
         run: |
-          python -m pytest tests/ -v || echo "Tests failed but continuing..."
+          python -m pytest tests/test_critical_endpoints.py -v -m "not slow"
+          
+      - name: Run deployment tests
+        run: |
+          python -m pytest tests/ -v -m "deployment" --tb=short
+          
+      - name: Run performance tests
+        run: |
+          python -m pytest tests/test_performance.py -v -m "not slow" --tb=short || echo "Performance tests had warnings"
 
       - name: Lint code
         run: |

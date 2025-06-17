@@ -9,6 +9,8 @@ alembic==1.13.1
 aiohttp==3.9.3
 pytest==8.0.0
 pytest-asyncio==0.23.5
+psutil==5.9.8
+coverage==7.4.1
 squareup==39.1.0.20241218
 pytz==2024.2
 pandas==2.2.0
