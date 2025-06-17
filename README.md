@@ -223,7 +223,7 @@ The NyTex Dashboard includes a comprehensive **web-based documentation system** 
 - **Contextual links**: Help icons next to page titles
 
 ### **System Documentation**
-- **[Sync System Implementation](./SYNC_SYSTEM_IMPLEMENTATION.md)** - Complete sync architecture and status
+- **[Sync System Implementation](./docs/SYNC_SYSTEM_IMPLEMENTATION.md)** - Complete sync architecture and status
 - **[Production Deployment Guide](./PRODUCTION_DEPLOYMENT_GUIDE.md)** - Cloud deployment procedures
 - **[Docker Development Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and workflow
 - **[Secrets Management Guide](./docs/SECRETS_GUIDE.md)** - Google Secret Manager integration
