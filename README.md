@@ -46,8 +46,10 @@ python run.py
 
 ### 📦 **Inventory Management**
 - **Square Integration**: Real-time sync with Square POS systems
+- **Automated Daily Sync**: Dev (1 AM Central) and Production (2 AM Central) synchronization
 - **Square Catalog Export**: Complete 76-column export matching Square's official format
-- **Automated Categorization**: Smart product classification
+- **Unified Sync Engine**: Orders, catalog, locations, and inventory in one reliable process
+- **Email Notifications**: Instant alerts for sync success/failure
 - **Stock Alerts**: Low inventory notifications
 - **Seasonal Tracking**: Track products by fireworks seasons
 
@@ -221,6 +223,8 @@ The NyTex Dashboard includes a comprehensive **web-based documentation system** 
 - **Contextual links**: Help icons next to page titles
 
 ### **System Documentation**
+- **[Sync System Implementation](./SYNC_SYSTEM_IMPLEMENTATION.md)** - Complete sync architecture and status
+- **[Production Deployment Guide](./PRODUCTION_DEPLOYMENT_GUIDE.md)** - Cloud deployment procedures
 - **[Docker Development Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and workflow
 - **[Secrets Management Guide](./docs/SECRETS_GUIDE.md)** - Google Secret Manager integration
 - **[Authentication Setup](./docs/AUTHENTICATION.md)** - O365 and manual authentication

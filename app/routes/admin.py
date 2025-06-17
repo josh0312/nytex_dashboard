@@ -2048,7 +2048,7 @@ async def historical_orders_sync_api(request: Request):
         class SyncConfig:
             """Configuration for the historical sync"""
             start_date: datetime = datetime(2018, 1, 1, tzinfo=timezone.utc)
-            end_date: datetime = datetime.now(timezone.utc)
+            end_date: datetime = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59, microsecond=999999)  # Include full current day
             chunk_size_days: int = 30  # Process 30 days at a time
             batch_size: int = 100      # Insert 100 orders at a time
             max_requests_per_minute: int = 100  # Square API rate limit
@@ -2073,12 +2073,18 @@ async def historical_orders_sync_api(request: Request):
             current_date = config.start_date
             
             while current_date < config.end_date:
-                chunk_end = min(
-                    current_date + timedelta(days=config.chunk_size_days),
-                    config.end_date
-                )
+                # Calculate chunk end, ensuring we include the full day
+                chunk_end = current_date + timedelta(days=config.chunk_size_days)
+                
+                # If this would go past our end date, use the end date but ensure it includes the full day
+                if chunk_end > config.end_date:
+                    chunk_end = config.end_date
+                    # If end_date is at midnight, extend to end of day to include all orders from that day
+                    if chunk_end.hour == 0 and chunk_end.minute == 0 and chunk_end.second == 0:
+                        chunk_end = chunk_end.replace(hour=23, minute=59, second=59, microsecond=999999)
+                
                 chunks.append((current_date, chunk_end))
-                current_date = chunk_end
+                current_date = current_date + timedelta(days=config.chunk_size_days)
             
             return chunks
         

@@ -1,15 +1,22 @@
 # NyTex Dashboard Sync System - Production Cron Jobs
 # 
-# Schedule: Daily at 2:00 AM UTC
-# This runs 5 hours before development (7:00 AM UTC / 2:00 AM Central)
+# Schedule: Daily at 2:00 AM Central (7:00 AM UTC)
+# This runs 1 hour after development (6:00 AM UTC / 1:00 AM Central)
 # 
 # To install in production container:
 # 1. Copy this file to /etc/cron.d/nytex-sync
 # 2. Ensure the sync script is executable
 # 3. Restart cron service if needed
 #
-# Production cron entry:
-0 2 * * * root /app/scripts/cron_sync.sh > /dev/null 2>&1
+# Production cron entry (ALTERNATIVE - Cloud Scheduler is preferred):
+0 7 * * * root /app/scripts/cron_sync.sh > /dev/null 2>&1
+
+# RECOMMENDED: Use Cloud Scheduler instead:
+# gcloud scheduler jobs create http nytex-sync-daily \
+#   --schedule="0 7 * * *" \
+#   --uri="https://your-app-url.run.app/admin/complete-sync" \
+#   --time-zone="America/Chicago" \
+#   --location="us-central1"
 
 # Development reference (for comparison):
-# 0 7 * * * /Users/joshgoble/code/nytexfireworks/nytex_dashboard/scripts/cron_sync.sh > /dev/null 2>&1 
+# 0 6 * * * /Users/joshgoble/code/nytexfireworks/nytex_dashboard/scripts/cron_sync.sh > /dev/null 2>&1 

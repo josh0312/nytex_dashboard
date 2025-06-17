@@ -20,14 +20,17 @@
 
 **Option A: Cloud Scheduler (Recommended)**
 ```bash
-# Create Cloud Scheduler job for daily sync
-gcloud scheduler jobs create http nytex-daily-sync \
-    --schedule="0 2 * * *" \
-    --uri="https://your-app-url.run.app/admin/sync/all" \
+# Create Cloud Scheduler job for daily sync at 2 AM Central (7 AM UTC)
+gcloud scheduler jobs create http nytex-sync-daily \
+    --schedule="0 7 * * *" \
+    --uri="https://your-app-url.run.app/admin/complete-sync" \
     --http-method=POST \
     --headers="Content-Type=application/json" \
-    --body='{"force": true}' \
-    --time-zone="UTC"
+    --message-body='{"full_refresh": false, "source": "cloud_scheduler"}' \
+    --time-zone="America/Chicago" \
+    --location="us-central1" \
+    --description="NyTex Dashboard daily sync - runs at 2 AM Central (7 AM UTC)" \
+    --attempt-deadline=1800s
 ```
 
 **Option B: Cloud Run Jobs (Alternative)**
@@ -54,14 +57,16 @@ gcloud scheduler jobs create http nytex-sync-trigger \
 
 #### 3. Verify Production Setup
 
-1. **Check sync endpoint:**
+1. **Check application health:**
    ```bash
-   curl -X POST https://your-app-url.run.app/admin/sync/status
+   curl https://your-app-url.run.app/
    ```
 
 2. **Test manual sync:**
    ```bash
-   curl -X POST https://your-app-url.run.app/admin/sync/catalog_items
+   curl -X POST https://your-app-url.run.app/admin/complete-sync \
+     -H "Content-Type: application/json" \
+     -d '{"full_refresh": false, "source": "manual_test"}'
    ```
 
 3. **Monitor logs:**
@@ -73,8 +78,8 @@ gcloud scheduler jobs create http nytex-sync-trigger \
 
 | Environment | Time (Local) | Time (UTC) | Separation |
 |-------------|-------------|------------|------------|
-| **Production** | 9 PM CT (prev day) | **2 AM UTC** | - |
-| **Development** | 2 AM CT | **7 AM UTC** | 5 hours later |
+| **Development** | 1 AM CT | **6 AM UTC** | - |
+| **Production** | 2 AM CT | **7 AM UTC** | 1 hour later |
 
 ### Monitoring & Alerts
 
@@ -85,14 +90,16 @@ gcloud scheduler jobs create http nytex-sync-trigger \
 
 #### Manual Monitoring
 ```bash
-# Check sync status
-curl https://your-app-url.run.app/admin/sync/status
+# Check application status
+curl https://your-app-url.run.app/
 
-# View recent sync history  
-curl https://your-app-url.run.app/admin/sync/history
+# View admin sync page
+open https://your-app-url.run.app/admin/sync
 
 # Force immediate sync (if needed)
-curl -X POST https://your-app-url.run.app/admin/sync/all
+curl -X POST https://your-app-url.run.app/admin/complete-sync \
+  -H "Content-Type: application/json" \
+  -d '{"full_refresh": false, "source": "manual"}'
 ```
 
 ### Troubleshooting
