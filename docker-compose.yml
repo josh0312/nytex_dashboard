@@ -55,7 +55,7 @@ services:
     env_file:
       - .env.local
     restart: unless-stopped
-    command: uvicorn run:app --host 0.0.0.0 --port 8080 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 30s
