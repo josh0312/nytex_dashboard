@@ -1,4 +1,4 @@
-# 🚀 NyTex Dashboard - Server Management Guide
+# 🚀 NyTex Dashboard - Enhanced Deployment & Monitoring Guide
 
 ## 📋 Quick Reference
 
@@ -6,6 +6,74 @@
 |-------------|-----|--------------|
 | **Local Development** | http://localhost:8000 | `curl http://localhost:8000` |
 | **Cloud Production** | https://nytex-dashboard-932676587025.us-central1.run.app | `curl https://nytex-dashboard-932676587025.us-central1.run.app` |
+
+---
+
+## 🎯 **NEW: Enhanced Deployment System**
+
+### **One-Command Deployment with Built-in Safety**
+```bash
+# Enhanced deployment with automatic IAM setup and monitoring
+python deploy.py
+```
+
+**What the enhanced deployment does:**
+- ✅ **Automatic IAM Permission Setup** - Prevents deployment failures
+- ✅ **Cloud Run Access Verification** - Ensures service connectivity
+- ✅ **Comprehensive Testing** - Multi-stage validation before deployment
+- ✅ **Enhanced Monitoring** - Real-time deployment progress tracking
+- ✅ **Automatic Rollback** - Falls back on failure
+- ✅ **Visual Progress** - Beautiful colored output with spinners
+
+### **Advanced Deployment Options**
+```bash
+# Direct enhanced deployment script
+python scripts/enhanced_deploy.py
+
+# Legacy deployment (for emergencies only)
+./deploy.sh
+```
+
+---
+
+## 🔍 **NEW: Production Health Monitoring**
+
+### **Automated Health Monitoring**
+```bash
+# Single health check with auto-fix capability
+python scripts/deployment_monitor.py --auto-fix
+
+# Continuous monitoring (every 30 minutes)
+python scripts/deployment_monitor.py --continuous 30
+
+# Check current monitoring status
+./scripts/check_monitoring.sh
+```
+
+### **Monitoring Management**
+```bash
+# Start background monitoring
+./scripts/start_monitoring.sh
+
+# Stop background monitoring  
+./scripts/stop_monitoring.sh
+
+# Setup automated cron jobs
+./scripts/setup_monitoring.sh
+```
+
+### **What Health Monitoring Checks:**
+- 🔐 **IAM Permissions** - GitHub Actions service account permissions
+- ☁️ **Cloud Run Service** - Service status and revision health
+- 🌐 **Application Health** - HTTP response and connectivity
+- 📊 **Recent Deployments** - Failure detection and analysis
+- 🗄️ **Database Connectivity** - Connection verification
+
+### **Automatic Issue Resolution**
+The monitoring system can automatically fix:
+- **IAM Permission Issues** - Restores GitHub Actions permissions
+- **Service Account Problems** - Reconfigures compute service account access
+- **Traffic Routing Issues** - Ensures proper revision activation
 
 ---
 
@@ -27,21 +95,56 @@
 - Test thoroughly at http://localhost:8000
 - Check logs in the terminal for any errors
 
-### 3. **Deploy to Production**
+### 3. **Deploy to Production (Enhanced)**
 ```bash
-./deploy.sh
+# Use the new enhanced deployment system
+python deploy.py
 ```
-**What it does:**
-- 🐳 Builds Docker image for linux/amd64 platform
-- 🏷️ Tags with timestamp version (e.g., `20250529-143052`)
-- ☁️ Pushes to Google Container Registry
-- 🌐 Deploys to Cloud Run using **secrets from Google Secret Manager**
-- 🔐 Automatically configures all environment variables from secrets
-- ✅ Updates live site automatically
+
+**Enhanced deployment process:**
+1. 🔧 **IAM Permission Setup** - Ensures GitHub Actions can manage deployments
+2. ☁️ **Cloud Run Verification** - Confirms service accessibility
+3. 🧪 **Deployment Readiness Tests** - Comprehensive pre-deployment validation
+4. 📤 **Git Push & CI/CD Trigger** - Automated commit and push
+5. 👀 **Real-time Monitoring** - Tracks deployment progress with visual feedback
+6. ✅ **Health Verification** - Confirms successful deployment
 
 **⚠️ Important**: The deployment script now uses Google Secret Manager for all sensitive configuration. See [Secrets Management Guide](SECRETS_GUIDE.md) for details.
 
-**🔧 If deployment fails**: See [Troubleshooting Guide](TROUBLESHOOTING.md) for common issues and solutions.
+**🔧 If deployment fails**: The enhanced system includes automatic rollback and detailed error reporting. See [Troubleshooting Guide](TROUBLESHOOTING.md) for additional help.
+
+---
+
+## 📊 **NEW: Monitoring Dashboard**
+
+### **Health Report Example**
+```
+============================================================
+NyTex Dashboard - Deployment Health Report
+============================================================
+Timestamp: 2025-06-17 17:12:09
+Production URL: https://nytex-dashboard-nndn66l4ua-uc.a.run.app
+
+✅ ALL SYSTEMS HEALTHY
+
+✅ IAM permissions are correctly configured
+✅ Cloud Run service is ready
+✅ Application healthy (HTTP 302)
+✅ No recent deployment failures
+✅ Database connectivity appears healthy
+============================================================
+```
+
+### **Scheduled Monitoring (Optional)**
+Set up automated monitoring with intelligent scheduling:
+```bash
+./scripts/setup_monitoring.sh
+```
+
+**Monitoring Schedule:**
+- **Business Hours** (8 AM - 8 PM, Mon-Fri): Every 15 minutes
+- **Off Hours & Weekends**: Every hour  
+- **Daily Comprehensive Check**: 6 AM with detailed reporting
 
 ---
 
@@ -161,29 +264,69 @@ curl -s https://nytex-dashboard-932676587025.us-central1.run.app/admin/status | 
 
 ---
 
-## 🔧 Troubleshooting
+## 🔧 Enhanced Troubleshooting
+
+### **IAM Permission Issues (Auto-Fixable)**
+
+**Problem**: Deployment fails with "Permission 'iam.serviceaccounts.actAs' denied"
+```bash
+# Automatic fix
+python scripts/deployment_monitor.py --auto-fix
+
+# Manual fix
+gcloud iam service-accounts add-iam-policy-binding \
+  932676587025-compute@developer.gserviceaccount.com \
+  --member="serviceAccount:github-actions@nytex-business-systems.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+### **Deployment Monitoring Issues**
+
+**Problem**: Want to check deployment health
+```bash
+# Quick health check
+python scripts/deployment_monitor.py
+
+# Comprehensive check with auto-fix
+python scripts/deployment_monitor.py --auto-fix
+
+# Check monitoring status
+./scripts/check_monitoring.sh
+```
+
+**Problem**: Deployment seems stuck
+```bash
+# Enhanced deployment with better monitoring
+python deploy.py
+
+# Direct monitoring of Cloud Run revisions
+gcloud run revisions list --service=nytex-dashboard --region=us-central1
+```
 
 ### **Local Development Issues**
 
 **Problem**: `python run.py` fails
 ```bash
-# Solution: Activate virtual environment first
+# Solution: run.py has been removed - use the modern approach
+./start-local.sh
+
+# Or manually:
 source .venv/bin/activate
 pip install -r requirements.txt
-python run.py
-```
-
-**Problem**: Database connection errors locally
-```bash
-# Check if you have local PostgreSQL running or use cloud fallback
-# The app will automatically fall back to local config when cloud vars aren't set
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### **Cloud Deployment Issues**
 
 **Problem**: Deployment fails
 ```bash
-# Check Docker is running
+# Use enhanced deployment for better error handling
+python deploy.py
+
+# Check deployment health
+python scripts/deployment_monitor.py --auto-fix
+
+# Verify Docker is running
 docker --version
 
 # Verify gcloud authentication
@@ -197,82 +340,44 @@ gcloud config get project
 ```bash
 # Check logs for detailed error messages
 gcloud run services logs read nytex-dashboard --region us-central1 --limit=20
-```
 
-### **Data Sync Issues**
-
-**Problem**: "Square access token not configured"
-```bash
-# Add your Square access token to production
-gcloud run services update nytex-dashboard --region us-central1 \
-  --set-env-vars SQUARE_ACCESS_TOKEN=your_actual_token
-```
-
-**Problem**: Sync times out or fails
-```bash
-# Large datasets can take 10+ minutes to sync
-# Check production logs to see if sync is still running
-gcloud run services logs tail nytex-dashboard --region us-central1
-```
-
-**Problem**: No data appears in production
-```bash
-# 1. Verify Square token is configured
-# 2. Check sync logs for errors
-# 3. Try running sync again: python scripts/sync_inventory_only.py
+# Run health monitoring
+python scripts/deployment_monitor.py
 ```
 
 ---
 
-## 🔄 Environment Variables
+## 📚 **Enhanced Documentation Structure**
 
-### **Local Development**
-The app automatically detects local vs cloud environment:
-- Uses local database fallback when cloud variables aren't present
-- Loads from `.env` file if present (not in git)
-
-### **Cloud Production**
-Automatically configured during deployment:
-```bash
-CLOUD_SQL_CONNECTION_NAME=nytex-business-systems:us-central1-f:nytex-main-db
-DB_USER=nytex_user
-DB_NAME=nytex_dashboard
-DB_PASS=NytexSecure2024!
-SECRET_KEY=prod-secret-key-2024
-DEBUG=false
-SQUARE_ENVIRONMENT=production
-SQUARE_ACCESS_TOKEN=your_square_token_here
-```
+- **[Enhanced Deployment Guide](DEPLOYMENT.md)** - This document (primary deployment & monitoring guide)
+- **[CI/CD Pipeline Guide](../PRODUCTION_DEPLOYMENT_GUIDE.md)** - GitHub Actions CI/CD pipeline details
+- **[Production Monitoring Guide](MONITORING.md)** - Complete monitoring setup and management
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Issue resolution
+- **[Secrets Management Guide](SECRETS_GUIDE.md)** - Security configuration
 
 ---
 
-## 📊 Monitoring Your Applications
+## 🎉 **What's New in Enhanced Deployment**
 
-### **Health Checks**
-```bash
-# Quick health check - both should return HTML
-curl -s http://localhost:8000 | head -5          # Local
-curl -s https://nytex-dashboard-932676587025.us-central1.run.app | head -5  # Cloud
-```
+### **Reliability Improvements:**
+- ✅ **Zero IAM Permission Failures** - Automatic setup prevents common deployment issues
+- ✅ **Enhanced Error Handling** - Better timeout management and fallback strategies  
+- ✅ **Comprehensive Pre-flight Checks** - Multi-stage verification before deployment
+- ✅ **Visual Progress Tracking** - Beautiful colored output with real-time updates
 
-### **Performance Monitoring**
-- **Cloud Console**: https://console.cloud.google.com/run
-- **Logs**: Available in Google Cloud Console or via gcloud CLI
-- **Metrics**: CPU, Memory, Request count in Cloud Console
+### **Monitoring & Alerting:**
+- ✅ **Proactive Issue Detection** - Catches problems before they cause outages
+- ✅ **Automated Recovery** - Auto-fix capability reduces manual intervention
+- ✅ **Intelligent Scheduling** - More frequent checks during business hours
+- ✅ **Comprehensive Logging** - All monitoring activity logged for analysis
 
----
+### **Operational Excellence:**
+- ✅ **One-Command Deployment** - `python deploy.py` handles everything
+- ✅ **Production-Ready Monitoring** - Enterprise-grade health checking
+- ✅ **Easy Management** - Simple start/stop/check commands for monitoring
+- ✅ **Historical Tracking** - All reports saved with timestamps
 
-## 🎯 Quick Test Deployment
-
-Want to test the entire workflow? Here's a safe test:
-
-1. **Make a small change** (like updating a comment)
-2. **Test locally**: `./start-local.sh`
-3. **Deploy**: `./deploy.sh`
-4. **Sync data**: `python scripts/sync_inventory_only.py`
-5. **Verify**: Check both URLs work
-
-This ensures your deployment pipeline is working correctly!
+**The enhanced deployment system provides bulletproof reliability with multiple layers of protection against common deployment failures!** 🛡️
 
 ---
 

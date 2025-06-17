@@ -152,11 +152,50 @@ python -m pytest tests/
 python -m pytest tests/ --cov=app
 ```
 
-## 🚀 Deployment
+## 🚀 Enhanced Deployment & Monitoring
 
-### **CI/CD Production Deployment** (Recommended)
+### **🎯 NEW: One-Command Enhanced Deployment**
 
-The application uses automated GitHub Actions CI/CD for safe, tested deployments:
+The NyTex Dashboard now includes an enhanced deployment system with automatic IAM setup, comprehensive monitoring, and bulletproof reliability:
+
+```bash
+# Enhanced deployment with automatic safety checks
+python deploy.py
+```
+
+**Enhanced deployment features:**
+- ✅ **Automatic IAM Permission Setup** - Prevents deployment failures
+- ✅ **Cloud Run Access Verification** - Ensures service connectivity  
+- ✅ **Comprehensive Testing** - Multi-stage validation before deployment
+- ✅ **Real-time Monitoring** - Visual progress tracking with spinners
+- ✅ **Automatic Rollback** - Falls back on failure
+- ✅ **Auto-Fix Capabilities** - Resolves common issues automatically
+
+### **🔍 NEW: Production Health Monitoring**
+
+Proactive monitoring system that detects and fixes issues automatically:
+
+```bash
+# Instant health check with auto-fix
+python scripts/deployment_monitor.py --auto-fix
+
+# Start continuous background monitoring
+./scripts/start_monitoring.sh
+
+# Setup automated 24/7 monitoring
+./scripts/setup_monitoring.sh
+```
+
+**Monitoring capabilities:**
+- 🔐 **IAM Permission Monitoring** - Auto-fixes GitHub Actions permissions
+- ☁️ **Cloud Run Health Checks** - Service status and revision monitoring
+- 🌐 **Application Health** - HTTP response and connectivity verification
+- 📊 **Deployment Failure Detection** - Identifies patterns and issues
+- 🗄️ **Database Connectivity** - Connection and query verification
+
+### **CI/CD Production Deployment** (Also Available)
+
+Traditional CI/CD pipeline for automated deployments:
 
 ```bash
 # 1. Make your changes and test locally
@@ -171,30 +210,12 @@ git push origin master
 # Visit: https://github.com/josh0312/nytex_dashboard/actions
 ```
 
-**The CI/CD pipeline automatically:**
-- ✅ Runs comprehensive tests
-- ✅ Validates configuration and security
-- ✅ Performs performance checks
-- ✅ Deploys to production with health checks
-- ✅ Automatically rolls back on failure
-
-### **Staging Environment**
-
-Pull requests automatically deploy to staging for testing:
-
-```bash
-# Create PR for staging deployment
-git checkout -b feature/my-feature
-git push origin feature/my-feature
-# Create PR → Automatic staging deployment with URL in PR comments
-```
-
 ### **Emergency Manual Deployment**
 
-For emergencies when CI/CD is unavailable:
+For emergencies when enhanced deployment is unavailable:
 
 ```bash
-# WARNING: Bypasses testing and validation
+# WARNING: Bypasses enhanced safety checks
 ./deploy.sh
 ```
 
@@ -242,7 +263,15 @@ pytest tests/ -v -m "not slow"
 | `PORT` | Server port | `8080` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 
-## 📚 Integrated Documentation System
+## 📚 Documentation
+
+### **🎯 NEW: Enhanced Deployment & Monitoring Documentation**
+
+- **[Enhanced Deployment Guide](./docs/DEPLOYMENT.md)** - **Primary deployment documentation** with enhanced features
+- **[Production Monitoring Guide](./docs/MONITORING.md)** - Complete monitoring setup and management
+- **[CI/CD Pipeline Guide](./docs/CI_CD_PIPELINE.md)** - GitHub Actions CI/CD pipeline details
+
+### **Integrated Documentation System**
 
 The NyTex Dashboard includes a comprehensive **web-based documentation system** accessible at `/docs`. This wiki-style knowledge base provides:
 
@@ -260,7 +289,6 @@ The NyTex Dashboard includes a comprehensive **web-based documentation system** 
 
 ### **System Documentation**
 - **[Sync System Implementation](./docs/SYNC_SYSTEM_IMPLEMENTATION.md)** - Complete sync architecture and status
-- **[Production Deployment Guide](./PRODUCTION_DEPLOYMENT_GUIDE.md)** - Cloud deployment procedures
 - **[Docker Development Guide](./docs/DOCKER_GUIDE.md)** - Complete Docker setup and workflow
 - **[Secrets Management Guide](./docs/SECRETS_GUIDE.md)** - Google Secret Manager integration
 - **[Authentication Setup](./docs/AUTHENTICATION.md)** - O365 and manual authentication

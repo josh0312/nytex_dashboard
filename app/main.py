@@ -2,12 +2,15 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+import os
 from .routes.dashboard import router as dashboard_router
 from .routes.metrics import router as metrics_router
 from .routes.reports import reports_router
 from .routes.catalog import router as catalog_router
 from .routes.auth import router as auth_router
 from .middleware.template_monitor import TemplateMonitorMiddleware
+from .middleware.proxy_middleware import ProxyHeaderMiddleware
 # from .middleware.auth_middleware import AuthMiddleware  # DISABLED: Authentication removed for public access
 from .services.monitor_service import monitor
 from .database import init_models
@@ -34,11 +37,24 @@ app = FastAPI(
     title="NyTex Dashboard", 
     version="1.0.0",
     docs_url=None,  # Disable Swagger docs for security
-    redoc_url=None  # Disable ReDoc as well
+    redoc_url=None,  # Disable ReDoc as well
+    # Configure for Cloud Run proxy
+    root_path=os.getenv("ROOT_PATH", ""),
+    servers=[
+        {"url": "https://nytex-dashboard-932676587025.us-central1.run.app", "description": "Production"},
+        {"url": "http://localhost:8080", "description": "Development"}
+    ] if os.getenv("ENVIRONMENT") == "production" else None
 )
 
 # Initialize models
 init_models()
+
+# Configure middleware for Cloud Run
+app.add_middleware(ProxyHeaderMiddleware)  # Handle X-Forwarded-* headers
+app.add_middleware(
+    TrustedHostMiddleware, 
+    allowed_hosts=["*"]  # Allow all hosts for Cloud Run flexibility
+)
 
 # AUTHENTICATION DISABLED: Commented out AuthMiddleware for public access
 # app.add_middleware(AuthMiddleware)
