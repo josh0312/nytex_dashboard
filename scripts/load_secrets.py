@@ -29,7 +29,12 @@ def load_secrets_to_env(project_id: str = "nytex-business-systems"):
         "AZURE_CLIENT_SECRET": "azure-client-secret",
         "AZURE_TENANT_ID": "azure-tenant-id",
         "AZURE_REDIRECT_URI": "azure-redirect-uri",
-        "SQLALCHEMY_DATABASE_URI": "database-uri"
+        "SQLALCHEMY_DATABASE_URI": "database-uri",
+        # Email notification credentials
+        "SMTP_USERNAME": "smtp-username",
+        "SMTP_PASSWORD": "smtp-password",
+        "SMTP_SENDER_EMAIL": "smtp-sender-email",
+        "SYNC_NOTIFICATION_RECIPIENTS": "sync-notification-recipients"
     }
     
     loaded_count = 0
