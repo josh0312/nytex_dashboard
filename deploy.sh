@@ -1,23 +1,38 @@
 #!/bin/bash
 
-# NyTex Dashboard - Google Cloud Run Deployment Script
-# Automatically builds, tags, and deploys the application
+# NyTex Dashboard - Legacy Manual Deployment Script
+# 🚨 EMERGENCY USE ONLY - Use GitHub Actions CI/CD for normal deployments
+# 
+# For normal deployments, use: git push origin master
+# This script is kept for emergency manual deployments only.
 
 set -e  # Exit on any error
 
-echo "🚀 Starting NyTex Dashboard Deployment..."
+echo "⚠️  LEGACY MANUAL DEPLOYMENT"
+echo "🚨 WARNING: This bypasses CI/CD testing and validation!"
+echo "Recommended: Use 'git push origin master' for automated deployment"
+echo ""
+read -p "Continue with manual deployment? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Deployment cancelled. Use GitHub Actions for safe deployment."
+    exit 1
+fi
+
+echo ""
+echo "🚀 Starting Manual NyTex Dashboard Deployment..."
 echo "=================================================="
 
 # Get current timestamp for versioning
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-IMAGE_NAME="gcr.io/nytex-business-systems/nytex-dashboard:$TIMESTAMP"
+IMAGE_NAME="us-central1-docker.pkg.dev/nytex-business-systems/nytex-dashboard/nytex-dashboard:manual-$TIMESTAMP"
 
 echo "📦 Building Docker image: $IMAGE_NAME"
 
 # Build for linux/amd64 platform (required for Cloud Run)
 docker build --platform linux/amd64 -t $IMAGE_NAME .
 
-echo "☁️  Pushing image to Google Container Registry..."
+echo "☁️  Pushing image to Artifact Registry..."
 docker push $IMAGE_NAME
 
 echo "🌐 Deploying to Cloud Run..."
@@ -28,12 +43,17 @@ gcloud run deploy nytex-dashboard \
     --platform managed \
     --region us-central1 \
     --allow-unauthenticated \
-    --memory 512Mi \
+    --memory 1Gi \
     --cpu 1 \
     --max-instances 10 \
+    --min-instances 0 \
+    --timeout 300 \
+    --concurrency 80 \
     --add-cloudsql-instances nytex-business-systems:us-central1:nytex-main-db \
     --set-env-vars "CLOUD_SQL_CONNECTION_NAME=nytex-business-systems:us-central1:nytex-main-db" \
+    --set-env-vars "GOOGLE_CLOUD_PROJECT=nytex-business-systems" \
     --set-env-vars "DEBUG=false" \
+    --set-env-vars "SQLALCHEMY_ECHO=false" \
     --set-env-vars "ENVIRONMENT=production" \
     --set-env-vars "SQUARE_CATALOG_EXPORT_URL=https://square-catalog-export-932676587025.us-central1.run.app" \
     --update-secrets "SECRET_KEY=secret-key:latest" \
@@ -47,7 +67,11 @@ gcloud run deploy nytex-dashboard \
     --update-secrets "AZURE_CLIENT_ID=azure-client-id:latest" \
     --update-secrets "AZURE_CLIENT_SECRET=azure-client-secret:latest" \
     --update-secrets "AZURE_TENANT_ID=azure-tenant-id:latest" \
-    --update-secrets "AZURE_REDIRECT_URI=azure-redirect-uri:latest"
+    --update-secrets "AZURE_REDIRECT_URI=azure-redirect-uri:latest" \
+    --update-secrets "SMTP_USERNAME=smtp-username:latest" \
+    --update-secrets "SMTP_PASSWORD=smtp-password:latest" \
+    --update-secrets "SMTP_SENDER_EMAIL=smtp-sender-email:latest" \
+    --update-secrets "SYNC_NOTIFICATION_RECIPIENTS=sync-notification-recipients:latest"
 
 echo "✅ Deployment completed successfully!"
 echo ""
@@ -67,8 +91,3 @@ echo ""
 echo "🌐 Your application is available at:"
 echo "   https://nytex-dashboard-932676587025.us-central1.run.app"
 echo ""
-echo "🎯 Next steps:"
-echo "   1. Visit: https://nytex-dashboard-932676587025.us-central1.run.app/admin/sync"
-echo "   2. Test with 'Start Complete Sync'"
-echo "   3. Monitor logs: gcloud run services logs read nytex-dashboard --region us-central1"
-echo "" 

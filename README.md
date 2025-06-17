@@ -64,6 +64,8 @@ python run.py
 - **PostgreSQL Database**: Robust data persistence
 - **HTMX Frontend**: Dynamic UI without complex JavaScript
 - **Docker Ready**: Complete containerization for development and production
+- **CI/CD Pipeline**: Automated testing and deployment with GitHub Actions
+- **Multi-Environment**: Staging and production environments with automatic promotion
 
 ## 📁 Project Structure
 
@@ -152,36 +154,70 @@ python -m pytest tests/ --cov=app
 
 ## 🚀 Deployment
 
-### **Production Deployment**
+### **CI/CD Production Deployment** (Recommended)
 
-1. **Google Cloud Run** (Recommended):
-   ```bash
-   # Deploy with secrets integration
-   gcloud run deploy nytex-dashboard \
-     --source . \
-     --dockerfile Dockerfile.secrets \
-     --region=us-central1 \
-     --allow-unauthenticated
-   ```
+The application uses automated GitHub Actions CI/CD for safe, tested deployments:
 
-2. **Docker Container**:
-   ```bash
-   # Build production image
-   docker build -f Dockerfile.secrets -t nytex-dashboard .
-   
-   # Run with Secret Manager
-   docker run -p 8080:8080 \
-     -e GOOGLE_CLOUD_PROJECT=nytex-business-systems \
-     nytex-dashboard
-   ```
+```bash
+# 1. Make your changes and test locally
+python scripts/test_deployment_readiness.py
+
+# 2. Commit and push to trigger deployment
+git add .
+git commit -m "feat: Your changes"
+git push origin master
+
+# 3. Monitor deployment
+# Visit: https://github.com/josh0312/nytex_dashboard/actions
+```
+
+**The CI/CD pipeline automatically:**
+- ✅ Runs comprehensive tests
+- ✅ Validates configuration and security
+- ✅ Performs performance checks
+- ✅ Deploys to production with health checks
+- ✅ Automatically rolls back on failure
+
+### **Staging Environment**
+
+Pull requests automatically deploy to staging for testing:
+
+```bash
+# Create PR for staging deployment
+git checkout -b feature/my-feature
+git push origin feature/my-feature
+# Create PR → Automatic staging deployment with URL in PR comments
+```
+
+### **Emergency Manual Deployment**
+
+For emergencies when CI/CD is unavailable:
+
+```bash
+# WARNING: Bypasses testing and validation
+./deploy.sh
+```
 
 ### **Environment Configuration**
 
-| Environment | Database | Secrets | Authentication |
-|-------------|----------|---------|----------------|
-| **Development** | Local PostgreSQL | `.env.local` file | Manual + O365 |
-| **Staging** | Cloud SQL | Google Secret Manager | Manual + O365 |
-| **Production** | Cloud SQL | Google Secret Manager | O365 Only |
+| Environment | Database | Secrets | Authentication | Deployment |
+|-------------|----------|---------|----------------|------------|
+| **Development** | Local PostgreSQL | `.env.local` file | Manual + O365 | Local Docker |
+| **Staging** | Cloud SQL | Google Secret Manager | Manual + O365 | GitHub Actions (PR) |
+| **Production** | Cloud SQL | Google Secret Manager | O365 Only | GitHub Actions (main) |
+
+### **Testing Before Deployment**
+
+```bash
+# Quick deployment readiness check
+python scripts/test_deployment_readiness.py
+
+# Run critical tests
+pytest tests/test_critical_endpoints.py -v
+
+# Full test suite (excluding slow tests)
+pytest tests/ -v -m "not slow"
+```
 
 ## 🔧 Configuration
 
