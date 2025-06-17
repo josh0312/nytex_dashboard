@@ -134,6 +134,15 @@ jobs:
           echo "Waiting for deployment to be ready..."
           sleep 30
 
+      - name: Switch traffic to new revision
+        run: |
+          NEW_REVISION=$(gcloud run revisions list --service=${SERVICE_NAME} --region=${REGION} --format='value(metadata.name)' --limit=1)
+          echo "Switching traffic to new revision: $NEW_REVISION"
+          gcloud run services update-traffic ${SERVICE_NAME} --region=${REGION} --to-revisions=${NEW_REVISION}=100
+          
+          # Wait for traffic to switch
+          sleep 10
+
       - name: Health check
         run: |
           SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.url)')
@@ -159,6 +168,32 @@ jobs:
             echo "Deployment completed but with database issues"
           fi
 
+      - name: Verify traffic routing
+        run: |
+          NEW_REVISION=$(gcloud run revisions list --service=${SERVICE_NAME} --region=${REGION} --format='value(metadata.name)' --limit=1)
+          ACTIVE_REVISION=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.traffic[0].revisionName)')
+          
+          echo "New revision: $NEW_REVISION"
+          echo "Active revision: $ACTIVE_REVISION"
+          
+          if [ "$NEW_REVISION" == "$ACTIVE_REVISION" ]; then
+            echo "✅ Traffic successfully routed to new revision"
+          else
+            echo "❌ Traffic routing failed. Expected: $NEW_REVISION, Active: $ACTIVE_REVISION"
+            echo "Attempting to fix traffic routing..."
+            gcloud run services update-traffic ${SERVICE_NAME} --region=${REGION} --to-revisions=${NEW_REVISION}=100
+            sleep 5
+            
+            # Verify again
+            ACTIVE_REVISION_RETRY=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.traffic[0].revisionName)')
+            if [ "$NEW_REVISION" == "$ACTIVE_REVISION_RETRY" ]; then
+              echo "✅ Traffic routing fixed on retry"
+            else
+              echo "❌ Traffic routing still failed after retry"
+              exit 1
+            fi
+          fi
+
       - name: Rollback on failure
         if: failure()
         run: |
@@ -169,13 +204,27 @@ jobs:
             gcloud run services update-traffic ${SERVICE_NAME} --region=${REGION} --to-revisions=${PREVIOUS_VERSION}=100
           fi
 
+      - name: Cleanup old revisions
+        if: success()
+        run: |
+          echo "Cleaning up old revisions (keeping latest 5)..."
+          OLD_REVISIONS=$(gcloud run revisions list --service=${SERVICE_NAME} --region=${REGION} --format='value(metadata.name)' | tail -n +6)
+          if [ ! -z "$OLD_REVISIONS" ]; then
+            echo "Deleting old revisions: $OLD_REVISIONS"
+            echo "$OLD_REVISIONS" | xargs -I {} gcloud run revisions delete {} --region=${REGION} --quiet || echo "Some revisions couldn't be deleted (may be in use)"
+          else
+            echo "No old revisions to clean up"
+          fi
+
       - name: Deployment Summary
         if: always()
         run: |
           SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.url)')
+          ACTIVE_REVISION=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.traffic[0].revisionName)')
           echo "🎉 Deployment Summary"
           echo "===================="
           echo "Service URL: $SERVICE_URL"
+          echo "Active Revision: $ACTIVE_REVISION"
           echo "Image: ${GAR_LOCATION}/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:${{ github.sha }}"
           echo "Commit: ${{ github.sha }}"
           echo "Branch: ${{ github.ref_name }}"
