@@ -330,4 +330,4 @@ This project is proprietary software for NyTex Fireworks. All rights reserved.
 
 ---
 
-**Built with ❤️ for NyTex Fireworks** 
+**Built with ❤️ for NyTex Fireworks** # Deployment test with fixed IAM permissions
