@@ -2,10 +2,11 @@ from fastapi import APIRouter, Request, Query, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional, List
 from app.database import get_session
 from app.services.items_service import ItemsService
 from app.logger import logger
+from fastapi import HTTPException
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -95,7 +96,8 @@ async def items_data(
     size: int = Query(50, description="Page size"),
     sort: Optional[str] = Query(None, description="Column to sort by"),
     dir: str = Query("asc", description="Sort direction"),
-    global_search: Optional[str] = Query(None, description="Global search term")
+    global_search: Optional[str] = Query(None, description="Global search term"),
+    category: Optional[str] = Query(None, description="Category filter")
 ):
     """
     JSON API endpoint for Tabulator table data with server-side processing
@@ -126,10 +128,17 @@ async def items_data(
                 sort_field = sort
                 sort_dir = dir
             
+            # Parse filters - handle both mobile filters and Tabulator filters
+            filters = {}
+            
+            # Handle mobile category filter
+            if category:
+                filters['category'] = category
+                logger.info(f"Mobile category filter applied: {category}")
+            
             # Parse Tabulator's filter parameters
             # Tabulator sends filters as filter[0][field], filter[0][type], filter[0][value]
             # For multi-select, it sends filter[0][value][0], filter[0][value][1], etc.
-            filters = {}
             filter_groups = {}
             
             for key, value in query_params.items():
@@ -290,127 +299,82 @@ async def items_table(
         return templates.TemplateResponse("items/table.html", context)
 
 @router.get("/export", response_class=JSONResponse)
-async def items_export(
+async def export_items(
     request: Request,
-    format: str = Query("xlsx", description="Export format (csv, xlsx, json)"),
+    format: str = Query("xlsx", description="Export format: xlsx, csv, or json"),
     global_search: Optional[str] = Query(None, description="Global search term"),
-    sort: Optional[str] = Query(None, description="Column to sort by"),
-    dir: str = Query("asc", description="Sort direction")
+    # Filter parameters
+    filter: Optional[List[str]] = Query(None, description="Filter definitions"),
+    sort: Optional[List[str]] = Query(None, description="Sort definitions")
 ):
     """
-    Export items data in various formats with support for filters and search
+    Export items data in specified format with current filters
     """
     try:
-        # Get database session
         async with get_session() as session:
-            # Debug: Log all query parameters
-            query_params = dict(request.query_params)
-            logger.info(f"Export query parameters: {query_params}")
+            logger.info(f"Export request - format: {format}")
+            logger.info(f"Global search: {global_search}")
+            logger.info(f"Filters: {filter}")
+            logger.info(f"Sort: {sort}")
             
-            # Parse Tabulator's sorting parameters if they exist
-            sort_field = None
-            sort_dir = "asc"
-            
-            # Check for Tabulator's sort parameter format
-            for key, value in query_params.items():
-                if 'sort[0][field]' in key:
-                    sort_field = value
-                elif 'sort[0][dir]' in key:
-                    sort_dir = value
-            
-            # Fall back to simple sort parameter if Tabulator format not found
-            if not sort_field and sort:
-                sort_field = sort
-                sort_dir = dir
-            
-            # Parse Tabulator's filter parameters
+            # Process filters if provided
             filters = {}
-            filter_groups = {}
-            
-            for key, value in query_params.items():
-                if key.startswith('filter[') and '[' in key and ']' in key:
-                    import re
-                    # Parse filter[0][field], filter[0][type], filter[0][value], or filter[0][value][0]
-                    match = re.match(r'filter\[(\d+)\]\[(\w+)\](?:\[(\d+)\])?', key)
-                    if match:
-                        filter_index = match.group(1)
-                        filter_property = match.group(2)  # field, type, or value
-                        array_index = match.group(3)  # for multi-select values
-                        
-                        if filter_index not in filter_groups:
-                            filter_groups[filter_index] = {}
-                        
-                        if filter_property == 'value' and array_index is not None:
-                            # Handle multi-select values as arrays
-                            if 'value' not in filter_groups[filter_index]:
-                                filter_groups[filter_index]['value'] = []
-                            filter_groups[filter_index]['value'].append(value)
-                        else:
-                            # Handle single values
-                            filter_groups[filter_index][filter_property] = value
-            
-            # Convert filter groups to the format expected by ItemsService
-            for filter_index, filter_data in filter_groups.items():
-                if 'field' in filter_data and 'value' in filter_data:
-                    field_name = filter_data['field']
-                    field_value = filter_data['value']
-                    
-                    # Skip empty values
-                    if not field_value:
+            if filter:
+                for filter_def in filter:
+                    # Parse filter format: field:type:value
+                    try:
+                        if isinstance(filter_def, str):
+                            # Handle both single string and potential parsing
+                            logger.info(f"Processing filter: {filter_def}")
+                            # For now, we'll handle this in a simple way
+                            # This needs to be expanded based on actual filter format
+                            pass
+                    except Exception as e:
+                        logger.warning(f"Could not parse filter: {filter_def}, error: {e}")
                         continue
-                    
-                    # Handle arrays (multi-select)
-                    if isinstance(field_value, list):
-                        # Filter out empty values
-                        non_empty_values = [v for v in field_value if v and str(v).strip()]
-                        if not non_empty_values:
-                            continue
-                        field_value = non_empty_values
-                    elif isinstance(field_value, str):
-                        # Skip empty strings
-                        if not field_value.strip():
-                            continue
-                    
-                    # Map Tabulator field names to our service field names
-                    field_mapping = {
-                        'category': 'category',
-                        'vendor_name': 'vendor_name',
-                        'item_name': 'item_name',
-                        'sku': 'sku',
-                        'description': 'description',
-                        'vendor_code': 'vendor_code',
-                        'price': 'price',
-                        'cost': 'cost'
-                    }
-                    
-                    mapped_field = field_mapping.get(field_name, field_name)
-                    filters[mapped_field] = field_value
             
-            logger.info(f"Export - Parsed sort: field={sort_field}, dir={sort_dir}")
-            logger.info(f"Export - Parsed filters: {filters}")
-            logger.info(f"Export - Global search: {global_search}")
-            
-            # Get all items data (no pagination for export)
+            # Get all items (no pagination for export)
             items = await ItemsService.get_items(
                 session=session,
-                sort=sort_field,
-                direction=sort_dir,
+                sort=None,  # We'll handle sorting separately if needed
+                direction="asc",
                 search=global_search,
                 filters=filters
             )
             
-            logger.info(f"Export - Retrieved {len(items)} items")
+            logger.info(f"Retrieved {len(items)} items for export")
             
-            # Return data for client-side export (Tabulator handles the actual file creation)
-            return JSONResponse(content={"data": items, "total": len(items)})
-        
+            if format.lower() == "xlsx":
+                return JSONResponse(content={
+                    "data": items,
+                    "total": len(items),
+                    "format": "xlsx"
+                })
+            elif format.lower() == "csv":
+                return JSONResponse(content={
+                    "data": items,
+                    "total": len(items),
+                    "format": "csv"
+                })
+            elif format.lower() == "json":
+                return JSONResponse(content={
+                    "data": items,
+                    "total": len(items),
+                    "format": "json"
+                })
+            else:
+                return JSONResponse(
+                    content={"error": f"Unsupported format: {format}"}, 
+                    status_code=400
+                )
+                
     except Exception as e:
         logger.error(f"Error in items export: {str(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         
         return JSONResponse(
-            content={"error": f"Unable to export items data: {str(e)}"}, 
+            content={"error": f"Unable to export items: {str(e)}"}, 
             status_code=500
         )
 
@@ -456,4 +420,47 @@ async def simple_tabulator(request: Request):
     """
     Simple test page for Tabulator debugging
     """
-    return templates.TemplateResponse("items/index_simple.html", {"request": request}) 
+    return templates.TemplateResponse("items/index_simple.html", {"request": request})
+
+@router.get("/details/{item_sku}", response_class=JSONResponse)
+async def get_item_details(
+    item_sku: str,
+    request: Request
+):
+    """
+    Get detailed item information for mobile slide panel
+    """
+    try:
+        async with get_session() as session:
+            # Get single item by SKU
+            items = await ItemsService.get_items(
+                session=session,
+                search=item_sku,  # Search by SKU
+                filters={}
+            )
+            
+            # Find exact SKU match
+            item = None
+            for candidate in items:
+                if candidate.get('sku') == item_sku:
+                    item = candidate
+                    break
+            
+            if not item:
+                logger.warning(f"Item not found for SKU: {item_sku}")
+                raise HTTPException(status_code=404, detail="Item not found")
+            
+            logger.info(f"Retrieved item details for SKU: {item_sku}")
+            return JSONResponse(content=item)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching item details for SKU {item_sku}: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Unable to fetch item details: {str(e)}"
+        ) 

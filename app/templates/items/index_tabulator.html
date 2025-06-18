@@ -369,10 +369,131 @@
     .tabulator .tabulator-tableholder::-webkit-scrollbar-thumb:hover {
         background: var(--tabulator-text);
     }
+
+    /* Mobile-specific styles */
+    .mobile-item-row {
+        transition: background-color 0.2s;
+    }
+    
+    /* Mobile row hover effects - applied at table level */
+    .dev-mobile-mode .tabulator .tabulator-row:hover {
+        background-color: rgba(59, 130, 246, 0.1) !important;
+        cursor: pointer !important;
+    }
+    
+    /* Add visual indicator for mobile clickable rows */
+    .dev-mobile-mode .tabulator .tabulator-row {
+        position: relative;
+    }
+    
+    .dev-mobile-mode .tabulator .tabulator-row::after {
+        content: '';
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 6px;
+        height: 6px;
+        border-right: 2px solid #9ca3af;
+        border-bottom: 2px solid #9ca3af;
+        transform: translateY(-50%) rotate(-45deg);
+        opacity: 0.6;
+    }
+
+    /* Slide-in panel styles */
+    .slide-panel {
+        transition: transform 0.3s ease-in-out;
+        background-color: white;
+        color: #1f2937;
+    }
+    
+    .dark .slide-panel {
+        background-color: #1f2937;
+        color: #f3f4f6;
+    }
+    
+    .slide-panel.open {
+        transform: translateX(0);
+    }
+    
+    .slide-panel.closed {
+        transform: translateX(100%);
+    }
+    
+    /* Slide panel content styling */
+    .slide-panel .panel-section {
+        background-color: #f9fafb;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .dark .slide-panel .panel-section {
+        background-color: #374151;
+        border: 1px solid #4b5563;
+    }
+    
+    .slide-panel .panel-text-primary {
+        color: #1f2937;
+    }
+    
+    .dark .slide-panel .panel-text-primary {
+        color: #f3f4f6;
+    }
+    
+    .slide-panel .panel-text-secondary {
+        color: #6b7280;
+    }
+    
+    .dark .slide-panel .panel-text-secondary {
+        color: #9ca3af;
+    }
+    
+    .slide-panel .panel-border {
+        border-color: #e5e7eb;
+    }
+    
+    .dark .slide-panel .panel-border {
+        border-color: #4b5563;
+    }
+
+    /* Development toggle button */
+    .dev-toggle {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 25px;
+        font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.3s ease;
+    }
+    
+    .dev-toggle:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    
+    .dev-mobile-mode .desktop-filters { display: none !important; }
+    .dev-mobile-mode .mobile-filters { display: block !important; }
+    .dev-mobile-mode .desktop-view { display: none !important; }
+    .dev-mobile-mode .mobile-view { display: block !important; }
+    
+    .mobile-filters { display: none; }
+    .mobile-view { display: none; }
 </style>
 {% endblock %}
 
 {% block content %}
+<!-- Development Toggle Button -->
+<button id="dev-toggle" class="dev-toggle" onclick="toggleMobileView()">
+    📱 DEV: Switch to Mobile
+</button>
+
 <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
     <!-- Combined Header and Controls -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-4 border border-gray-200 dark:border-gray-600">
@@ -392,8 +513,8 @@
             </div>
         </div>
         
-        <!-- Global Search Row -->
-        <div class="mb-3">
+        <!-- Desktop Global Search Row -->
+        <div class="mb-3 desktop-filters">
             <div class="max-w-md">
                 <label for="global-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Global Search
@@ -411,6 +532,26 @@
             </div>
         </div>
         
+        <!-- Mobile Simplified Filters -->
+        <div class="mobile-filters space-y-3">
+            <input 
+                type="text" 
+                id="mobile-global-search"
+                placeholder="Search items..."
+                class="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+            
+            <select 
+                id="mobile-category-filter"
+                class="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+                <option value="">All Categories</option>
+                {% for category in filter_options.categories %}
+                <option value="{{ category }}">{{ category }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
         <!-- Table info row -->
         <div class="flex justify-end">
             <div class="text-sm text-gray-600 dark:text-gray-400">
@@ -423,6 +564,32 @@
     <div id="items-table" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-600"></div>
 </div>
 
+<!-- Slide-in Panel for Item Details (Mobile) -->
+<div id="item-slide-panel" 
+     class="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white dark:bg-gray-800 shadow-xl slide-panel closed">
+    
+    <!-- Panel Header -->
+    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Item Details</h2>
+        <button onclick="closeItemSlidePanel()" 
+                class="p-2 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+    </div>
+    
+    <!-- Panel Content -->
+    <div class="overflow-y-auto h-full pb-20">
+        <div id="slide-panel-content" class="p-4">
+            <!-- Content loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Backdrop -->
+<div id="slide-panel-backdrop" 
+     class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"
+     onclick="closeItemSlidePanel()"></div>
+
 <!-- Tabulator JavaScript -->
 <script src="{{ url_for('static', path='js/vendor/tabulator.min.js') }}"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -430,6 +597,7 @@
 <script>
 // Initialize Tabulator Table
 let table;
+let isMobileView = false; // Development flag
 
 document.addEventListener('DOMContentLoaded', function() {
     // Get filter options for dropdowns
@@ -449,7 +617,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('last-refresh').textContent = `Last refreshed: ${timeString}`;
     }
     
-    // Create Tabulator with full configuration
+    // Function to check if we should show mobile view
+    function shouldShowMobileView() {
+        return isMobileView || window.innerWidth < 768;
+    }
+    
+    // Make function available globally for formatter
+    window.shouldShowMobileView = shouldShowMobileView;
+    
+    // Create Tabulator with responsive configuration
+    console.log("Creating Tabulator table...");
     table = new Tabulator("#items-table", {
         // Data fetching
         ajaxURL: "/items/data",
@@ -482,9 +659,9 @@ document.addEventListener('DOMContentLoaded', function() {
         virtualDom: true,
         virtualDomBuffer: 300,
         
-        // Columns configuration with grouped quantity columns
+        // Columns configuration with mobile optimization
         columns: [
-            // Fixed left columns
+            // Always visible columns (mobile + desktop)
             {
                 title: "Item Name", 
                 field: "item_name", 
@@ -497,8 +674,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!headerValue) return true;
                     return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
                 },
+                formatter: function(cell, formatterParams) {
+                    try {
+                        const value = cell.getValue();
+                        const row = cell.getRow().getData();
+                        
+                        if (shouldShowMobileView()) {
+                            return `
+                                <div class="mobile-item-row">
+                                    <div class="font-medium text-gray-900 dark:text-white">${value}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">${row.sku}</div>
+                                </div>
+                            `;
+                        } else {
+                            return `<div class="font-medium">${value}</div>`;
+                        }
+                    } catch (e) {
+                        console.warn("Formatter error:", e);
+                        return "";
+                    }
+                },
                 tooltip: function(cell) {
-                    return cell.getValue();
+                    try {
+                        return cell.getValue();
+                    } catch (e) {
+                        console.warn("Tooltip error:", e);
+                        return "";
+                    }
                 }
             },
             {
@@ -512,22 +714,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
                     if (!headerValue) return true;
                     return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
-                }
-            },
-            {
-                title: "Description", 
-                field: "description", 
-                width: 200,
-                sorter: "string",
-                headerFilter: "input",
-                headerFilterPlaceholder: "Search descriptions...",
-                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
-                    if (!headerValue) return true;
-                    return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
                 },
-                tooltip: function(cell) {
-                    return cell.getValue();
-                }
+                responsive: 1 // Hidden on mobile since shown under item name
             },
             {
                 title: "Category", 
@@ -544,36 +732,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
                     if (!headerValue || headerValue.length === 0) return true;
                     return headerValue.includes(rowValue);
-                }
-            },
-            {
-                title: "Vendor", 
-                field: "vendor_name", 
-                width: 150,
-                sorter: "string",
-                headerFilter: "list",
-                headerFilterParams: {
-                    values: filterOptions.vendors,
-                    multiselect: true,
-                    clearable: true,
-                    emptyValue: null
                 },
-                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
-                    if (!headerValue || headerValue.length === 0) return true;
-                    return headerValue.includes(rowValue);
-                }
-            },
-            {
-                title: "Vendor Code", 
-                field: "vendor_code", 
-                width: 120,
-                sorter: "string",
-                headerFilter: "input",
-                headerFilterPlaceholder: "Search codes...",
-                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
-                    if (!headerValue) return true;
-                    return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
-                }
+                responsive: 0
             },
             {
                 title: "Price", 
@@ -592,7 +752,81 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
                     if (!headerValue || headerValue.length === 0) return true;
                     return headerValue.includes(rowValue);
+                },
+                responsive: 0
+            },
+            {
+                title: "Stock", 
+                field: "total_qty", 
+                width: 80, 
+                sorter: "number",
+                hozAlign: "center",
+                responsive: 0,
+                formatter: function(cell, formatterParams) {
+                    try {
+                        const value = cell.getValue();
+                        if (value === 0) return "0";
+                        if (value > 0) return `<span style="color: #059669; font-weight: 600;">${value}</span>`;
+                        return `<span style="color: #dc2626; font-weight: 600;">${value}</span>`;
+                    } catch (e) {
+                        console.warn("Formatter error:", e);
+                        return "";
+                    }
                 }
+            },
+            
+            // Desktop-only columns (hidden on mobile)
+            {
+                title: "Description", 
+                field: "description", 
+                width: 200,
+                sorter: "string",
+                headerFilter: "input",
+                headerFilterPlaceholder: "Search descriptions...",
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue) return true;
+                    return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
+                },
+                tooltip: function(cell) {
+                    try {
+                        return cell.getValue();
+                    } catch (e) {
+                        console.warn("Tooltip error:", e);
+                        return "";
+                    }
+                },
+                responsive: 2
+            },
+            {
+                title: "Vendor", 
+                field: "vendor_name", 
+                width: 150,
+                sorter: "string",
+                headerFilter: "list",
+                headerFilterParams: {
+                    values: filterOptions.vendors,
+                    multiselect: true,
+                    clearable: true,
+                    emptyValue: null
+                },
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue || headerValue.length === 0) return true;
+                    return headerValue.includes(rowValue);
+                },
+                responsive: 3
+            },
+            {
+                title: "Vendor Code", 
+                field: "vendor_code", 
+                width: 120,
+                sorter: "string",
+                headerFilter: "input",
+                headerFilterPlaceholder: "Search codes...",
+                headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
+                    if (!headerValue) return true;
+                    return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
+                },
+                responsive: 4
             },
             {
                 title: "Cost", 
@@ -611,7 +845,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerFilterFunc: function(headerValue, rowValue, rowData, filterParams) {
                     if (!headerValue || headerValue.length === 0) return true;
                     return headerValue.includes(rowValue);
-                }
+                },
+                responsive: 5
             },
             {
                 title: "Margin", 
@@ -619,10 +854,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 100, 
                 sorter: "number",
                 formatter: function(cell, formatterParams) {
-                    const value = cell.getValue();
-                    if (value === null || value === undefined) return "";
-                    return value.toFixed(1) + "%";
-                }
+                    try {
+                        const value = cell.getValue();
+                        if (value === null || value === undefined) return "";
+                        return value.toFixed(1) + "%";
+                    } catch (e) {
+                        console.warn("Formatter error:", e);
+                        return "";
+                    }
+                },
+                responsive: 6
             },
             {
                 title: "Markup", 
@@ -630,15 +871,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 100, 
                 sorter: "number",
                 formatter: function(cell, formatterParams) {
-                    const value = cell.getValue();
-                    if (value === null || value === undefined) return "";
-                    return value.toFixed(1) + "%";
-                }
+                    try {
+                        const value = cell.getValue();
+                        if (value === null || value === undefined) return "";
+                        return value.toFixed(1) + "%";
+                    } catch (e) {
+                        console.warn("Formatter error:", e);
+                        return "";
+                    }
+                },
+                responsive: 7
             },
             
-            // Grouped Quantity Columns
+            // Grouped Quantity Columns (desktop only)
             {
                 title: "Quantity",
+                responsive: 8,
                 columns: [
                     {
                         title: "A", 
@@ -646,7 +894,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         width: 80, 
                         sorter: "number",
                         hozAlign: "center",
-                        tooltip: "Aubrey Location"
+                        tooltip: "Aubrey Location",
+                        responsive: 8
                     },
                     {
                         title: "BF", 
@@ -654,7 +903,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         width: 80, 
                         sorter: "number",
                         hozAlign: "center",
-                        tooltip: "Bridgefarmer Location"
+                        tooltip: "Bridgefarmer Location",
+                        responsive: 8
                     },
                     {
                         title: "B", 
@@ -662,7 +912,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         width: 80, 
                         sorter: "number",
                         hozAlign: "center",
-                        tooltip: "Building Location"
+                        tooltip: "Building Location",
+                        responsive: 8
                     },
                     {
                         title: "F", 
@@ -670,7 +921,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         width: 80, 
                         sorter: "number",
                         hozAlign: "center",
-                        tooltip: "FloMo Location"
+                        tooltip: "FloMo Location",
+                        responsive: 8
                     },
                     {
                         title: "J", 
@@ -678,7 +930,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         width: 80, 
                         sorter: "number",
                         hozAlign: "center",
-                        tooltip: "Justin Location"
+                        tooltip: "Justin Location",
+                        responsive: 8
                     },
                     {
                         title: "Q", 
@@ -686,7 +939,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         width: 80, 
                         sorter: "number",
                         hozAlign: "center",
-                        tooltip: "Quinlan Location"
+                        tooltip: "Quinlan Location",
+                        responsive: 8
                     },
                     {
                         title: "T", 
@@ -694,20 +948,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         width: 80, 
                         sorter: "number",
                         hozAlign: "center",
-                        tooltip: "Terrell Location"
-                    },
-                    {
-                        title: "Total", 
-                        field: "total_qty", 
-                        width: 100, 
-                        sorter: "number",
-                        hozAlign: "center",
-                        formatter: function(cell, formatterParams) {
-                            const value = cell.getValue();
-                            if (value === 0) return "0";
-                            if (value > 0) return `<span style="color: #059669; font-weight: 600;">${value}</span>`;
-                            return `<span style="color: #dc2626; font-weight: 600;">${value}</span>`;
-                        }
+                        tooltip: "Terrell Location",
+                        responsive: 8
                     }
                 ]
             }
@@ -758,8 +1000,140 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 table.refreshFilter();
             }, 10);
+        },
+        
+        // Table built callback - set initial mobile state if needed
+        tableBuilt: function() {
+            console.log("Table built successfully!");
+            console.log("Table object:", table);
+            // If we're in mobile view mode initially, hide desktop columns
+            if (shouldShowMobileView()) {
+                setTimeout(() => {
+                    hideDesktopColumns();
+                }, 100); // Small delay to ensure table is fully built
+            }
+        },
+        
+        // Row click handler for mobile slide panel
+        rowClick: function(e, row) {
+            console.log("Row clicked!");
+            console.log("Should show mobile view:", shouldShowMobileView());
+            console.log("isMobileView:", isMobileView);
+            console.log("window.innerWidth:", window.innerWidth);
+            
+            // Only handle row clicks in mobile view
+            if (shouldShowMobileView()) {
+                const rowData = row.getData();
+                console.log("Row data:", rowData);
+                if (rowData && rowData.sku) {
+                    console.log("Opening slide panel for SKU:", rowData.sku);
+                    openItemSlidePanel(rowData.sku);
+                } else {
+                    console.log("No SKU found in row data");
+                }
+            } else {
+                console.log("Not in mobile view, ignoring click");
+            }
+        },
+        
+        // Row mouse events for visual feedback in mobile mode
+        rowMouseEnter: function(e, row) {
+            if (shouldShowMobileView()) {
+                row.getElement().style.cursor = 'pointer';
+                row.getElement().style.backgroundColor = 'rgba(59, 130, 246, 0.1)'; // Light blue highlight
+            }
+        },
+        
+        rowMouseLeave: function(e, row) {
+            if (shouldShowMobileView()) {
+                row.getElement().style.cursor = 'default';
+                row.getElement().style.backgroundColor = ''; // Remove highlight
+            }
         }
     });
+
+    console.log("Table created, setting up additional event listeners...");
+    
+    // Test if we can attach click events to the table element directly
+    document.addEventListener('click', function(e) {
+        const tableElement = document.getElementById('items-table');
+        if (tableElement && tableElement.contains(e.target)) {
+            console.log("Click detected inside table area");
+            console.log("Clicked element:", e.target);
+            console.log("Mobile view?", shouldShowMobileView());
+            
+            // Check if this is a row click
+            const rowElement = e.target.closest('.tabulator-row');
+            if (rowElement && shouldShowMobileView()) {
+                console.log("Row element found:", rowElement);
+                
+                // Try to get row data from Tabulator
+                if (table) {
+                    try {
+                        const rows = table.getRows();
+                        const clickedRow = rows.find(row => row.getElement() === rowElement);
+                        if (clickedRow) {
+                            const rowData = clickedRow.getData();
+                            console.log("Found row data via DOM:", rowData);
+                            if (rowData && rowData.sku) {
+                                console.log("Opening slide panel for SKU (via DOM):", rowData.sku);
+                                openItemSlidePanel(rowData.sku);
+                            }
+                        }
+                    } catch (error) {
+                        console.error("Error getting row data:", error);
+                    }
+                }
+            }
+        }
+    });
+
+    // Mobile search functionality
+    let mobileSearchTimeout;
+    const mobileGlobalSearchInput = document.getElementById("mobile-global-search");
+    const mobileCategoryFilter = document.getElementById("mobile-category-filter");
+    
+    if (mobileGlobalSearchInput) {
+        mobileGlobalSearchInput.addEventListener("input", function() {
+            clearTimeout(mobileSearchTimeout);
+            mobileSearchTimeout = setTimeout(function() {
+                updateTableWithMobileFilters();
+            }, 300);
+        });
+    }
+    
+    if (mobileCategoryFilter) {
+        mobileCategoryFilter.addEventListener("change", function() {
+            updateTableWithMobileFilters();
+        });
+    }
+    
+    function updateTableWithMobileFilters() {
+        const searchTerm = mobileGlobalSearchInput ? mobileGlobalSearchInput.value.trim() : "";
+        const category = mobileCategoryFilter ? mobileCategoryFilter.value : "";
+        
+        console.log("Mobile filters - Search:", searchTerm, "Category:", category);
+        
+        // Build new URL with parameters for remote filtering
+        let newUrl = "/items/data";
+        const params = [];
+        
+        if (searchTerm) {
+            params.push("global_search=" + encodeURIComponent(searchTerm));
+        }
+        if (category) {
+            params.push("category=" + encodeURIComponent(category));
+        }
+        
+        if (params.length > 0) {
+            newUrl += "?" + params.join("&");
+        }
+        
+        console.log("Updating table with URL:", newUrl);
+        
+        // Update the table's AJAX URL and refresh data
+        table.setData(newUrl);
+    }
 
     // Export functionality
     document.getElementById("download-xlsx").addEventListener("click", function() {
@@ -942,6 +1316,297 @@ document.addEventListener('DOMContentLoaded', function() {
         attributes: true,
         attributeFilter: ['class']
     });
+});
+
+// Development toggle functionality
+function toggleMobileView() {
+    isMobileView = !isMobileView;
+    console.log("Mobile view toggled. isMobileView now:", isMobileView);
+    
+    const toggleBtn = document.getElementById('dev-toggle');
+    const bodyElement = document.body;
+    
+    if (isMobileView) {
+        console.log("Switching to mobile mode");
+        bodyElement.classList.add('dev-mobile-mode');
+        toggleBtn.textContent = '🖥️ DEV: Switch to Desktop';
+        
+        // Hide desktop-only columns in mobile mode
+        hideDesktopColumns();
+    } else {
+        console.log("Switching to desktop mode");
+        bodyElement.classList.remove('dev-mobile-mode');
+        toggleBtn.textContent = '📱 DEV: Switch to Mobile';
+        
+        // Show all columns in desktop mode
+        showAllColumns();
+    }
+    
+    // Redraw table to update mobile-specific formatting
+    if (table) {
+        table.redraw(true);
+    }
+}
+
+// Function to hide desktop-only columns
+function hideDesktopColumns() {
+    if (!table) return;
+    
+    // Hide desktop-only columns
+    const desktopColumns = [
+        'sku',           // Hidden since shown under item name
+        'description',   // Desktop only
+        'vendor_name',   // Desktop only  
+        'vendor_code',   // Desktop only
+        'cost',          // Desktop only
+        'profit_margin_percent',  // Desktop only
+        'profit_markup_percent',  // Desktop only
+        'aubrey_qty',    // Location quantities (desktop only)
+        'bridgefarmer_qty',
+        'building_qty',
+        'flomo_qty',
+        'justin_qty',
+        'quinlan_qty',
+        'terrell_qty'
+    ];
+    
+    desktopColumns.forEach(columnField => {
+        try {
+            table.hideColumn(columnField);
+        } catch (e) {
+            // Column might not exist or already hidden
+            console.log(`Could not hide column: ${columnField}`);
+        }
+    });
+    
+    console.log('Mobile mode: Hidden desktop columns');
+}
+
+// Function to show all columns
+function showAllColumns() {
+    if (!table) return;
+    
+    // Show all columns
+    const allColumns = [
+        'sku',
+        'description',
+        'vendor_name',
+        'vendor_code', 
+        'cost',
+        'profit_margin_percent',
+        'profit_markup_percent',
+        'aubrey_qty',
+        'bridgefarmer_qty',
+        'building_qty',
+        'flomo_qty',
+        'justin_qty',
+        'quinlan_qty',
+        'terrell_qty'
+    ];
+    
+    allColumns.forEach(columnField => {
+        try {
+            table.showColumn(columnField);
+        } catch (e) {
+            // Column might not exist
+            console.log(`Could not show column: ${columnField}`);
+        }
+    });
+    
+    console.log('Desktop mode: Showed all columns');
+}
+
+// Mobile slide panel functionality
+function openItemSlidePanel(sku) {
+    console.log("openItemSlidePanel called with SKU:", sku);
+    console.log("shouldShowMobileView():", shouldShowMobileView());
+    
+    if (!shouldShowMobileView()) {
+        console.log("Not in mobile view, returning early");
+        return;
+    }
+    
+    console.log("Setting loading state...");
+    
+    // Show loading state
+    document.getElementById('slide-panel-content').innerHTML = `
+        <div class="flex items-center justify-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span class="ml-3 text-gray-600 dark:text-gray-400">Loading...</span>
+        </div>
+    `;
+    
+    console.log("Showing panel...");
+    
+    // Show panel
+    document.getElementById('slide-panel-backdrop').classList.remove('hidden');
+    document.getElementById('item-slide-panel').classList.remove('closed');
+    document.getElementById('item-slide-panel').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    
+    // Fetch item details
+    console.log("Fetching item details from:", `/items/details/${encodeURIComponent(sku)}`);
+    
+    fetch(`/items/details/${encodeURIComponent(sku)}`)
+        .then(response => {
+            console.log("Fetch response:", response);
+            if (!response.ok) {
+                throw new Error('Item not found');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Item details received:", data);
+            document.getElementById('slide-panel-content').innerHTML = renderItemDetails(data);
+            // Re-initialize Lucide icons for the new content
+            lucide.createIcons();
+        })
+        .catch(error => {
+            console.error('Error fetching item details:', error);
+            document.getElementById('slide-panel-content').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="text-red-600 dark:text-red-400 mb-2">
+                        <i data-lucide="alert-circle" class="w-8 h-8 mx-auto mb-2"></i>
+                        Error Loading Item
+                    </div>
+                    <p class="text-gray-600 dark:text-gray-400 text-sm">
+                        Could not load item details. Please try again.
+                    </p>
+                </div>
+            `;
+            lucide.createIcons();
+        });
+}
+
+function closeItemSlidePanel() {
+    document.getElementById('item-slide-panel').classList.remove('open');
+    document.getElementById('item-slide-panel').classList.add('closed');
+    document.getElementById('slide-panel-backdrop').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function renderItemDetails(item) {
+    return `
+        <div class="space-y-6">
+            <!-- Basic Info -->
+            <div>
+                <h3 class="text-lg font-medium panel-text-primary mb-1">
+                    ${item.item_name || 'Unknown Item'}
+                </h3>
+                <p class="text-sm panel-text-secondary mb-1">
+                    <strong>SKU:</strong> ${item.sku || 'N/A'}
+                </p>
+                <p class="text-sm panel-text-secondary">
+                    <strong>Category:</strong> ${item.category || 'N/A'}
+                </p>
+                ${item.description ? `
+                <p class="text-sm panel-text-secondary mt-2">
+                    ${item.description}
+                </p>
+                ` : ''}
+            </div>
+            
+            <!-- Pricing -->
+            <div class="panel-section rounded-lg p-4">
+                <h4 class="font-medium panel-text-primary mb-3 flex items-center">
+                    <i data-lucide="dollar-sign" class="w-4 h-4 mr-2"></i>
+                    Pricing
+                </h4>
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="panel-text-secondary">Price:</span>
+                        <div class="font-medium text-green-600 dark:text-green-400">
+                            ${item.price ? '$' + parseFloat(item.price).toFixed(2) : 'N/A'}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="panel-text-secondary">Cost:</span>
+                        <div class="font-medium panel-text-primary">
+                            ${item.cost ? '$' + parseFloat(item.cost).toFixed(2) : 'N/A'}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="panel-text-secondary">Margin:</span>
+                        <div class="font-medium panel-text-primary">
+                            ${item.profit_margin_percent ? item.profit_margin_percent.toFixed(1) + '%' : 'N/A'}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="panel-text-secondary">Markup:</span>
+                        <div class="font-medium panel-text-primary">
+                            ${item.profit_markup_percent ? item.profit_markup_percent.toFixed(1) + '%' : 'N/A'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Inventory -->
+            <div class="panel-section rounded-lg p-4">
+                <h4 class="font-medium panel-text-primary mb-3 flex items-center">
+                    <i data-lucide="package" class="w-4 h-4 mr-2"></i>
+                    Inventory
+                </h4>
+                <div class="text-center mb-4">
+                    <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">${item.total_qty || 0}</div>
+                    <div class="text-sm panel-text-secondary">Total Stock</div>
+                </div>
+                
+                <!-- Location breakdown -->
+                <div class="space-y-2">
+                    ${renderLocationStock(item)}
+                </div>
+            </div>
+            
+            <!-- Vendor Info -->
+            <div class="panel-section rounded-lg p-4">
+                <h4 class="font-medium panel-text-primary mb-3 flex items-center">
+                    <i data-lucide="building-2" class="w-4 h-4 mr-2"></i>
+                    Vendor
+                </h4>
+                <div class="space-y-2 text-sm">
+                    <div>
+                        <span class="panel-text-secondary">Vendor:</span>
+                        <div class="font-medium panel-text-primary">${item.vendor_name || 'N/A'}</div>
+                    </div>
+                    <div>
+                        <span class="panel-text-secondary">Vendor Code:</span>
+                        <div class="font-medium panel-text-primary">${item.vendor_code || 'N/A'}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderLocationStock(item) {
+    const locations = [
+        {name: 'Aubrey', code: 'A', qty: item.aubrey_qty || 0},
+        {name: 'Bridgefarmer', code: 'BF', qty: item.bridgefarmer_qty || 0},
+        {name: 'Building', code: 'B', qty: item.building_qty || 0},
+        {name: 'FloMo', code: 'F', qty: item.flomo_qty || 0},
+        {name: 'Justin', code: 'J', qty: item.justin_qty || 0},
+        {name: 'Quinlan', code: 'Q', qty: item.quinlan_qty || 0},
+        {name: 'Terrell', code: 'T', qty: item.terrell_qty || 0}
+    ];
+    
+    return locations.map(loc => `
+        <div class="flex justify-between items-center py-1 panel-border-b">
+            <span class="text-sm panel-text-secondary">
+                ${loc.name} (${loc.code})
+            </span>
+            <span class="font-medium ${loc.qty > 0 ? 'text-green-600 dark:text-green-400' : 'panel-text-secondary'}">
+                ${loc.qty}
+            </span>
+        </div>
+    `).join('');
+}
+
+// Handle window resize to maintain proper behavior
+window.addEventListener('resize', function() {
+    // Close slide panel if user switches to desktop (unless in dev mobile mode)
+    if (window.innerWidth >= 768 && !isMobileView) {
+        closeItemSlidePanel();
+    }
 });
 
 // Reinitialize icons when content updates
