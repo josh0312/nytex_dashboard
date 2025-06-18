@@ -112,9 +112,8 @@ jobs:
           export SQLALCHEMY_DATABASE_URI="$DATABASE_URI"
           export PYTHONPATH="${GITHUB_WORKSPACE}"
           
-          # Run Alembic migrations
-          cd migrations
-          alembic upgrade head
+          # Run Alembic migrations from repository root
+          alembic -c migrations/alembic.ini upgrade head
           
           echo "✅ Database migrations completed successfully"
 
