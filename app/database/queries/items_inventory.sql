@@ -20,12 +20,8 @@ SELECT
     COALESCE(sile.default_vendor_name, '') AS vendor_name,
     COALESCE(sile.default_vendor_code, '') AS vendor_code,
     
-    -- Cost information - try both sources with proper fallback
-    CASE 
-        WHEN cv.default_unit_cost IS NOT NULL AND (cv.default_unit_cost->>'amount') IS NOT NULL AND (cv.default_unit_cost->>'amount') != ''
-        THEN (cv.default_unit_cost->>'amount')::numeric / 100
-        ELSE sile.default_unit_cost
-    END AS cost,
+    -- Cost information - use only square_item_library_export (production catalog_variations doesn't have default_unit_cost)
+    sile.default_unit_cost AS cost,
     
     -- Profit margin calculation: (Price - Cost) / Price * 100
     CASE 
@@ -36,13 +32,7 @@ SELECT
                 ELSE sile.price
             END
         ) IS NOT NULL 
-        AND (
-            CASE 
-                WHEN cv.default_unit_cost IS NOT NULL AND (cv.default_unit_cost->>'amount') IS NOT NULL AND (cv.default_unit_cost->>'amount') != ''
-                THEN (cv.default_unit_cost->>'amount')::numeric / 100
-                ELSE sile.default_unit_cost
-            END
-        ) IS NOT NULL 
+        AND sile.default_unit_cost IS NOT NULL 
         AND (
             CASE 
                 WHEN cv.price_money IS NOT NULL AND (cv.price_money->>'amount') IS NOT NULL AND (cv.price_money->>'amount') != ''
@@ -55,12 +45,7 @@ SELECT
                 WHEN cv.price_money IS NOT NULL AND (cv.price_money->>'amount') IS NOT NULL AND (cv.price_money->>'amount') != ''
                 THEN (cv.price_money->>'amount')::numeric / 100
                 ELSE sile.price
-            END) - 
-            (CASE 
-                WHEN cv.default_unit_cost IS NOT NULL AND (cv.default_unit_cost->>'amount') IS NOT NULL AND (cv.default_unit_cost->>'amount') != ''
-                THEN (cv.default_unit_cost->>'amount')::numeric / 100
-                ELSE sile.default_unit_cost
-            END)
+            END) - sile.default_unit_cost
         ) / (
             CASE 
                 WHEN cv.price_money IS NOT NULL AND (cv.price_money->>'amount') IS NOT NULL AND (cv.price_money->>'amount') != ''
@@ -80,38 +65,15 @@ SELECT
                 ELSE sile.price
             END
         ) IS NOT NULL 
-        AND (
-            CASE 
-                WHEN cv.default_unit_cost IS NOT NULL AND (cv.default_unit_cost->>'amount') IS NOT NULL AND (cv.default_unit_cost->>'amount') != ''
-                THEN (cv.default_unit_cost->>'amount')::numeric / 100
-                ELSE sile.default_unit_cost
-            END
-        ) IS NOT NULL 
-        AND (
-            CASE 
-                WHEN cv.default_unit_cost IS NOT NULL AND (cv.default_unit_cost->>'amount') IS NOT NULL AND (cv.default_unit_cost->>'amount') != ''
-                THEN (cv.default_unit_cost->>'amount')::numeric / 100
-                ELSE sile.default_unit_cost
-            END
-        ) > 0
+        AND sile.default_unit_cost IS NOT NULL 
+        AND sile.default_unit_cost > 0
         THEN ROUND(((
             (CASE 
                 WHEN cv.price_money IS NOT NULL AND (cv.price_money->>'amount') IS NOT NULL AND (cv.price_money->>'amount') != ''
                 THEN (cv.price_money->>'amount')::numeric / 100
                 ELSE sile.price
-            END) - 
-            (CASE 
-                WHEN cv.default_unit_cost IS NOT NULL AND (cv.default_unit_cost->>'amount') IS NOT NULL AND (cv.default_unit_cost->>'amount') != ''
-                THEN (cv.default_unit_cost->>'amount')::numeric / 100
-                ELSE sile.default_unit_cost
-            END)
-        ) / (
-            CASE 
-                WHEN cv.default_unit_cost IS NOT NULL AND (cv.default_unit_cost->>'amount') IS NOT NULL AND (cv.default_unit_cost->>'amount') != ''
-                THEN (cv.default_unit_cost->>'amount')::numeric / 100
-                ELSE sile.default_unit_cost
-            END
-        ) * 100)::numeric, 2)
+            END) - sile.default_unit_cost
+        ) / sile.default_unit_cost * 100)::numeric, 2)
         ELSE NULL 
     END AS profit_markup_percent,
     
@@ -181,12 +143,12 @@ ORDER BY sile.item_name ASC
 
 -- Note: This query provides comprehensive item data including:
 -- 1. All basic item information (name, SKU, description, categories)
--- 2. Complete pricing data (price, unit cost, profit margin) - prioritizing catalog_variations over square_item_library_export
+-- 2. Complete pricing data (price, unit cost, profit margin) - prioritizing catalog_variations for price, square_item_library_export for cost
 -- 3. Full vendor information (name, code)
 -- 4. Item attributes (sellable, stockable, archived status)
 -- 5. Location availability flags
 -- 6. Metadata timestamps
 --
--- Data Source: Prioritizes catalog_variations table for cost/price data since that contains
--- the most current information from Square's API, falling back to square_item_library_export
--- for any missing data. Inventory quantities are set to 0 for now to avoid complex joins. 
+-- Data Source: Uses catalog_variations for price data and square_item_library_export for cost data
+-- since production catalog_variations doesn't have the default_unit_cost column yet.
+-- Inventory quantities are set to 0 for now to avoid complex joins. 
