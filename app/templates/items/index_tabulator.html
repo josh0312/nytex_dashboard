@@ -496,40 +496,41 @@
             display: none !important;
         }
         
-        /* Force hide desktop columns on mobile devices */
-        .tabulator .tabulator-col[data-field="sku"],
-        .tabulator .tabulator-col[data-field="description"],
-        .tabulator .tabulator-col[data-field="vendor_name"],
-        .tabulator .tabulator-col[data-field="vendor_code"],
-        .tabulator .tabulator-col[data-field="cost"],
-        .tabulator .tabulator-col[data-field="profit_margin_percent"],
-        .tabulator .tabulator-col[data-field="profit_markup_percent"],
-        .tabulator .tabulator-col[data-field="aubrey_qty"],
-        .tabulator .tabulator-col[data-field="bridgefarmer_qty"],
-        .tabulator .tabulator-col[data-field="building_qty"],
-        .tabulator .tabulator-col[data-field="flomo_qty"],
-        .tabulator .tabulator-col[data-field="justin_qty"],
-        .tabulator .tabulator-col[data-field="quinlan_qty"],
-        .tabulator .tabulator-col[data-field="terrell_qty"] {
+        /* Force hide desktop columns on mobile devices - try multiple selectors */
+        .tabulator-col[tabulator-field="sku"],
+        .tabulator-col[tabulator-field="description"],
+        .tabulator-col[tabulator-field="vendor_name"],
+        .tabulator-col[tabulator-field="vendor_code"],
+        .tabulator-col[tabulator-field="cost"],
+        .tabulator-col[tabulator-field="profit_margin_percent"],
+        .tabulator-col[tabulator-field="profit_markup_percent"],
+        .tabulator-col[tabulator-field="aubrey_qty"],
+        .tabulator-col[tabulator-field="bridgefarmer_qty"],
+        .tabulator-col[tabulator-field="building_qty"],
+        .tabulator-col[tabulator-field="flomo_qty"],
+        .tabulator-col[tabulator-field="justin_qty"],
+        .tabulator-col[tabulator-field="quinlan_qty"],
+        .tabulator-col[tabulator-field="terrell_qty"],
+        .tabulator-cell[tabulator-field="sku"],
+        .tabulator-cell[tabulator-field="description"],
+        .tabulator-cell[tabulator-field="vendor_name"],
+        .tabulator-cell[tabulator-field="vendor_code"],
+        .tabulator-cell[tabulator-field="cost"],
+        .tabulator-cell[tabulator-field="profit_margin_percent"],
+        .tabulator-cell[tabulator-field="profit_markup_percent"],
+        .tabulator-cell[tabulator-field="aubrey_qty"],
+        .tabulator-cell[tabulator-field="bridgefarmer_qty"],
+        .tabulator-cell[tabulator-field="building_qty"],
+        .tabulator-cell[tabulator-field="flomo_qty"],
+        .tabulator-cell[tabulator-field="justin_qty"],
+        .tabulator-cell[tabulator-field="quinlan_qty"],
+        .tabulator-cell[tabulator-field="terrell_qty"] {
             display: none !important;
-        }
-        
-        /* Force hide desktop cell content on mobile devices */
-        .tabulator .tabulator-cell[data-field="sku"],
-        .tabulator .tabulator-cell[data-field="description"],
-        .tabulator .tabulator-cell[data-field="vendor_name"],
-        .tabulator .tabulator-cell[data-field="vendor_code"],
-        .tabulator .tabulator-cell[data-field="cost"],
-        .tabulator .tabulator-cell[data-field="profit_margin_percent"],
-        .tabulator .tabulator-cell[data-field="profit_markup_percent"],
-        .tabulator .tabulator-cell[data-field="aubrey_qty"],
-        .tabulator .tabulator-cell[data-field="bridgefarmer_qty"],
-        .tabulator .tabulator-cell[data-field="building_qty"],
-        .tabulator .tabulator-cell[data-field="flomo_qty"],
-        .tabulator .tabulator-cell[data-field="justin_qty"],
-        .tabulator .tabulator-cell[data-field="quinlan_qty"],
-        .tabulator .tabulator-cell[data-field="terrell_qty"] {
-            display: none !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
         }
         
         /* Ensure mobile row click behavior */
@@ -1086,6 +1087,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Always check mobile state and apply appropriate column visibility
             setTimeout(() => {
                 updateColumnVisibilityForScreenSize();
+                
+                // Force mobile layout on mobile devices even without dev toggle
+                if (window.innerWidth < 768) {
+                    console.log("Mobile device detected, forcing mobile column layout");
+                    hideDesktopColumns();
+                    showMobileFilters();
+                }
             }, 100); // Small delay to ensure table is fully built
         },
         
@@ -1096,8 +1104,14 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("isMobileView:", isMobileView);
             console.log("window.innerWidth:", window.innerWidth);
             
-            // Only handle row clicks in mobile view
-            if (shouldShowMobileView()) {
+            // Handle row clicks for mobile devices (screen size < 768px) OR development mobile mode
+            const isMobileDevice = window.innerWidth < 768;
+            const shouldHandleClick = isMobileDevice || isMobileView;
+            
+            console.log("Is mobile device:", isMobileDevice);
+            console.log("Should handle click:", shouldHandleClick);
+            
+            if (shouldHandleClick) {
                 const rowData = row.getData();
                 console.log("Row data:", rowData);
                 if (rowData && rowData.sku) {
@@ -1107,7 +1121,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log("No SKU found in row data");
                 }
             } else {
-                console.log("Not in mobile view, ignoring click");
+                console.log("Not in mobile view/device, ignoring click");
             }
         },
         
@@ -1432,6 +1446,8 @@ function toggleMobileView() {
 function hideDesktopColumns() {
     if (!table) return;
     
+    console.log("hideDesktopColumns: Starting column hiding process");
+    
     // Hide desktop-only columns
     const desktopColumns = [
         'sku',           // Hidden since shown under item name
@@ -1452,14 +1468,24 @@ function hideDesktopColumns() {
     
     desktopColumns.forEach(columnField => {
         try {
+            console.log(`Attempting to hide column: ${columnField}`);
             table.hideColumn(columnField);
+            console.log(`Successfully hid column: ${columnField}`);
         } catch (e) {
             // Column might not exist or already hidden
-            console.log(`Could not hide column: ${columnField}`);
+            console.log(`Could not hide column: ${columnField}`, e);
         }
     });
     
-    console.log('Mobile mode: Hidden desktop columns');
+    // Force a table redraw to ensure changes take effect
+    try {
+        table.redraw(true);
+        console.log('Table redrawn after hiding columns');
+    } catch (e) {
+        console.log('Error redrawing table:', e);
+    }
+    
+    console.log('Mobile mode: Desktop column hiding process completed');
 }
 
 // Function to show all columns
@@ -1519,9 +1545,16 @@ function updateColumnVisibilityForScreenSize() {
 function openItemSlidePanel(sku) {
     console.log("openItemSlidePanel called with SKU:", sku);
     console.log("shouldShowMobileView():", shouldShowMobileView());
+    console.log("window.innerWidth:", window.innerWidth);
     
-    if (!shouldShowMobileView()) {
-        console.log("Not in mobile view, returning early");
+    const isMobileDevice = window.innerWidth < 768;
+    const shouldShow = isMobileDevice || isMobileView;
+    
+    console.log("Is mobile device:", isMobileDevice);
+    console.log("Should show panel:", shouldShow);
+    
+    if (!shouldShow) {
+        console.log("Not in mobile view/device, returning early");
         return;
     }
     
