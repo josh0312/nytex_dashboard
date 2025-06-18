@@ -113,6 +113,13 @@ jobs:
           echo "✅ Database URI retrieved successfully"
           echo "🔍 Database URI format check: $(echo $DATABASE_URI | grep -o '^[^:]*://[^@]*@[^/]*' || echo 'Invalid format')"
           
+          # Verify we're connecting to the same database as the application
+          echo "🔍 Extracting database connection details (without credentials)..."
+          DB_HOST=$(echo $DATABASE_URI | sed -n 's|.*@\([^/]*\)/.*|\1|p')
+          DB_NAME=$(echo $DATABASE_URI | sed -n 's|.*/\([^?]*\).*|\1|p')
+          echo "📍 Database host: $DB_HOST"
+          echo "📍 Database name: $DB_NAME"
+          
           # Install Python dependencies for migration
           echo "📦 Installing Python dependencies..."
           python -m pip install --upgrade pip
