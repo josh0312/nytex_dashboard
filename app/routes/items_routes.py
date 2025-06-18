@@ -7,6 +7,7 @@ from app.database import get_session
 from app.services.items_service import ItemsService
 from app.logger import logger
 from fastapi import HTTPException
+from app.config import Config
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -61,7 +62,8 @@ async def items_page(
                     "vendor": vendor or "",
                     "item_type": item_type or ""
                 },
-                "total_items": len(items)
+                "total_items": len(items),
+                "debug": Config.DEBUG
             }
             
             return templates.TemplateResponse("items/index_tabulator.html", context)
@@ -85,7 +87,8 @@ async def items_page(
                 "item_type": item_type or ""
             },
             "total_items": 0,
-            "error": f"Unable to load items data: {str(e)}"
+            "error": f"Unable to load items data: {str(e)}",
+            "debug": Config.DEBUG
         }
         return templates.TemplateResponse("items/index_tabulator.html", context)
 
