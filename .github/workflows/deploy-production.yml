@@ -101,21 +101,181 @@ jobs:
         run: |
           echo "🔄 Running database migrations..."
           
-          # Get database URI from secrets
+          # Get database URI from secrets and validate
+          echo "📡 Retrieving database URI from secrets..."
           DATABASE_URI=$(gcloud secrets versions access latest --secret="database-uri")
           
+          if [ -z "$DATABASE_URI" ]; then
+            echo "❌ ERROR: Database URI is empty"
+            exit 1
+          fi
+          
+          echo "✅ Database URI retrieved successfully"
+          echo "🔍 Database URI format check: $(echo $DATABASE_URI | grep -o '^[^:]*://[^@]*@[^/]*' || echo 'Invalid format')"
+          
           # Install Python dependencies for migration
+          echo "📦 Installing Python dependencies..."
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          echo "✅ Dependencies installed"
           
           # Set environment variables for migration
           export SQLALCHEMY_DATABASE_URI="$DATABASE_URI"
           export PYTHONPATH="${GITHUB_WORKSPACE}"
           
-          # Run Alembic migrations from repository root
-          alembic -c migrations/alembic.ini upgrade head
+          # Test database connectivity before migration
+          echo "🔌 Testing database connectivity..."
+          python3 -c "
+          import os
+          import asyncpg
+          import asyncio
+          from urllib.parse import urlparse
           
-          echo "✅ Database migrations completed successfully"
+          async def test_connection():
+              try:
+                  uri = os.environ['SQLALCHEMY_DATABASE_URI']
+                  # Parse asyncpg URI from SQLAlchemy URI
+                  parsed = urlparse(uri)
+                  
+                  # Convert postgresql+asyncpg:// to postgresql://
+                  if parsed.scheme == 'postgresql+asyncpg':
+                      asyncpg_uri = uri.replace('postgresql+asyncpg://', 'postgresql://')
+                  else:
+                      asyncpg_uri = uri
+                  
+                  conn = await asyncpg.connect(asyncpg_uri)
+                  result = await conn.fetchval('SELECT version()')
+                  await conn.close()
+                  print(f'✅ Database connection successful')
+                  print(f'📊 PostgreSQL version: {result[:50]}...')
+                  return True
+              except Exception as e:
+                  print(f'❌ Database connection failed: {e}')
+                  return False
+          
+          success = asyncio.run(test_connection())
+          exit(0 if success else 1)
+          "
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Database connectivity test failed, aborting migration"
+            exit 1
+          fi
+          
+          # Check current migration status
+          echo "📋 Checking current migration status..."
+          python3 -c "
+          import os
+          import asyncpg
+          import asyncio
+          from urllib.parse import urlparse
+          
+          async def check_migrations():
+              try:
+                  uri = os.environ['SQLALCHEMY_DATABASE_URI']
+                  parsed = urlparse(uri)
+                  
+                  if parsed.scheme == 'postgresql+asyncpg':
+                      asyncpg_uri = uri.replace('postgresql+asyncpg://', 'postgresql://')
+                  else:
+                      asyncpg_uri = uri
+                  
+                  conn = await asyncpg.connect(asyncpg_uri)
+                  
+                  # Check if alembic_version table exists
+                  table_exists = await conn.fetchval(
+                      \"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'alembic_version')\"
+                  )
+                  
+                  if table_exists:
+                      current_rev = await conn.fetchval('SELECT version_num FROM alembic_version')
+                      print(f'📌 Current migration revision: {current_rev}')
+                  else:
+                      print('📌 No migration history found (fresh database)')
+                  
+                  # Check if items_view exists
+                  view_exists = await conn.fetchval(
+                      \"SELECT EXISTS (SELECT FROM information_schema.views WHERE table_name = 'items_view')\"
+                  )
+                  print(f'🔍 items_view exists: {view_exists}')
+                  
+                  await conn.close()
+              except Exception as e:
+                  print(f'❌ Migration status check failed: {e}')
+          
+          asyncio.run(check_migrations())
+          "
+          
+          # Run Alembic migrations with detailed output
+          echo "🚀 Running Alembic migrations..."
+          echo "📂 Current directory: $(pwd)"
+          echo "📁 Migrations directory contents:"
+          ls -la migrations/
+          echo "📄 Alembic config check:"
+          cat migrations/alembic.ini | grep -A 5 -B 5 script_location
+          
+          echo "🔧 Running alembic upgrade head..."
+          alembic -c migrations/alembic.ini upgrade head --verbose
+          
+          MIGRATION_EXIT_CODE=$?
+          echo "📊 Migration exit code: $MIGRATION_EXIT_CODE"
+          
+          if [ $MIGRATION_EXIT_CODE -ne 0 ]; then
+            echo "❌ Migration failed with exit code $MIGRATION_EXIT_CODE"
+            exit 1
+          fi
+          
+          # Verify migration success
+          echo "✅ Verifying migration success..."
+          python3 -c "
+          import os
+          import asyncpg
+          import asyncio
+          from urllib.parse import urlparse
+          
+          async def verify_migration():
+              try:
+                  uri = os.environ['SQLALCHEMY_DATABASE_URI']
+                  parsed = urlparse(uri)
+                  
+                  if parsed.scheme == 'postgresql+asyncpg':
+                      asyncpg_uri = uri.replace('postgresql+asyncpg://', 'postgresql://')
+                  else:
+                      asyncpg_uri = uri
+                  
+                  conn = await asyncpg.connect(asyncpg_uri)
+                  
+                  # Check final migration revision
+                  current_rev = await conn.fetchval('SELECT version_num FROM alembic_version')
+                  print(f'📌 Final migration revision: {current_rev}')
+                  
+                  # Verify items_view was created
+                  view_exists = await conn.fetchval(
+                      \"SELECT EXISTS (SELECT FROM information_schema.views WHERE table_name = 'items_view')\"
+                  )
+                  print(f'🔍 items_view created successfully: {view_exists}')
+                  
+                  if view_exists:
+                      # Test the view
+                      count = await conn.fetchval('SELECT COUNT(*) FROM items_view')
+                      print(f'📊 items_view contains {count} items')
+                  
+                  await conn.close()
+                  return view_exists
+              except Exception as e:
+                  print(f'❌ Migration verification failed: {e}')
+                  return False
+          
+          success = asyncio.run(verify_migration())
+          exit(0 if success else 1)
+          "
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Database migrations completed successfully"
+          else
+            echo "❌ Migration verification failed"
+            exit 1
+          fi
 
       - name: Deploy to Cloud Run
         run: |
