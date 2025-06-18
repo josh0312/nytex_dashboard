@@ -1510,6 +1510,55 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
                         stats["variations"]["created"] += 1
                     else:
                         stats["variations"]["updated"] += 1
+                
+                # Process vendor associations for this variation
+                vendor_infos = variation_data_obj.get('item_variation_vendor_infos', [])
+                
+                if full_refresh:
+                    # Clear existing vendor associations for this variation
+                    await conn.execute(text("""
+                        DELETE FROM catalog_vendor_info WHERE variation_id = :variation_id
+                    """), {'variation_id': variation['id']})
+                
+                # Add vendor associations
+                for idx, vendor_info in enumerate(vendor_infos):
+                    vendor_info_data = vendor_info.get('item_variation_vendor_info_data', {})
+                    vendor_id = vendor_info_data.get('vendor_id')
+                    
+                    if vendor_id:
+                        vendor_info_record = {
+                            'id': f"{variation['id']}-{vendor_id}-{idx}",  # Generate unique ID
+                            'variation_id': variation['id'],
+                            'vendor_id': vendor_id,
+                            'ordinal': idx,
+                            'is_deleted': False,
+                            'created_at': datetime.now(),
+                            'updated_at': datetime.now(),
+                            'version': 1,
+                            'present_at_all_locations': True,
+                            'present_at_location_ids': json.dumps([])
+                        }
+                        
+                        if full_refresh:
+                            await conn.execute(text("""
+                                INSERT INTO catalog_vendor_info 
+                                (id, variation_id, vendor_id, ordinal, is_deleted, created_at, updated_at, version, present_at_all_locations, present_at_location_ids)
+                                VALUES (:id, :variation_id, :vendor_id, :ordinal, :is_deleted, :created_at, :updated_at, :version, :present_at_all_locations, :present_at_location_ids)
+                            """), vendor_info_record)
+                        else:
+                            await conn.execute(text("""
+                                INSERT INTO catalog_vendor_info 
+                                (id, variation_id, vendor_id, ordinal, is_deleted, created_at, updated_at, version, present_at_all_locations, present_at_location_ids)
+                                VALUES (:id, :variation_id, :vendor_id, :ordinal, :is_deleted, :created_at, :updated_at, :version, :present_at_all_locations, :present_at_location_ids)
+                                ON CONFLICT (id) DO UPDATE SET
+                                    vendor_id = EXCLUDED.vendor_id,
+                                    ordinal = EXCLUDED.ordinal,
+                                    is_deleted = EXCLUDED.is_deleted,
+                                    updated_at = EXCLUDED.updated_at,
+                                    version = EXCLUDED.version,
+                                    present_at_all_locations = EXCLUDED.present_at_all_locations,
+                                    present_at_location_ids = EXCLUDED.present_at_location_ids
+                            """), vendor_info_record)
             
             mode_text = "FULL REFRESH" if full_refresh else "INCREMENTAL"
             logger.info(f"✅ Catalog sync completed ({mode_text}): {stats}")
