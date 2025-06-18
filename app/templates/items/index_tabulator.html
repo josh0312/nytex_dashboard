@@ -485,6 +485,78 @@
     
     .mobile-filters { display: none; }
     .mobile-view { display: none; }
+    
+    /* Responsive filter visibility for actual mobile devices */
+    @media (max-width: 767px) {
+        .mobile-filters {
+            display: block !important;
+        }
+        
+        .desktop-filters {
+            display: none !important;
+        }
+        
+        /* Force hide desktop columns on mobile devices */
+        .tabulator .tabulator-col[data-field="sku"],
+        .tabulator .tabulator-col[data-field="description"],
+        .tabulator .tabulator-col[data-field="vendor_name"],
+        .tabulator .tabulator-col[data-field="vendor_code"],
+        .tabulator .tabulator-col[data-field="cost"],
+        .tabulator .tabulator-col[data-field="profit_margin_percent"],
+        .tabulator .tabulator-col[data-field="profit_markup_percent"],
+        .tabulator .tabulator-col[data-field="aubrey_qty"],
+        .tabulator .tabulator-col[data-field="bridgefarmer_qty"],
+        .tabulator .tabulator-col[data-field="building_qty"],
+        .tabulator .tabulator-col[data-field="flomo_qty"],
+        .tabulator .tabulator-col[data-field="justin_qty"],
+        .tabulator .tabulator-col[data-field="quinlan_qty"],
+        .tabulator .tabulator-col[data-field="terrell_qty"] {
+            display: none !important;
+        }
+        
+        /* Force hide desktop cell content on mobile devices */
+        .tabulator .tabulator-cell[data-field="sku"],
+        .tabulator .tabulator-cell[data-field="description"],
+        .tabulator .tabulator-cell[data-field="vendor_name"],
+        .tabulator .tabulator-cell[data-field="vendor_code"],
+        .tabulator .tabulator-cell[data-field="cost"],
+        .tabulator .tabulator-cell[data-field="profit_margin_percent"],
+        .tabulator .tabulator-cell[data-field="profit_markup_percent"],
+        .tabulator .tabulator-cell[data-field="aubrey_qty"],
+        .tabulator .tabulator-cell[data-field="bridgefarmer_qty"],
+        .tabulator .tabulator-cell[data-field="building_qty"],
+        .tabulator .tabulator-cell[data-field="flomo_qty"],
+        .tabulator .tabulator-cell[data-field="justin_qty"],
+        .tabulator .tabulator-cell[data-field="quinlan_qty"],
+        .tabulator .tabulator-cell[data-field="terrell_qty"] {
+            display: none !important;
+        }
+        
+        /* Ensure mobile row click behavior */
+        .tabulator .tabulator-row:hover {
+            background-color: rgba(59, 130, 246, 0.1) !important;
+            cursor: pointer !important;
+        }
+        
+        /* Add visual indicator for mobile clickable rows */
+        .tabulator .tabulator-row {
+            position: relative;
+        }
+        
+        .tabulator .tabulator-row::after {
+            content: '';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 6px;
+            border-right: 2px solid #9ca3af;
+            border-bottom: 2px solid #9ca3af;
+            transform: translateY(-50%) rotate(-45deg);
+            opacity: 0.6;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -1008,12 +1080,13 @@ document.addEventListener('DOMContentLoaded', function() {
         tableBuilt: function() {
             console.log("Table built successfully!");
             console.log("Table object:", table);
-            // If we're in mobile view mode initially, hide desktop columns
-            if (shouldShowMobileView()) {
-                setTimeout(() => {
-                    hideDesktopColumns();
-                }, 100); // Small delay to ensure table is fully built
-            }
+            console.log("Window width:", window.innerWidth);
+            console.log("Should show mobile view:", shouldShowMobileView());
+            
+            // Always check mobile state and apply appropriate column visibility
+            setTimeout(() => {
+                updateColumnVisibilityForScreenSize();
+            }, 100); // Small delay to ensure table is fully built
         },
         
         // Row click handler for mobile slide panel
@@ -1423,6 +1496,25 @@ function showAllColumns() {
     console.log('Desktop mode: Showed all columns');
 }
 
+// Function to update column visibility based on screen size
+function updateColumnVisibilityForScreenSize() {
+    if (!table) return;
+    
+    console.log("Updating column visibility - window width:", window.innerWidth, "Mobile view:", shouldShowMobileView());
+    
+    if (shouldShowMobileView()) {
+        console.log("Applying mobile column layout");
+        hideDesktopColumns();
+        // Also show mobile filters and hide desktop filters
+        showMobileFilters();
+    } else {
+        console.log("Applying desktop column layout");
+        showAllColumns();
+        // Show desktop filters and hide mobile filters
+        showDesktopFilters();
+    }
+}
+
 // Mobile slide panel functionality
 function openItemSlidePanel(sku) {
     console.log("openItemSlidePanel called with SKU:", sku);
@@ -1608,12 +1700,42 @@ function renderLocationStock(item) {
     `).join('');
 }
 
+// Function to show mobile filters and hide desktop filters
+function showMobileFilters() {
+    console.log("Showing mobile filters");
+    const mobileFilters = document.querySelector('.mobile-filters');
+    const desktopFilters = document.querySelector('.desktop-filters');
+    
+    if (mobileFilters) mobileFilters.style.display = 'block';
+    if (desktopFilters) desktopFilters.style.display = 'none';
+}
+
+// Function to show desktop filters and hide mobile filters
+function showDesktopFilters() {
+    console.log("Showing desktop filters");
+    const mobileFilters = document.querySelector('.mobile-filters');
+    const desktopFilters = document.querySelector('.desktop-filters');
+    
+    if (mobileFilters) mobileFilters.style.display = 'none';
+    if (desktopFilters) desktopFilters.style.display = 'block';
+}
+
 // Handle window resize to maintain proper behavior
+let resizeTimeout;
 window.addEventListener('resize', function() {
-    // Close slide panel if user switches to desktop (unless in dev mobile mode)
-    if (window.innerWidth >= 768 && !isMobileView) {
-        closeItemSlidePanel();
-    }
+    // Debounce resize events
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(function() {
+        console.log("Window resized to:", window.innerWidth);
+        
+        // Update column visibility based on new screen size
+        updateColumnVisibilityForScreenSize();
+        
+        // Close slide panel if user switches to desktop (unless in dev mobile mode)
+        if (window.innerWidth >= 768 && !isMobileView) {
+            closeItemSlidePanel();
+        }
+    }, 150);
 });
 
 // Reinitialize icons when content updates
