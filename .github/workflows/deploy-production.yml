@@ -206,7 +206,7 @@ jobs:
           ls -la migrations/
           
           echo "🔧 Running alembic upgrade head..."
-          alembic -c migrations/alembic.ini upgrade head --verbose
+          alembic -c migrations/alembic.ini upgrade head
           
           MIGRATION_EXIT_CODE=$?
           echo "📊 Migration exit code: $MIGRATION_EXIT_CODE"
