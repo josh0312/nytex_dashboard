@@ -173,28 +173,7 @@ jobs:
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             echo "🔗 Testing connection via Cloud SQL Auth Proxy (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)"
             
-            if python3 -c "
-            import os
-            import psycopg2
-            
-            try:
-                uri = os.environ['SQLALCHEMY_DATABASE_URI']
-                print(f'🔗 Testing connection via Cloud SQL Auth Proxy')
-                
-                conn = psycopg2.connect(uri)
-                cursor = conn.cursor()
-                cursor.execute('SELECT version()')
-                result = cursor.fetchone()[0]
-                cursor.close()
-                conn.close()
-                
-                print(f'✅ Database connection successful')
-                print(f'📊 PostgreSQL version: {result[:50]}...')
-                exit(0)
-            except Exception as e:
-                print(f'❌ Database connection failed: {e}')
-                exit(1)
-            "; then
+            if python3 -c "import os, psycopg2; uri=os.environ['SQLALCHEMY_DATABASE_URI']; conn=psycopg2.connect(uri); cursor=conn.cursor(); cursor.execute('SELECT version()'); result=cursor.fetchone()[0]; cursor.close(); conn.close(); print('✅ Database connection successful'); print('📊 PostgreSQL version: ' + result[:50] + '...')"; then
               echo "✅ Database connection successful!"
               break
             else
@@ -218,37 +197,7 @@ jobs:
           
           # Check current migration status
           echo "📋 Checking current migration status..."
-          python3 -c "
-          import os
-          import psycopg2
-          
-          try:
-              uri = os.environ['SQLALCHEMY_DATABASE_URI']
-              
-              conn = psycopg2.connect(uri)
-              cursor = conn.cursor()
-              
-              # Check if alembic_version table exists
-              cursor.execute(\"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'alembic_version')\")
-              table_exists = cursor.fetchone()[0]
-              
-              if table_exists:
-                  cursor.execute('SELECT version_num FROM alembic_version')
-                  current_rev = cursor.fetchone()[0]
-                  print(f'📌 Current migration revision: {current_rev}')
-              else:
-                  print('📌 No migration history found (fresh database)')
-              
-              # Check if items_view exists
-              cursor.execute(\"SELECT EXISTS (SELECT FROM information_schema.views WHERE table_name = 'items_view')\")
-              view_exists = cursor.fetchone()[0]
-              print(f'🔍 items_view exists: {view_exists}')
-              
-              cursor.close()
-              conn.close()
-          except Exception as e:
-              print(f'❌ Migration status check failed: {e}')
-          "
+          python3 -c "import os, psycopg2; uri=os.environ['SQLALCHEMY_DATABASE_URI']; conn=psycopg2.connect(uri); cursor=conn.cursor(); cursor.execute(\"SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'alembic_version')\"); table_exists=cursor.fetchone()[0]; cursor.execute('SELECT version_num FROM alembic_version') if table_exists else None; current_rev=cursor.fetchone()[0] if table_exists else None; print('📌 Current migration revision: ' + str(current_rev)) if table_exists else print('📌 No migration history found (fresh database)'); cursor.execute(\"SELECT EXISTS (SELECT FROM information_schema.views WHERE table_name = 'items_view')\"); view_exists=cursor.fetchone()[0]; print('🔍 items_view exists: ' + str(view_exists)); cursor.close(); conn.close()" || echo "Migration status check failed"
           
           # Run Alembic migrations with detailed output
           echo "🚀 Running Alembic migrations..."
@@ -270,39 +219,7 @@ jobs:
           
           # Verify migration success
           echo "✅ Verifying migration success..."
-          python3 -c "
-          import os
-          import psycopg2
-          
-          try:
-              uri = os.environ['SQLALCHEMY_DATABASE_URI']
-              
-              conn = psycopg2.connect(uri)
-              cursor = conn.cursor()
-              
-              # Check final migration revision
-              cursor.execute('SELECT version_num FROM alembic_version')
-              current_rev = cursor.fetchone()[0]
-              print(f'📌 Final migration revision: {current_rev}')
-              
-              # Verify items_view was created
-              cursor.execute(\"SELECT EXISTS (SELECT FROM information_schema.views WHERE table_name = 'items_view')\")
-              view_exists = cursor.fetchone()[0]
-              print(f'🔍 items_view created successfully: {view_exists}')
-              
-              if view_exists:
-                  # Test the view
-                  cursor.execute('SELECT COUNT(*) FROM items_view')
-                  count = cursor.fetchone()[0]
-                  print(f'📊 items_view contains {count} items')
-              
-              cursor.close()
-              conn.close()
-              exit(0 if view_exists else 1)
-          except Exception as e:
-              print(f'❌ Migration verification failed: {e}')
-              exit(1)
-          "
+          python3 -c "import os, psycopg2; uri=os.environ['SQLALCHEMY_DATABASE_URI']; conn=psycopg2.connect(uri); cursor=conn.cursor(); cursor.execute('SELECT version_num FROM alembic_version'); current_rev=cursor.fetchone()[0]; print('📌 Final migration revision: ' + str(current_rev)); cursor.execute(\"SELECT EXISTS (SELECT FROM information_schema.views WHERE table_name = 'items_view')\"); view_exists=cursor.fetchone()[0]; print('🔍 items_view created successfully: ' + str(view_exists)); cursor.execute('SELECT COUNT(*) FROM items_view') if view_exists else None; count=cursor.fetchone()[0] if view_exists else 0; print('📊 items_view contains ' + str(count) + ' items') if view_exists else None; cursor.close(); conn.close(); exit(0 if view_exists else 1)"
           
           # Clean up Cloud SQL proxy
           echo "🧹 Cleaning up Cloud SQL Auth Proxy..."
@@ -395,19 +312,7 @@ jobs:
           echo "🔍 Testing items API after migration..."
           sleep 5  # Give the service a moment after deployment
           
-          ITEMS_TEST=$(curl -s "${SERVICE_URL}/items/data" | python3 -c "
-          import sys, json
-          try:
-              data = json.load(sys.stdin)
-              if 'error' in data:
-                  print('error: ' + data['error'][:100] + '...')
-              elif 'data' in data and isinstance(data['data'], list):
-                  print('success: ' + str(len(data['data'])) + ' items')
-              else:
-                  print('unknown: unexpected response format')
-          except:
-              print('error: invalid json response')
-          " 2>/dev/null)
+          ITEMS_TEST=$(curl -s "${SERVICE_URL}/items/data" | python3 -c "import sys, json; data=json.load(sys.stdin) if sys.stdin.read().strip() else {}; print('error: ' + data['error'][:100] + '...') if 'error' in data else print('success: ' + str(len(data['data'])) + ' items') if 'data' in data and isinstance(data['data'], list) else print('unknown: unexpected response format')" 2>/dev/null || echo "error: invalid json response")
           
           if [[ "$ITEMS_TEST" == success* ]]; then
             echo "✅ Items API working: $ITEMS_TEST"
