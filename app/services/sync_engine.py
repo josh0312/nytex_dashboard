@@ -486,6 +486,24 @@ class SyncEngine:
     def _parse_order_data(self, order: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Parse order data from Square API response (same as emergency script)"""
         try:
+            # Exclude known erroneous orders - specifically the $2.16M "The Godfather" order
+            order_id = order.get('id')
+            if order_id == 'mknasZtDiUul9el73zNLANleV':
+                logger.info(f"   🚫 Skipping erroneous order {order_id} ($2.16M 'The Godfather' order)")
+                return None
+            
+            # Additional safety check: skip orders with unreasonably high amounts (over $100K)
+            total_money = order.get('total_money', {})
+            if total_money.get('amount'):
+                try:
+                    amount_cents = int(total_money['amount'])
+                    amount_dollars = amount_cents / 100
+                    if amount_dollars > 100000:  # Over $100,000
+                        logger.warning(f"   ⚠️ Skipping suspiciously large order {order_id}: ${amount_dollars:,.2f}")
+                        return None
+                except (ValueError, TypeError):
+                    pass  # If we can't parse the amount, continue with normal processing
+            
             def parse_timestamp(timestamp_str: Optional[str]) -> Optional[datetime]:
                 if not timestamp_str:
                     return None

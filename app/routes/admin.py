@@ -2247,9 +2247,39 @@ async def historical_orders_sync_api(request: Request):
                 logger.warning(f"Failed to parse timestamp '{timestamp_str}': {e}")
                 return None
         
+        def should_skip_order(order: Dict[str, Any]) -> bool:
+            """Check if an order should be skipped due to being erroneous"""
+            order_id = order.get('id')
+            
+            # Exclude known erroneous orders - specifically the $2.16M "The Godfather" order
+            if order_id == 'mknasZtDiUul9el73zNLANleV':
+                logger.info(f"   🚫 Skipping erroneous order {order_id} ($2.16M 'The Godfather' order)")
+                return True
+            
+            # Additional safety check: skip orders with unreasonably high amounts (over $100K)
+            total_money = order.get('total_money', {})
+            if total_money.get('amount'):
+                try:
+                    amount_cents = int(total_money['amount'])
+                    amount_dollars = amount_cents / 100
+                    if amount_dollars > 100000:  # Over $100,000
+                        logger.warning(f"   ⚠️ Skipping suspiciously large order {order_id}: ${amount_dollars:,.2f}")
+                        return True
+                except (ValueError, TypeError):
+                    pass  # If we can't parse the amount, continue with normal processing
+            
+            return False
+
         async def insert_orders_batch(session, orders: List[Dict[str, Any]]):
             """Insert orders using upsert"""
-            for order_data in orders:
+            # Filter out erroneous orders first
+            filtered_orders = [order for order in orders if not should_skip_order(order)]
+            skipped_count = len(orders) - len(filtered_orders)
+            
+            if skipped_count > 0:
+                logger.info(f"  🚫 Skipped {skipped_count} erroneous orders in this batch")
+            
+            for order_data in filtered_orders:
                 await session.execute(text("""
                     INSERT INTO orders (
                         id, location_id, created_at, updated_at, closed_at,
@@ -2292,7 +2322,10 @@ async def historical_orders_sync_api(request: Request):
         
         async def insert_order_line_items_batch(session, orders: List[Dict[str, Any]]):
             """Insert order line items"""
-            for order_data in orders:
+            # Filter out erroneous orders first (same filtering as order insertion)
+            filtered_orders = [order for order in orders if not should_skip_order(order)]
+            
+            for order_data in filtered_orders:
                 line_items = order_data.get('line_items', [])
                 for line_item in line_items:
                     await session.execute(text("""

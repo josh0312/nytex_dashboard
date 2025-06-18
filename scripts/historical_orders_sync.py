@@ -265,9 +265,16 @@ class HistoricalOrdersSync:
 
     async def _process_orders_batch(self, session: AsyncSession, orders: List[Dict[str, Any]]):
         """Process and insert a batch of orders"""
+        # Filter out erroneous orders first
+        filtered_orders = [order for order in orders if not self._should_skip_order(order)]
+        skipped_count = len(orders) - len(filtered_orders)
+        
+        if skipped_count > 0:
+            logger.info(f"  🚫 Skipped {skipped_count} erroneous orders in this batch")
+        
         # Process in smaller batches for efficiency
-        for i in range(0, len(orders), self.config.batch_size):
-            batch = orders[i:i + self.config.batch_size]
+        for i in range(0, len(filtered_orders), self.config.batch_size):
+            batch = filtered_orders[i:i + self.config.batch_size]
             
             # Insert orders
             await self._insert_orders(session, batch)
@@ -389,6 +396,29 @@ class HistoricalOrdersSync:
             return datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
         except Exception:
             return None
+    
+    def _should_skip_order(self, order: Dict[str, Any]) -> bool:
+        """Check if an order should be skipped due to being erroneous"""
+        order_id = order.get('id')
+        
+        # Exclude known erroneous orders - specifically the $2.16M "The Godfather" order
+        if order_id == 'mknasZtDiUul9el73zNLANleV':
+            logger.info(f"   🚫 Skipping erroneous order {order_id} ($2.16M 'The Godfather' order)")
+            return True
+        
+        # Additional safety check: skip orders with unreasonably high amounts (over $100K)
+        total_money = order.get('total_money', {})
+        if total_money.get('amount'):
+            try:
+                amount_cents = int(total_money['amount'])
+                amount_dollars = amount_cents / 100
+                if amount_dollars > 100000:  # Over $100,000
+                    logger.warning(f"   ⚠️ Skipping suspiciously large order {order_id}: ${amount_dollars:,.2f}")
+                    return True
+            except (ValueError, TypeError):
+                pass  # If we can't parse the amount, continue with normal processing
+        
+        return False
 
     async def _update_progress(self, session: AsyncSession, start_date: datetime, end_date: datetime, orders_count: int):
         """Update sync progress in database"""
