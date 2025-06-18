@@ -111,30 +111,32 @@ jobs:
           fi
           
           echo "✅ Database URI retrieved successfully"
-          echo "🔍 Database URI format check: $(echo $DATABASE_URI | grep -o '^[^:]*://[^@]*@[^/]*' || echo 'Invalid format')"
           
-          # Convert Cloud SQL socket URI to external IP URI for CI/CD
-          echo "🔄 Converting socket URI to external IP URI for CI/CD access..."
+          # Install Cloud SQL Auth Proxy for CI/CD database access
+          echo "📡 Installing Cloud SQL Auth Proxy..."
+          curl -o cloud_sql_proxy https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64
+          chmod +x cloud_sql_proxy
           
-          # Extract components from the socket URI
+          # Start Cloud SQL proxy in background
+          echo "🔌 Starting Cloud SQL Auth Proxy..."
+          ./cloud_sql_proxy -instances=nytex-business-systems:us-central1:nytex-main-db=tcp:5432 &
+          PROXY_PID=$!
+          
+          # Wait for proxy to be ready
+          echo "⏳ Waiting for Cloud SQL proxy to be ready..."
+          sleep 10
+          
+          # Create local connection URI for migrations
           DB_USER=$(echo $DATABASE_URI | sed -n 's|postgresql+asyncpg://\([^:]*\):.*|\1|p')
           DB_PASS=$(echo $DATABASE_URI | sed -n 's|postgresql+asyncpg://[^:]*:\([^@]*\)@.*|\1|p')
           DB_NAME=$(echo $DATABASE_URI | sed -n 's|.*@/\([^?]*\).*|\1|p')
           
-          # Create external IP URI for migrations (CI/CD can't access Cloud SQL socket)
-          MIGRATION_DATABASE_URI="postgresql://${DB_USER}:${DB_PASS}@34.28.125.188:5432/${DB_NAME}?sslmode=require"
+          MIGRATION_DATABASE_URI="postgresql://${DB_USER}:${DB_PASS}@localhost:5432/${DB_NAME}"
           
-          echo "🔍 Migration will use external IP connection"
+          echo "🔍 Migration will use Cloud SQL Auth Proxy"
           echo "📍 Database user: $DB_USER"
           echo "📍 Database name: $DB_NAME"
-          echo "📍 Connection method: External IP (for CI/CD compatibility)"
-          
-          # Verify we're connecting to the same database as the application
-          echo "🔍 Extracting database connection details (without credentials)..."
-          DB_HOST=$(echo $DATABASE_URI | sed -n 's|.*@\([^/]*\)/.*|\1|p')
-          DB_NAME=$(echo $DATABASE_URI | sed -n 's|.*/\([^?]*\).*|\1|p')
-          echo "📍 Database host: $DB_HOST"
-          echo "📍 Database name: $DB_NAME"
+          echo "📍 Connection method: Cloud SQL Auth Proxy (localhost:5432)"
           
           # Install Python dependencies for migration
           echo "📦 Installing Python dependencies..."
@@ -152,11 +154,10 @@ jobs:
           python3 -c "
           import os
           import psycopg2
-          from urllib.parse import urlparse
           
           try:
               uri = os.environ['SQLALCHEMY_DATABASE_URI']
-              print(f'🔗 Testing connection to: {uri.split(\"@\")[1] if \"@\" in uri else \"unknown\"}')
+              print(f'🔗 Testing connection via Cloud SQL Auth Proxy')
               
               conn = psycopg2.connect(uri)
               cursor = conn.cursor()
@@ -174,6 +175,7 @@ jobs:
           
           if [ $? -ne 0 ]; then
             echo "❌ Database connectivity test failed, aborting migration"
+            kill $PROXY_PID
             exit 1
           fi
           
@@ -182,7 +184,6 @@ jobs:
           python3 -c "
           import os
           import psycopg2
-          from urllib.parse import urlparse
           
           try:
               uri = os.environ['SQLALCHEMY_DATABASE_URI']
@@ -217,8 +218,6 @@ jobs:
           echo "📂 Current directory: $(pwd)"
           echo "📁 Migrations directory contents:"
           ls -la migrations/
-          echo "📄 Alembic config check:"
-          cat migrations/alembic.ini | grep -A 5 -B 5 script_location
           
           echo "🔧 Running alembic upgrade head..."
           alembic -c migrations/alembic.ini upgrade head --verbose
@@ -228,6 +227,7 @@ jobs:
           
           if [ $MIGRATION_EXIT_CODE -ne 0 ]; then
             echo "❌ Migration failed with exit code $MIGRATION_EXIT_CODE"
+            kill $PROXY_PID
             exit 1
           fi
           
@@ -236,7 +236,6 @@ jobs:
           python3 -c "
           import os
           import psycopg2
-          from urllib.parse import urlparse
           
           try:
               uri = os.environ['SQLALCHEMY_DATABASE_URI']
@@ -267,6 +266,10 @@ jobs:
               print(f'❌ Migration verification failed: {e}')
               exit(1)
           "
+          
+          # Clean up Cloud SQL proxy
+          echo "🧹 Cleaning up Cloud SQL Auth Proxy..."
+          kill $PROXY_PID
           
           if [ $? -eq 0 ]; then
             echo "✅ Database migrations completed successfully"
