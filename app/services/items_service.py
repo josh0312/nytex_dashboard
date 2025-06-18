@@ -184,6 +184,7 @@ class ItemsService:
                     'vendor_name': 'vendor_name',  # This is aliased in SELECT
                     'vendor_code': 'vendor_code',  # This is aliased in SELECT
                     'profit_margin_percent': 'profit_margin_percent',  # This is aliased in SELECT
+                    'profit_markup_percent': 'profit_markup_percent',  # This is aliased in SELECT
                     'total_qty': 'total_qty',      # This is aliased in SELECT
                     'aubrey_qty': 'aubrey_qty',    # This is aliased in SELECT
                     'bridgefarmer_qty': 'bridgefarmer_qty',  # This is aliased in SELECT
@@ -252,8 +253,38 @@ class ItemsService:
                 'categories': "SELECT DISTINCT categories FROM square_item_library_export WHERE archived != 'Y' AND categories IS NOT NULL ORDER BY categories",
                 'vendors': "SELECT DISTINCT default_vendor_name FROM square_item_library_export WHERE archived != 'Y' AND default_vendor_name IS NOT NULL ORDER BY default_vendor_name",
                 'item_types': "SELECT DISTINCT item_type FROM square_item_library_export WHERE archived != 'Y' AND item_type IS NOT NULL ORDER BY item_type",
-                'prices': "SELECT DISTINCT price FROM square_item_library_export WHERE archived != 'Y' AND price IS NOT NULL ORDER BY price",
-                'costs': "SELECT DISTINCT default_unit_cost FROM square_item_library_export WHERE archived != 'Y' AND default_unit_cost IS NOT NULL ORDER BY default_unit_cost"
+                'prices': """
+                    SELECT DISTINCT price_value FROM (
+                        SELECT CASE 
+                            WHEN cv.price_money IS NOT NULL AND (cv.price_money->>'amount') IS NOT NULL AND (cv.price_money->>'amount') != ''
+                            THEN (cv.price_money->>'amount')::numeric / 100
+                            WHEN sile.price IS NOT NULL 
+                            THEN sile.price
+                            ELSE NULL 
+                        END AS price_value
+                        FROM square_item_library_export sile
+                        LEFT JOIN catalog_variations cv ON sile.sku = cv.sku AND cv.is_deleted = false
+                        WHERE sile.archived != 'Y'
+                    ) prices 
+                    WHERE price_value IS NOT NULL 
+                    ORDER BY price_value
+                """,
+                'costs': """
+                    SELECT DISTINCT cost_value FROM (
+                        SELECT CASE 
+                            WHEN cv.default_unit_cost IS NOT NULL AND (cv.default_unit_cost->>'amount') IS NOT NULL AND (cv.default_unit_cost->>'amount') != ''
+                            THEN (cv.default_unit_cost->>'amount')::numeric / 100
+                            WHEN sile.default_unit_cost IS NOT NULL 
+                            THEN sile.default_unit_cost
+                            ELSE NULL 
+                        END AS cost_value
+                        FROM square_item_library_export sile
+                        LEFT JOIN catalog_variations cv ON sile.sku = cv.sku AND cv.is_deleted = false
+                        WHERE sile.archived != 'Y'
+                    ) costs 
+                    WHERE cost_value IS NOT NULL 
+                    ORDER BY cost_value
+                """
             }
             
             filter_options = {}

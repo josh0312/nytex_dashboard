@@ -304,6 +304,19 @@ def monitor_workflow_simple(workflow_id, run_number):
                     if test_result.returncode == 0 and test_result.stdout.strip() in ['200', '302']:
                         print_success("🎉 Deployment completed successfully!")
                         print_success(f"Application is healthy (HTTP {test_result.stdout.strip()})")
+                        
+                        # Run items page health check
+                        print_info("Running items page health check...")
+                        items_health_cmd = "python scripts/test_items_production_health.py"
+                        items_result = subprocess.run(items_health_cmd, shell=True, capture_output=True, text=True, cwd=project_root)
+                        
+                        if items_result.returncode == 0:
+                            print_success("Items page health check passed!")
+                        else:
+                            print_warning("Items page health check failed!")
+                            print_warning("Output:", items_result.stdout[-200:] if items_result.stdout else "No output")
+                            print_warning("Error:", items_result.stderr[-200:] if items_result.stderr else "No error")
+                        
                         print_info("Production URL: https://nytex-dashboard-nndn66l4ua-uc.a.run.app/")
                         return True
                     else:
@@ -333,6 +346,17 @@ def monitor_workflow_simple(workflow_id, run_number):
     
     if test_result.returncode == 0 and test_result.stdout.strip() in ['200', '302']:
         print_success(f"Application is healthy (HTTP {test_result.stdout.strip()})")
+        
+        # Run final items page health check
+        print_info("Running final items page health check...")
+        items_health_cmd = "python scripts/test_items_production_health.py"
+        items_result = subprocess.run(items_health_cmd, shell=True, capture_output=True, text=True, cwd=project_root)
+        
+        if items_result.returncode == 0:
+            print_success("Items page health check passed!")
+        else:
+            print_warning("Items page health check failed!")
+            
         print_info("Production URL: https://nytex-dashboard-nndn66l4ua-uc.a.run.app/")
         return True
     else:

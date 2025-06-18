@@ -614,8 +614,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             {
-                title: "Profit %", 
+                title: "Margin", 
                 field: "profit_margin_percent", 
+                width: 100, 
+                sorter: "number",
+                formatter: function(cell, formatterParams) {
+                    const value = cell.getValue();
+                    if (value === null || value === undefined) return "";
+                    return value.toFixed(1) + "%";
+                }
+            },
+            {
+                title: "Markup", 
+                field: "profit_markup_percent", 
                 width: 100, 
                 sorter: "number",
                 formatter: function(cell, formatterParams) {
