@@ -18,196 +18,29 @@ class ItemsService:
         filters: Optional[Dict[str, str]] = None
     ) -> List[Dict[str, Any]]:
         """
-        Get items data with optional sorting, filtering, and search
+        Get items with optional sorting, searching, and filtering
+        Now uses the database view for better reliability and performance
         
         Args:
             session: Database session
             sort: Column to sort by
-            direction: Sort direction (asc/desc)
+            direction: Sort direction ('asc' or 'desc')
             search: Global search term
-            filters: Column-specific filters
+            filters: Dictionary of column filters
             
         Returns:
             List of item dictionaries
         """
         try:
-            # Load the base query
-            query_file = os.path.join(os.path.dirname(__file__), '..', 'database', 'queries', 'items_inventory.sql')
-            with open(query_file, 'r') as f:
-                base_query = f.read()
+            # Use the view-based query method
+            query = ItemsService.get_items_view_query(
+                sort_field=sort,
+                sort_direction=direction,
+                search=search,
+                filters=filters
+            )
             
-            # Remove comments and get just the query part
-            query_lines = []
-            in_query = False
-            for line in base_query.split('\n'):
-                if line.strip().startswith('SELECT') or in_query:
-                    in_query = True
-                    if not line.strip().startswith('--'):
-                        query_lines.append(line)
-            
-            query = '\n'.join(query_lines).strip()
-            
-            # Build WHERE conditions
-            where_conditions = ["sile.archived != 'Y'"]
-            
-            # Add global search if provided
-            if search and search.strip():
-                # Escape single quotes in search term
-                escaped_search = search.replace("'", "''")
-                search_condition = f"""
-                (LOWER(sile.item_name) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(sile.sku, '')) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(sile.description, '')) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(sile.categories, '')) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(sile.default_vendor_name, '')) LIKE LOWER('%{escaped_search}%') OR
-                 LOWER(COALESCE(sile.default_vendor_code, '')) LIKE LOWER('%{escaped_search}%'))
-                """
-                where_conditions.append(search_condition)
-            
-            # Add column-specific filters if provided
-            if filters:
-                for column, value in filters.items():
-                    if value and value != '' and value != []:
-                        # Handle both single values (strings) and multi-select values (arrays)
-                        if isinstance(value, list) and len(value) > 0:
-                            # Filter out empty values from the array
-                            non_empty_values = [item for item in value if item and str(item).strip()]
-                            if non_empty_values:
-                                # Map display column names to actual column names with proper table aliases
-                                column_mapping = {
-                                    'item_name': 'sile.item_name',
-                                    'sku': 'sile.sku',
-                                    'description': 'sile.description',
-                                    'category': 'sile.categories',
-                                    'vendor_name': 'sile.default_vendor_name',
-                                    'vendor_code': 'sile.default_vendor_code',
-                                    'price': 'sile.price',
-                                    'cost': 'sile.default_unit_cost'
-                                }
-                                
-                                actual_column = column_mapping.get(column, f'sile.{column}')
-                                
-                                # Handle numeric fields (price/cost) vs text fields differently
-                                if column in ['price', 'cost']:
-                                    # For numeric fields, use exact value matching with IN clause
-                                    numeric_values = []
-                                    for val in non_empty_values:
-                                        try:
-                                            numeric_values.append(float(val))
-                                        except (ValueError, TypeError):
-                                            continue
-                                    
-                                    if numeric_values:
-                                        # Create IN clause for exact numeric matches
-                                        values_str = ','.join([str(v) for v in numeric_values])
-                                        filter_condition = f"{actual_column} IN ({values_str})"
-                                        where_conditions.append(filter_condition)
-                                elif column == 'category':
-                                    # For category, use exact matching (not partial LIKE matching)
-                                    escaped_values = [str(item).replace("'", "''") for item in non_empty_values]
-                                    or_conditions = [f"LOWER(COALESCE({actual_column}, '')) = LOWER('{val}')" for val in escaped_values]
-                                    filter_condition = f"({' OR '.join(or_conditions)})"
-                                    where_conditions.append(filter_condition)
-                                else:
-                                    # For other text fields, use LIKE for partial matching
-                                    escaped_values = [str(item).replace("'", "''") for item in non_empty_values]
-                                    or_conditions = [f"LOWER(COALESCE({actual_column}, '')) LIKE LOWER('%{val}%')" for val in escaped_values]
-                                    filter_condition = f"({' OR '.join(or_conditions)})"
-                                    where_conditions.append(filter_condition)
-                        elif isinstance(value, str) and value.strip():
-                            # Single value: handle numeric vs text filters differently
-                            escaped_value = value.replace("'", "''").strip()
-                            
-                            # Map display column names to actual column names with proper table aliases
-                            column_mapping = {
-                                'item_name': 'sile.item_name',
-                                'sku': 'sile.sku',
-                                'description': 'sile.description',
-                                'category': 'sile.categories',
-                                'vendor_name': 'sile.default_vendor_name',
-                                'vendor_code': 'sile.default_vendor_code',
-                                'price': 'sile.price',
-                                'cost': 'sile.default_unit_cost'
-                            }
-                            
-                            actual_column = column_mapping.get(column, f'sile.{column}')
-                            
-                            # Handle numeric fields differently
-                            if column in ['price', 'cost']:
-                                # For numeric fields, use >= comparison and validate the input
-                                try:
-                                    numeric_value = float(escaped_value)
-                                    # Only add filter if value is >= 0 (negative prices/costs don't make sense)
-                                    if numeric_value >= 0:
-                                        filter_condition = f"{actual_column} >= {numeric_value}"
-                                        where_conditions.append(filter_condition)
-                                except ValueError:
-                                    # If not a valid number, skip this filter
-                                    logger.warning(f"Invalid numeric value for {column}: {escaped_value}")
-                                    continue
-                            elif column == 'category':
-                                # For category, use exact matching (not partial LIKE matching)
-                                if escaped_value:
-                                    filter_condition = f"LOWER(COALESCE({actual_column}, '')) = LOWER('{escaped_value}')"
-                                    where_conditions.append(filter_condition)
-                            else:
-                                # For other text fields, use LIKE for partial matching
-                                if escaped_value:
-                                    filter_condition = f"LOWER(COALESCE({actual_column}, '')) LIKE LOWER('%{escaped_value}%')"
-                                    where_conditions.append(filter_condition)
-            
-            # Replace the existing WHERE clause
-            if 'WHERE' in query:
-                # Split on WHERE and preserve everything after GROUP BY
-                query_parts = query.split('WHERE')
-                before_where = query_parts[0]
-                after_where = query_parts[1] if len(query_parts) > 1 else ''
-                
-                # Check if there's a GROUP BY clause after WHERE
-                if 'GROUP BY' in after_where:
-                    group_by_part = 'GROUP BY' + after_where.split('GROUP BY')[1]
-                    query = before_where + 'WHERE ' + ' AND '.join(where_conditions) + ' ' + group_by_part
-                else:
-                    query = before_where + 'WHERE ' + ' AND '.join(where_conditions)
-            else:
-                query += ' WHERE ' + ' AND '.join(where_conditions)
-            
-            # Add sorting if specified
-            if sort:
-                # Map display column names to query column aliases with proper table qualification
-                sort_mapping = {
-                    'item_name': 'sile.item_name',
-                    'sku': 'sile.sku',
-                    'description': 'sile.description',
-                    'category': 'category',  # This is aliased in SELECT
-                    'price': 'price',        # This is aliased in SELECT
-                    'vendor_name': 'vendor_name',  # This is aliased in SELECT
-                    'vendor_code': 'vendor_code',  # This is aliased in SELECT
-                    'profit_margin_percent': 'profit_margin_percent',  # This is aliased in SELECT
-                    'profit_markup_percent': 'profit_markup_percent',  # This is aliased in SELECT
-                    'total_qty': 'total_qty',      # This is aliased in SELECT
-                    'aubrey_qty': 'aubrey_qty',    # This is aliased in SELECT
-                    'bridgefarmer_qty': 'bridgefarmer_qty',  # This is aliased in SELECT
-                    'building_qty': 'building_qty',  # This is aliased in SELECT
-                    'flomo_qty': 'flomo_qty',      # This is aliased in SELECT
-                    'justin_qty': 'justin_qty',    # This is aliased in SELECT
-                    'quinlan_qty': 'quinlan_qty',  # This is aliased in SELECT
-                    'terrell_qty': 'terrell_qty',  # This is aliased in SELECT
-                    'item_type': 'sile.item_type',
-                    'cost': 'cost'  # This is aliased in SELECT
-                }
-                
-                actual_sort_column = sort_mapping.get(sort, 'sile.item_name')
-                
-                # Remove existing ORDER BY and add new one
-                if 'ORDER BY' in query:
-                    query = query.split('ORDER BY')[0]
-                
-                query += f' ORDER BY {actual_sort_column} {direction.upper()}'
-            elif 'ORDER BY' not in query:
-                query += ' ORDER BY sile.item_name ASC'
-            
-            logger.info(f"Executing items query with sort={sort}, direction={direction}, search={search}")
+            logger.info(f"Executing items view query with sort={sort}, direction={direction}, search={search}")
             
             # Execute the query using the provided session
             result = await session.execute(text(query))
@@ -229,11 +62,11 @@ class ItemsService:
                         item_dict[column] = value
                 items.append(item_dict)
             
-            logger.info(f"Retrieved {len(items)} items")
+            logger.info(f"Retrieved {len(items)} items from items_view")
             return items
             
         except Exception as e:
-            logger.error(f"Error retrieving items: {str(e)}")
+            logger.error(f"Error retrieving items from view: {str(e)}")
             raise
     
     @staticmethod
@@ -313,4 +146,53 @@ class ItemsService:
             
         except Exception as e:
             logger.error(f"Error getting filter options: {str(e)}")
-            return {} 
+            return {}
+
+    # Add view-based query method
+    @staticmethod
+    def get_items_view_query(sort_field=None, sort_direction="asc", search=None, filters=None):
+        """Get items query using the database view (much simpler and more reliable)"""
+        
+        # Base query using the view
+        query = "SELECT * FROM items_view"
+        
+        # Apply search if provided
+        conditions = []
+        if search:
+            conditions.append(f"""
+                (item_name ILIKE '%{search}%' 
+                OR sku ILIKE '%{search}%' 
+                OR description ILIKE '%{search}%'
+                OR vendor_name ILIKE '%{search}%')
+            """)
+        
+        # Apply filters if provided
+        if filters:
+            for field, value in filters.items():
+                if value:  # Only apply non-empty filters
+                    if field in ['price', 'cost', 'profit_margin_percent', 'profit_markup_percent']:
+                        # Numeric fields
+                        conditions.append(f"{field} = {value}")
+                    else:
+                        # String fields
+                        conditions.append(f"{field} ILIKE '%{value}%'")
+        
+        # Add WHERE clause if we have conditions
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        
+        # Add sorting
+        valid_sort_fields = [
+            'item_name', 'sku', 'category', 'price', 'cost', 'vendor_name', 'vendor_code',
+            'profit_margin_percent', 'profit_markup_percent', 'aubrey_qty', 'bridgefarmer_qty',
+            'building_qty', 'flomo_qty', 'justin_qty', 'quinlan_qty', 'terrell_qty', 'total_qty',
+            'item_type', 'archived', 'sellable', 'stockable', 'created_at', 'updated_at'
+        ]
+        
+        if sort_field and sort_field in valid_sort_fields:
+            direction = "DESC" if sort_direction.upper() == "DESC" else "ASC" 
+            query += f" ORDER BY {sort_field} {direction}"
+        else:
+            query += " ORDER BY item_name ASC"  # Default sort
+            
+        return query 
