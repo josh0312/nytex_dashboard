@@ -1,68 +1,84 @@
 #!/usr/bin/env python3
 """
-Run database migration against production Cloud SQL database
+Manual production migration script
+Runs the items_view migration against the production database
 """
 
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
-# Add project root to path
-sys.path.append(str(Path(__file__).parent.parent))
-
-def run_production_migration():
-    """Run the migration against production database"""
-    
+def run_migration():
+    """Run the database migration against production"""
     print("🔄 Running production database migration...")
-    print("=" * 50)
     
-    # Set environment variables for production database connection
-    # These should match the production secrets
-    env = os.environ.copy()
-    
-    # Use the production database URI from secrets
-    # This will be loaded from Google Secret Manager in production
-    production_db_uri = "postgresql://postgres:NytexSecure2024!@/square_data_sync?host=/cloudsql/nytex-business-systems:us-central1:nytex-main-db"
-    
-    env['SQLALCHEMY_DATABASE_URI'] = production_db_uri
-    env['PYTHONPATH'] = '.'
-    
-    print(f"📋 Database: Cloud SQL (nytex-business-systems:us-central1:nytex-main-db)")
-    print(f"📋 Migration: Add location-specific columns to square_item_library_export")
+    # Get the repository root
+    repo_root = Path(__file__).parent.parent
+    os.chdir(repo_root)
     
     try:
-        # Run the migration
+        # Load production database URI from Google Secret Manager
+        print("📊 Getting production database URI...")
+        result = subprocess.run([
+            'gcloud', 'secrets', 'versions', 'access', 'latest', 
+            '--secret=database-uri'
+        ], capture_output=True, text=True, check=True)
+        
+        database_uri = result.stdout.strip()
+        if not database_uri:
+            raise ValueError("Database URI is empty")
+        
+        print("✅ Database URI retrieved")
+        
+        # Set environment variables
+        env = os.environ.copy()
+        env['SQLALCHEMY_DATABASE_URI'] = database_uri
+        env['PYTHONPATH'] = str(repo_root)
+        
+        # Run Alembic migration
+        print("🔄 Running Alembic migration...")
         cmd = ['alembic', '-c', 'migrations/alembic.ini', 'upgrade', 'head']
         
-        print(f"🚀 Running: {' '.join(cmd)}")
-        
-        result = subprocess.run(
-            cmd,
-            env=env,
-            capture_output=True,
-            text=True,
-            cwd=Path(__file__).parent.parent
-        )
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True)
         
         if result.returncode == 0:
             print("✅ Migration completed successfully!")
-            print("\nOutput:")
-            print(result.stdout)
+            print("Output:", result.stdout)
         else:
             print("❌ Migration failed!")
-            print("\nError output:")
-            print(result.stderr)
-            print("\nStandard output:")
-            print(result.stdout)
+            print("Error:", result.stderr)
             return False
             
-    except Exception as e:
-        print(f"❌ Error running migration: {e}")
+        # Verify the items_view was created
+        print("🔍 Verifying items_view creation...")
+        
+        # Test that we can query the view
+        test_cmd = [
+            'psql', database_uri, '-c', 
+            "SELECT COUNT(*) FROM items_view LIMIT 1;"
+        ]
+        
+        test_result = subprocess.run(test_cmd, capture_output=True, text=True)
+        
+        if test_result.returncode == 0:
+            print("✅ items_view verification successful!")
+            print("View output:", test_result.stdout)
+        else:
+            print("⚠️  Could not verify items_view (may require Cloud SQL proxy)")
+            print("Verification error:", test_result.stderr)
+        
+        return True
+        
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Command failed: {e}")
+        print(f"Output: {e.stdout}")
+        print(f"Error: {e.stderr}")
         return False
-    
-    return True
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return False
 
 if __name__ == "__main__":
-    success = run_production_migration()
+    success = run_migration()
     sys.exit(0 if success else 1) 
