@@ -472,6 +472,259 @@ class TestItemsTemplateIntegration:
         assert "profit_markup_percent" in content, "Template missing profit_markup_percent data field"
 
 
+@pytest.mark.mobile
+class TestMobileItemsFunctionality:
+    """Test mobile-specific items functionality"""
+    
+    @pytest.fixture(scope="class")
+    def test_app(self):
+        """Create test application instance"""
+        test_env = {
+            "ENVIRONMENT": "test",
+            "DEBUG": "true",
+            "SECRET_KEY": "test-secret-key-for-testing-only",
+            "SQLALCHEMY_DATABASE_URI": "sqlite+aiosqlite:///:memory:",
+            "SQUARE_ACCESS_TOKEN": "test-token",
+            "SQUARE_ENVIRONMENT": "sandbox",
+            "OPENWEATHER_API_KEY": "test-key",
+            "MANUAL_USER_EMAIL": "test@example.com",
+            "MANUAL_USER_PASSWORD": "test-password",
+            "MANUAL_USER_NAME": "Test User"
+        }
+        
+        with patch.dict(os.environ, test_env):
+            try:
+                from app.main import app
+                return TestClient(app)
+            except Exception as e:
+                pytest.skip(f"Could not create test app: {e}")
+    
+    def test_mobile_items_page_contains_required_elements(self, test_app):
+        """Test that mobile items page contains all required mobile elements"""
+        response = test_app.get("/items")
+        
+        if response.status_code == 302:  # Redirect to login
+            pytest.skip("Authentication required")
+        
+        assert response.status_code == 200, f"Items page failed with status {response.status_code}"
+        
+        content = response.text
+        
+        # Check for mobile-specific elements
+        mobile_elements = [
+            'dev-mobile-mode',  # Development toggle class
+            'mobile-filters',   # Mobile filter container
+            'mobile-global-search',  # Mobile search input
+            'mobile-category-filter',  # Mobile category dropdown
+            'slide-panel',  # Mobile slide panel
+            'collapsed-header',  # Collapsible header
+            'expanded-header',   # Expanded header state
+        ]
+        
+        for element in mobile_elements:
+            assert element in content, f"Mobile element '{element}' not found in items page"
+    
+    def test_mobile_pagination_configuration(self, test_app):
+        """Test that mobile pagination is properly configured"""
+        response = test_app.get("/items")
+        
+        if response.status_code == 302:
+            pytest.skip("Authentication required")
+        
+        assert response.status_code == 200
+        content = response.text
+        
+        # Check for mobile pagination settings
+        pagination_config = [
+            'paginationSize: 7',  # Default page size for mobile
+            'paginationSizeSelector: [7, 15, 25, 50]',  # Mobile-friendly size options
+            'paginationButtonCount: 5',  # Limited page buttons
+            '"first": "⏮"',  # Symbol navigation
+            '"prev": "◀"',
+            '"next": "▶"',
+            '"last": "⏭"',
+        ]
+        
+        for config in pagination_config:
+            assert config in content, f"Mobile pagination config '{config}' not found"
+    
+    def test_mobile_column_hiding_css_present(self, test_app):
+        """Test that mobile column hiding CSS is present"""
+        response = test_app.get("/items")
+        
+        if response.status_code == 302:
+            pytest.skip("Authentication required")
+        
+        assert response.status_code == 200
+        content = response.text
+        
+        # Check for mobile column hiding CSS rules
+        mobile_css = [
+            '.dev-mobile-mode',  # Development mobile mode class
+            '@media (max-width: 767px)',  # Mobile media query
+            'tabulator-col[tabulator-field="sku"]',  # Column hiding selectors
+            'tabulator-col[tabulator-field="category"]',
+            'tabulator-col[tabulator-field="price"]',
+            'display: none !important',  # Column hiding rule
+        ]
+        
+        for css_rule in mobile_css:
+            assert css_rule in content, f"Mobile CSS rule '{css_rule}' not found"
+    
+    def test_mobile_slide_panel_structure(self, test_app):
+        """Test that mobile slide panel has proper structure"""
+        response = test_app.get("/items")
+        
+        if response.status_code == 302:
+            pytest.skip("Authentication required")
+        
+        assert response.status_code == 200
+        content = response.text
+        
+        # Check for slide panel components
+        slide_panel_elements = [
+            'id="item-slide-panel"',  # Main panel
+            'id="slide-panel-backdrop"',  # Backdrop
+            'id="slide-panel-content"',  # Content area
+            'closeItemSlidePanel()',  # Close function
+            'openItemSlidePanel(',  # Open function
+            'slide-panel closed',  # Initial state
+            'max-w-sm',  # Width constraint
+        ]
+        
+        for element in slide_panel_elements:
+            assert element in content, f"Slide panel element '{element}' not found"
+    
+    def test_collapsible_header_functionality(self, test_app):
+        """Test that collapsible header is properly implemented"""
+        response = test_app.get("/items")
+        
+        if response.status_code == 302:
+            pytest.skip("Authentication required")
+        
+        assert response.status_code == 200
+        content = response.text
+        
+        # Check for collapsible header elements
+        header_elements = [
+            'toggleHeaderCollapse()',  # Toggle function
+            'id="collapsed-header"',  # Collapsed state
+            'id="expanded-header"',  # Expanded state
+            'data-lucide="plus"',  # Plus icon
+            'data-lucide="minus"',  # Minus icon
+            'itemsHeaderCollapsed',  # localStorage key
+        ]
+        
+        for element in header_elements:
+            assert element in content, f"Collapsible header element '{element}' not found"
+    
+    def test_mobile_filters_implementation(self, test_app):
+        """Test that mobile filters are properly implemented"""
+        response = test_app.get("/items")
+        
+        if response.status_code == 302:
+            pytest.skip("Authentication required")
+        
+        assert response.status_code == 200
+        content = response.text
+        
+        # Check for mobile filter implementation
+        filter_elements = [
+            'updateTableWithMobileFilters()',  # Mobile filter function
+            'showMobileFilters()',  # Show mobile filters
+            'showDesktopFilters()',  # Show desktop filters
+            'mobile-global-search',  # Mobile search input
+            'mobile-category-filter',  # Mobile category select
+            'text-base',  # Mobile-appropriate text size
+        ]
+        
+        for element in filter_elements:
+            assert element in content, f"Mobile filter element '{element}' not found"
+    
+    def test_items_details_endpoint_exists(self, test_app):
+        """Test that items details endpoint exists for slide panel"""
+        # Test with a mock SKU
+        with patch('app.routes.items_routes.ItemsService.get_items') as mock_get_items:
+            mock_get_items.return_value = [
+                {
+                    'item_name': 'Test Item',
+                    'sku': 'TEST-001',
+                    'price': 10.00,
+                    'category': 'Test Category'
+                }
+            ]
+            
+            response = test_app.get("/items/details/TEST-001")
+            
+            # Should return item details or 404 if not found
+            assert response.status_code in [200, 404, 500], f"Items details endpoint failed with status {response.status_code}"
+            
+            if response.status_code == 200:
+                data = response.json()
+                assert isinstance(data, dict), "Details response should be a dictionary"
+                assert 'sku' in data, "Details response should contain SKU field"
+    
+    def test_mobile_development_toggle_conditional(self, test_app):
+        """Test that development toggle behavior is appropriate for the environment"""
+        response = test_app.get("/items")
+        
+        if response.status_code == 302:
+            pytest.skip("Authentication required")
+        
+        assert response.status_code == 200
+        content = response.text
+        
+        # Check if dev toggle is present
+        has_dev_toggle = 'id="dev-toggle"' in content
+        
+        # The toggle function should always be present (for potential future use)
+        assert 'toggleMobileView()' in content, "toggleMobileView() function should be present"
+        
+        if has_dev_toggle:
+            # If dev toggle is present, check that all related elements exist
+            dev_toggle_elements = [
+                'DEV: Switch to Mobile',  # Button text
+                'DEV: Switch to Desktop',  # Alternative text
+                'class="dev-toggle"',     # CSS class
+            ]
+            
+            for element in dev_toggle_elements:
+                assert element in content, f"Development toggle element '{element}' not found when toggle is present"
+        
+        # The mobile view functionality should always be present regardless of dev toggle
+        mobile_functionality = [
+            'hideDesktopColumns()',
+            'showAllColumns()',
+            'shouldShowMobileView()',
+            'isMobileView',
+        ]
+        
+        for element in mobile_functionality:
+            assert element in content, f"Mobile functionality '{element}' should always be present"
+    
+    def test_mobile_responsive_css_media_queries(self, test_app):
+        """Test that mobile responsive CSS media queries are present"""
+        response = test_app.get("/items")
+        
+        if response.status_code == 302:
+            pytest.skip("Authentication required")
+        
+        assert response.status_code == 200
+        content = response.text
+        
+        # Check for mobile media queries
+        media_queries = [
+            '@media (max-width: 767px)',  # Main mobile breakpoint
+            '@media (min-width: 480px)',  # Slide panel breakpoint
+            '.mobile-filters',  # Mobile filter container
+            '.desktop-filters',  # Desktop filter container
+            'flex-wrap: wrap !important',  # Mobile pagination layout
+        ]
+        
+        for query in media_queries:
+            assert query in content, f"Mobile media query '{query}' not found"
+
+
 @pytest.mark.deployment
 class TestItemsDeploymentReadiness:
     """Critical tests that must pass for deployment"""

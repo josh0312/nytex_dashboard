@@ -294,102 +294,6 @@
         color: white !important;
     }
     
-    /* Mobile pagination improvements */
-    @media (max-width: 767px) {
-        .tabulator .tabulator-footer {
-            padding: 8px 12px !important;
-            font-size: 12px !important;
-        }
-        
-        .tabulator .tabulator-footer .tabulator-paginator {
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-            justify-content: center !important;
-        }
-        
-        .tabulator .tabulator-footer .tabulator-page-counter {
-            order: 1 !important;
-            width: 100% !important;
-            text-align: center !important;
-            margin-bottom: 8px !important;
-            font-size: 11px !important;
-        }
-        
-        .tabulator .tabulator-footer .tabulator-page-size {
-            order: 2 !important;
-            margin-right: 8px !important;
-        }
-        
-        .tabulator .tabulator-footer .tabulator-pages {
-            order: 3 !important;
-        }
-        
-        .tabulator .tabulator-paginator .tabulator-page {
-            min-width: 32px !important;
-            height: 32px !important;
-            font-size: 12px !important;
-            padding: 4px !important;
-        }
-        
-        .tabulator .tabulator-paginator label {
-            font-size: 12px !important;
-            margin-right: 4px !important;
-        }
-        
-        .tabulator .tabulator-paginator select {
-            font-size: 12px !important;
-            padding: 2px 4px !important;
-            min-width: 60px !important;
-        }
-    }
-    
-    /* Mobile pagination for dev mode */
-    .dev-mobile-mode .tabulator .tabulator-footer {
-        padding: 8px 12px !important;
-        font-size: 12px !important;
-    }
-    
-    .dev-mobile-mode .tabulator .tabulator-footer .tabulator-paginator {
-        flex-wrap: wrap !important;
-        gap: 8px !important;
-        justify-content: center !important;
-    }
-    
-    .dev-mobile-mode .tabulator .tabulator-footer .tabulator-page-counter {
-        order: 1 !important;
-        width: 100% !important;
-        text-align: center !important;
-        margin-bottom: 8px !important;
-        font-size: 11px !important;
-    }
-    
-    .dev-mobile-mode .tabulator .tabulator-footer .tabulator-page-size {
-        order: 2 !important;
-        margin-right: 8px !important;
-    }
-    
-    .dev-mobile-mode .tabulator .tabulator-footer .tabulator-pages {
-        order: 3 !important;
-    }
-    
-    .dev-mobile-mode .tabulator .tabulator-paginator .tabulator-page {
-        min-width: 32px !important;
-        height: 32px !important;
-        font-size: 12px !important;
-        padding: 4px !important;
-    }
-    
-    .dev-mobile-mode .tabulator .tabulator-paginator label {
-        font-size: 12px !important;
-        margin-right: 4px !important;
-    }
-    
-    .dev-mobile-mode .tabulator .tabulator-paginator select {
-        font-size: 12px !important;
-        padding: 2px 4px !important;
-        min-width: 60px !important;
-    }
-    
     /* Loading and empty state */
     .tabulator .tabulator-loader {
         background-color: var(--tabulator-bg) !important;
@@ -600,10 +504,8 @@
             display: none !important;
         }
         
-        /* Force hide desktop columns on mobile devices - show only item_name + total_qty */
+        /* Force hide desktop columns on mobile devices - try multiple selectors */
         .tabulator-col[tabulator-field="sku"],
-        .tabulator-col[tabulator-field="category"],
-        .tabulator-col[tabulator-field="price"],
         .tabulator-col[tabulator-field="description"],
         .tabulator-col[tabulator-field="vendor_name"],
         .tabulator-col[tabulator-field="vendor_code"],
@@ -618,8 +520,6 @@
         .tabulator-col[tabulator-field="quinlan_qty"],
         .tabulator-col[tabulator-field="terrell_qty"],
         .tabulator-cell[tabulator-field="sku"],
-        .tabulator-cell[tabulator-field="category"],
-        .tabulator-cell[tabulator-field="price"],
         .tabulator-cell[tabulator-field="description"],
         .tabulator-cell[tabulator-field="vendor_name"],
         .tabulator-cell[tabulator-field="vendor_code"],
@@ -678,98 +578,67 @@
 {% endif %}
 
 <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
-    <!-- Collapsible Header and Controls -->
-    <div id="header-card" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-4 border border-gray-200 dark:border-gray-600 transition-all duration-300 ease-in-out">
-        <!-- Collapsed State (hidden by default) -->
-        <div id="collapsed-header" class="hidden p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200" onclick="toggleHeaderCollapse()">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <button class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                        <i data-lucide="plus" class="w-5 h-5 text-gray-600 dark:text-gray-400"></i>
-                    </button>
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Items Inventory</h2>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                            <span id="collapsed-table-info">Loading...</span>
-                        </p>
-                    </div>
-                </div>
-                <div class="export-buttons-collapsed flex-shrink-0">
-                    <button id="download-xlsx-collapsed" type="button" class="text-sm px-3 py-1.5">
-                        <i data-lucide="file-spreadsheet" class="w-4 h-4 inline mr-1"></i>
-                        Excel
-                    </button>
-                </div>
+    <!-- Combined Header and Controls -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-4 border border-gray-200 dark:border-gray-600">
+        <!-- Title row with export buttons -->
+        <div class="flex justify-between items-start mb-2">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Items Inventory</h1>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <span id="last-refresh">Loading...</span>
+                </p>
+            </div>
+            <div class="export-buttons flex-shrink-0">
+                <button id="download-xlsx" type="button">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4 inline mr-1"></i>
+                    Excel
+                </button>
             </div>
         </div>
         
-        <!-- Expanded State (visible by default) -->
-        <div id="expanded-header" class="p-4">
-            <!-- Title row with export buttons and collapse button -->
-            <div class="flex justify-between items-start mb-2">
-                <div class="flex items-start space-x-3">
-                    <button onclick="toggleHeaderCollapse()" class="mt-1 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200">
-                        <i data-lucide="minus" class="w-5 h-5 text-gray-600 dark:text-gray-400"></i>
-                    </button>
-                    <div>
-                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Items Inventory</h1>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            <span id="last-refresh">Loading...</span>
-                        </p>
-                    </div>
-                </div>
-                <div class="export-buttons flex-shrink-0">
-                    <button id="download-xlsx" type="button">
-                        <i data-lucide="file-spreadsheet" class="w-4 h-4 inline mr-1"></i>
-                        Excel
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Desktop Global Search Row -->
-            <div class="mb-3 desktop-filters">
-                <div class="max-w-md">
-                    <label for="global-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Global Search
-                    </label>
-                    <input 
-                        type="text" 
-                        id="global-search" 
-                        name="global-search"
-                        placeholder="Search across all fields..."
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-                    >
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Search across item names, SKUs, descriptions, categories, vendors, and codes
-                    </p>
-                </div>
-            </div>
-            
-            <!-- Mobile Simplified Filters -->
-            <div class="mobile-filters space-y-3">
+        <!-- Desktop Global Search Row -->
+        <div class="mb-3 desktop-filters">
+            <div class="max-w-md">
+                <label for="global-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Global Search
+                </label>
                 <input 
                     type="text" 
-                    id="mobile-global-search"
-                    placeholder="Search items..."
-                    class="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                    id="global-search" 
+                    name="global-search"
+                    placeholder="Search across all fields..."
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
                 >
-                
-                <select 
-                    id="mobile-category-filter"
-                    class="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                >
-                    <option value="">All Categories</option>
-                    {% for category in filter_options.categories %}
-                    <option value="{{ category }}">{{ category }}</option>
-                    {% endfor %}
-                </select>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Search across item names, SKUs, descriptions, categories, vendors, and codes
+                </p>
             </div>
+        </div>
+        
+        <!-- Mobile Simplified Filters -->
+        <div class="mobile-filters space-y-3">
+            <input 
+                type="text" 
+                id="mobile-global-search"
+                placeholder="Search items..."
+                class="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            >
             
-            <!-- Table info row -->
-            <div class="flex justify-end">
-                <div class="text-sm text-gray-600 dark:text-gray-400">
-                    <span id="table-info">Loading items...</span>
-                </div>
+            <select 
+                id="mobile-category-filter"
+                class="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            >
+                <option value="">All Categories</option>
+                {% for category in filter_options.categories %}
+                <option value="{{ category }}">{{ category }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <!-- Table info row -->
+        <div class="flex justify-end">
+            <div class="text-sm text-gray-600 dark:text-gray-400">
+                <span id="table-info">Loading items...</span>
             </div>
         </div>
     </div>
@@ -847,30 +716,12 @@ document.addEventListener('DOMContentLoaded', function() {
         ajaxConfig: "GET",
         ajaxContentType: "json",
         
-                // Pagination
+        // Pagination
         pagination: "remote",
-        paginationMode: "remote",
-        paginationSize: 7,
-        paginationSizeSelector: [7, 15, 25, 50],
+        paginationMode: "remote", 
+        paginationSize: 50,
+        paginationSizeSelector: [25, 50, 100, 200],
         paginationCounter: "rows",
-        paginationButtonCount: 5, // Show max 5 page numbers
-        paginationInitialPage: 1,
-        paginationDataSent: {},
-        paginationDataReceived: {},
-        langs: {
-            "default": {
-                "pagination": {
-                    "first": "⏮",
-                    "first_title": "First Page",
-                    "last": "⏭", 
-                    "last_title": "Last Page",
-                    "prev": "◀",
-                    "prev_title": "Previous Page",
-                    "next": "▶",
-                    "next_title": "Next Page"
-                }
-            }
-        },
         
         // Filtering and sorting
         filterMode: "remote",
@@ -965,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!headerValue || headerValue.length === 0) return true;
                     return headerValue.includes(rowValue);
                 },
-                // responsive: 0 // Disabled - we handle this manually
+                responsive: 0
             },
             {
                 title: "Price", 
@@ -985,15 +836,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!headerValue || headerValue.length === 0) return true;
                     return headerValue.includes(rowValue);
                 },
-                // responsive: 0 // Disabled - we handle this manually
+                responsive: 0
             },
             {
-                title: "Qty", 
+                title: "Stock", 
                 field: "total_qty", 
-                width: 90, 
+                width: 80, 
                 sorter: "number",
                 hozAlign: "center",
-                // responsive: 0 // Disabled - we handle this manually,
+                responsive: 0,
                 formatter: function(cell, formatterParams) {
                     try {
                         const value = cell.getValue();
@@ -1027,7 +878,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         return "";
                     }
                 },
-                // responsive: 2 // Disabled - we handle this manually
+                responsive: 2
             },
             {
                 title: "Vendor", 
@@ -1045,7 +896,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!headerValue || headerValue.length === 0) return true;
                     return headerValue.includes(rowValue);
                 },
-                // responsive: 3 // Disabled - we handle this manually
+                responsive: 3
             },
             {
                 title: "Vendor Code", 
@@ -1058,7 +909,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!headerValue) return true;
                     return (rowValue || "").toLowerCase().includes(headerValue.toLowerCase());
                 },
-                // responsive: 4 // Disabled - we handle this manually
+                responsive: 4
             },
             {
                 title: "Cost", 
@@ -1078,7 +929,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (!headerValue || headerValue.length === 0) return true;
                     return headerValue.includes(rowValue);
                 },
-                // responsive: 5 // Disabled - we handle this manually
+                responsive: 5
             },
             {
                 title: "Margin", 
@@ -1095,7 +946,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         return "";
                     }
                 },
-                // responsive: 6 // Disabled - we handle this manually
+                responsive: 6
             },
             {
                 title: "Markup", 
@@ -1112,13 +963,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         return "";
                     }
                 },
-                // responsive: 7 // Disabled - we handle this manually
+                responsive: 7
             },
             
             // Grouped Quantity Columns (desktop only)
             {
                 title: "Quantity",
-                // responsive: 8 // Disabled - we handle this manually,
+                responsive: 8,
                 columns: [
                     {
                         title: "A", 
@@ -1127,7 +978,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Aubrey Location",
-                        // responsive: 8 // Disabled - we handle this manually
+                        responsive: 8
                     },
                     {
                         title: "BF", 
@@ -1136,7 +987,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Bridgefarmer Location",
-                        // responsive: 8 // Disabled - we handle this manually
+                        responsive: 8
                     },
                     {
                         title: "B", 
@@ -1145,7 +996,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Building Location",
-                        // responsive: 8 // Disabled - we handle this manually
+                        responsive: 8
                     },
                     {
                         title: "F", 
@@ -1154,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "FloMo Location",
-                        // responsive: 8 // Disabled - we handle this manually
+                        responsive: 8
                     },
                     {
                         title: "J", 
@@ -1163,7 +1014,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Justin Location",
-                        // responsive: 8 // Disabled - we handle this manually
+                        responsive: 8
                     },
                     {
                         title: "Q", 
@@ -1172,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Quinlan Location",
-                        // responsive: 8 // Disabled - we handle this manually
+                        responsive: 8
                     },
                     {
                         title: "T", 
@@ -1181,7 +1032,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Terrell Location",
-                        // responsive: 8 // Disabled - we handle this manually
+                        responsive: 8
                     }
                 ]
             }
@@ -1220,18 +1071,10 @@ document.addEventListener('DOMContentLoaded', function() {
         
         dataFiltered: function(filters, rows) {
             const info = document.getElementById('table-info');
-            const collapsedInfo = document.getElementById('collapsed-table-info');
-            let infoText;
-            
             if (filters.length === 0) {
-                infoText = `Showing all ${rows.length} items`;
+                info.textContent = `Showing all ${rows.length} items`;
             } else {
-                infoText = `Showing ${rows.length} items (${filters.length} filter${filters.length > 1 ? 's' : ''} applied)`;
-            }
-            
-            info.textContent = infoText;
-            if (collapsedInfo) {
-                collapsedInfo.textContent = infoText;
+                info.textContent = `Showing ${rows.length} items (${filters.length} filter${filters.length > 1 ? 's' : ''} applied)`;
             }
         },
         
@@ -1550,16 +1393,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Initialize header collapse state
-    initializeHeaderState();
-    
     // Initialize Lucide icons
     lucide.createIcons();
-    
-    // Connect collapsed export button to main export functionality
-    document.getElementById('download-xlsx-collapsed').addEventListener('click', function() {
-        document.getElementById('download-xlsx').click();
-    });
     
     // Watch for theme changes and update table styling
     const observer = new MutationObserver(function(mutations) {
@@ -1579,53 +1414,6 @@ document.addEventListener('DOMContentLoaded', function() {
         attributeFilter: ['class']
     });
 });
-
-// Header collapse functionality
-function toggleHeaderCollapse() {
-    const expandedHeader = document.getElementById('expanded-header');
-    const collapsedHeader = document.getElementById('collapsed-header');
-    const headerCard = document.getElementById('header-card');
-    
-    if (expandedHeader.classList.contains('hidden')) {
-        // Currently collapsed, expand it
-        expandedHeader.classList.remove('hidden');
-        collapsedHeader.classList.add('hidden');
-        headerCard.classList.remove('collapsed');
-        
-        // Save state
-        localStorage.setItem('itemsHeaderCollapsed', 'false');
-    } else {
-        // Currently expanded, collapse it
-        expandedHeader.classList.add('hidden');
-        collapsedHeader.classList.remove('hidden');
-        headerCard.classList.add('collapsed');
-        
-        // Copy table info to collapsed view
-        const tableInfo = document.getElementById('table-info').textContent;
-        document.getElementById('collapsed-table-info').textContent = tableInfo;
-        
-        // Save state
-        localStorage.setItem('itemsHeaderCollapsed', 'true');
-    }
-    
-    // Re-initialize Lucide icons
-    lucide.createIcons();
-}
-
-// Initialize header state from localStorage
-function initializeHeaderState() {
-    const isCollapsed = localStorage.getItem('itemsHeaderCollapsed') === 'true';
-    
-    if (isCollapsed) {
-        const expandedHeader = document.getElementById('expanded-header');
-        const collapsedHeader = document.getElementById('collapsed-header');
-        const headerCard = document.getElementById('header-card');
-        
-        expandedHeader.classList.add('hidden');
-        collapsedHeader.classList.remove('hidden');
-        headerCard.classList.add('collapsed');
-    }
-}
 
 // Development toggle functionality
 function toggleMobileView() {
@@ -1676,11 +1464,9 @@ function hideDesktopColumns() {
         visible: col.isVisible()
     })));
     
-    // Hide desktop-only columns (mobile shows only item_name + total_qty)
+    // Hide desktop-only columns
     const desktopColumns = [
         'sku',           // Hidden since shown under item name
-        'category',      // Hidden in mobile (use filter instead)
-        'price',         // Hidden in mobile (shown in slide panel)
         'description',   // Desktop only
         'vendor_name',   // Desktop only  
         'vendor_code',   // Desktop only
@@ -1723,8 +1509,8 @@ function hideDesktopColumns() {
             }
         }
         
-        // Hide grouped "Quantity" column and location quantity columns (but keep total_qty)
-        if (title === "Quantity" || (field?.includes("_qty") && field !== "total_qty")) {
+        // Hide grouped "Quantity" column and any nested location columns
+        if (title === "Quantity" || field?.includes("_qty")) {
             try {
                 col.hide();
                 console.log(`Hidden quantity column: ${field || title}`);
@@ -1733,8 +1519,8 @@ function hideDesktopColumns() {
             }
         }
         
-        // Make sure we keep only the essential mobile columns visible (item_name + total_qty)
-        if (field === "item_name" || field === "total_qty") {
+        // Make sure we keep the essential mobile columns visible
+        if (field === "item_name" || field === "category" || field === "price" || field === "total_qty") {
             try {
                 col.show();
                 console.log(`Ensured mobile column is visible: ${field}`);
@@ -1762,8 +1548,6 @@ function showAllColumns() {
     // Show all columns
     const allColumns = [
         'sku',
-        'category',
-        'price',
         'description',
         'vendor_name',
         'vendor_code', 

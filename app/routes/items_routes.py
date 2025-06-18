@@ -425,6 +425,13 @@ async def simple_tabulator(request: Request):
     """
     return templates.TemplateResponse("items/index_simple.html", {"request": request})
 
+@router.get("/test-mobile", response_class=HTMLResponse)
+async def test_mobile(request: Request):
+    """
+    Mobile test page for debugging column hiding
+    """
+    return templates.TemplateResponse("items/test_mobile.html", {"request": request})
+
 @router.get("/details/{item_sku}", response_class=JSONResponse)
 async def get_item_details(
     item_sku: str,

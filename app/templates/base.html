@@ -182,10 +182,10 @@
                     <!-- Mobile menu button -->
                     <div class="sm:hidden">
                         <button @click="mobileMenuOpen = !mobileMenuOpen" 
-                                class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-300 hover:text-gray-500 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700">
+                                class="inline-flex items-center justify-center p-2 rounded-md text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
                             <span class="sr-only">Open main menu</span>
-                            <i x-show="!mobileMenuOpen" class="lucide lucide-menu h-6 w-6"></i>
-                            <i x-show="mobileMenuOpen" class="lucide lucide-x h-6 w-6"></i>
+                            <i x-show="!mobileMenuOpen" data-lucide="menu" class="h-6 w-6"></i>
+                            <i x-show="mobileMenuOpen" data-lucide="x" class="h-6 w-6"></i>
                         </button>
                     </div>
                 </div>
@@ -221,35 +221,67 @@
     </nav>
 
     <!-- Main Content -->
-    <main class="flex-grow w-full max-w-full mx-auto py-6 px-4 sm:px-6 lg:px-8">
+    <main class="flex-grow w-full max-w-full mx-auto py-6 px-4 sm:px-6 lg:px-8 pb-8 sm:pb-6">
         {% block content %}{% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white dark:bg-gray-800 shadow-lg">
-        <div class="w-full mx-auto h-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-            <div class="flex items-center space-x-4">
+    <footer class="bg-white dark:bg-gray-800 shadow-lg mt-auto">
+        <!-- Desktop Footer -->
+        <div class="hidden sm:block">
+            <div class="w-full mx-auto h-20 px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <img class="h-8 w-auto" src="/static/img/brand/logo.png" alt="NyTex Fireworks">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        Providing quality fireworks and exceptional service since 2020
+                    </p>
+                </div>
+                
+                <div class="flex items-center space-x-8">
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">About</a>
+                        <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Contact</a>
+                        <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Privacy</a>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button @click="darkMode = !darkMode" 
+                                class="theme-toggle-btn">
+                            <span class="sr-only" x-text="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"></span>
+                            <i x-show="!darkMode" data-lucide="sun" class="h-5 w-5 text-amber-500"></i>
+                            <i x-show="darkMode" data-lucide="moon" class="h-5 w-5 text-blue-400"></i>
+                        </button>
+                        <span class="text-sm text-gray-400 dark:text-gray-500">&copy; {{ current_year }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Footer -->
+        <div class="sm:hidden px-4 py-6 space-y-4">
+            <!-- Logo and Company Info -->
+            <div class="flex flex-col items-center text-center space-y-2">
                 <img class="h-8 w-auto" src="/static/img/brand/logo.png" alt="NyTex Fireworks">
-                <p class="text-sm text-gray-500 dark:text-gray-400">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
                     Providing quality fireworks and exceptional service since 2020
                 </p>
             </div>
             
-            <div class="flex items-center space-x-8">
-                <div class="flex space-x-4">
-                    <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">About</a>
-                    <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Contact</a>
-                    <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Privacy</a>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <button @click="darkMode = !darkMode" 
-                            class="theme-toggle-btn">
-                        <span class="sr-only" x-text="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"></span>
-                        <i x-show="!darkMode" class="lucide lucide-sun h-5 w-5 text-amber-500"></i>
-                        <i x-show="darkMode" class="lucide lucide-moon h-5 w-5 text-blue-400"></i>
-                    </button>
-                    <span class="text-sm text-gray-400 dark:text-gray-500">&copy; {{ current_year }}</span>
-                </div>
+            <!-- Links -->
+            <div class="flex justify-center space-x-6">
+                <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">About</a>
+                <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Contact</a>
+                <a href="#" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Privacy</a>
+            </div>
+            
+            <!-- Copyright and Theme Toggle -->
+            <div class="flex items-center justify-center space-x-4">
+                <span class="text-xs text-gray-400 dark:text-gray-500">&copy; {{ current_year }}</span>
+                <button @click="darkMode = !darkMode" 
+                        class="theme-toggle-btn">
+                    <span class="sr-only" x-text="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"></span>
+                    <i x-show="!darkMode" data-lucide="sun" class="h-4 w-4 text-amber-500"></i>
+                    <i x-show="darkMode" data-lucide="moon" class="h-4 w-4 text-blue-400"></i>
+                </button>
             </div>
         </div>
     </footer>

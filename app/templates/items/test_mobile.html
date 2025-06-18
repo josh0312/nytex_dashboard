@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Mobile Test - NyTex Fireworks{% endblock %}
+
+{% block head %}
+<!-- Tabulator CSS -->
+<link href="{{ url_for('static', path='css/tabulator_bootstrap5.min.css') }}" rel="stylesheet">
+<style>
+    .test-button {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        margin: 5px;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+    
+    .test-button:hover {
+        background: #2563eb;
+    }
+    
+    .debug-info {
+        background: #f3f4f6;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        font-family: monospace;
+        font-size: 12px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-full mx-auto px-4 py-4">
+    <h1 class="text-2xl font-bold mb-4">Mobile Table Test</h1>
+    
+    <div class="debug-info" id="debug-info">
+        Loading debug info...
+    </div>
+    
+    <div class="mb-4">
+        <button class="test-button" onclick="testHideColumns()">Hide Desktop Columns</button>
+        <button class="test-button" onclick="testShowColumns()">Show All Columns</button>
+        <button class="test-button" onclick="testTableInfo()">Show Table Info</button>
+        <button class="test-button" onclick="refreshDebug()">Refresh Debug</button>
+    </div>
+    
+    <!-- Simple Tabulator Table -->
+    <div id="test-table"></div>
+</div>
+
+<!-- Tabulator JavaScript -->
+<script src="{{ url_for('static', path='js/vendor/tabulator.min.js') }}"></script>
+
+<script>
+let testTable;
+
+function updateDebugInfo() {
+    const debugDiv = document.getElementById('debug-info');
+    debugDiv.innerHTML = `
+        <strong>Debug Info:</strong><br>
+        Window Width: ${window.innerWidth}px<br>
+        User Agent: ${navigator.userAgent}<br>
+        Is Mobile: ${window.innerWidth < 768 ? 'YES' : 'NO'}<br>
+        Table Exists: ${testTable ? 'YES' : 'NO'}<br>
+        Table Columns: ${testTable ? testTable.getColumns().length : 'N/A'}<br>
+        Visible Columns: ${testTable ? testTable.getColumns().filter(col => col.isVisible()).length : 'N/A'}
+    `;
+}
+
+function testHideColumns() {
+    if (!testTable) {
+        alert('Table not ready');
+        return;
+    }
+    
+    console.log('Testing column hiding...');
+    
+    const columnsToHide = ['sku', 'description', 'vendor_name', 'cost'];
+    
+    columnsToHide.forEach(field => {
+        try {
+            console.log(`Hiding column: ${field}`);
+            testTable.hideColumn(field);
+            console.log(`Successfully hid: ${field}`);
+        } catch (e) {
+            console.error(`Failed to hide ${field}:`, e);
+        }
+    });
+    
+    testTable.redraw(true);
+    updateDebugInfo();
+}
+
+function testShowColumns() {
+    if (!testTable) {
+        alert('Table not ready');
+        return;
+    }
+    
+    console.log('Testing column showing...');
+    
+    const columnsToShow = ['sku', 'description', 'vendor_name', 'cost'];
+    
+    columnsToShow.forEach(field => {
+        try {
+            console.log(`Showing column: ${field}`);
+            testTable.showColumn(field);
+            console.log(`Successfully showed: ${field}`);
+        } catch (e) {
+            console.error(`Failed to show ${field}:`, e);
+        }
+    });
+    
+    testTable.redraw(true);
+    updateDebugInfo();
+}
+
+function testTableInfo() {
+    if (!testTable) {
+        alert('Table not ready');
+        return;
+    }
+    
+    console.log('Table columns:', testTable.getColumns());
+    console.log('Visible columns:', testTable.getColumns().filter(col => col.isVisible()));
+    console.log('Hidden columns:', testTable.getColumns().filter(col => !col.isVisible()));
+    
+    updateDebugInfo();
+}
+
+function refreshDebug() {
+    updateDebugInfo();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Create simple test table
+    testTable = new Tabulator("#test-table", {
+        ajaxURL: "/items/data",
+        pagination: "remote",
+        paginationSize: 10,
+        height: "400px",
+        layout: "fitColumns",
+        
+        columns: [
+            {title: "Item Name", field: "item_name", width: 200},
+            {title: "SKU", field: "sku", width: 120},
+            {title: "Description", field: "description", width: 200},
+            {title: "Category", field: "category", width: 150},
+            {title: "Price", field: "price", width: 100, formatter: "money"},
+            {title: "Vendor", field: "vendor_name", width: 150},
+            {title: "Cost", field: "cost", width: 100, formatter: "money"},
+            {title: "Stock", field: "total_qty", width: 80}
+        ],
+        
+        tableBuilt: function() {
+            console.log("Test table built successfully");
+            updateDebugInfo();
+        }
+    });
+    
+    // Update debug info immediately
+    updateDebugInfo();
+    
+    // Update on window resize
+    window.addEventListener('resize', updateDebugInfo);
+});
+</script>
+{% endblock %} 

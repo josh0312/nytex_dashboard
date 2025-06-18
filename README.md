@@ -150,6 +150,9 @@ python -m pytest tests/
 
 # Run with coverage
 python -m pytest tests/ --cov=app
+
+# Run mobile functionality tests (pre-deployment)
+./scripts/test_mobile.sh
 ```
 
 ## 🚀 Enhanced Deployment & Monitoring
