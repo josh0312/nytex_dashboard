@@ -1,6 +1,6 @@
--- Items Inventory Query - Uses Database View
--- This query uses the items_view database view for simplified and reliable data access
--- The view handles all the complex joins and calculations
+-- Items inventory query using optimized database view
+-- This query uses the items_view which consolidates all profit calculations
+-- View created via Alembic migration: create_items_view.py
 -- Last updated: 2025-01-08
 
 SELECT * FROM items_view 
