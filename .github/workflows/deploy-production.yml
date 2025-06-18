@@ -71,6 +71,11 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set up Python for migrations
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Configure Docker to use gcloud as a credential helper
         run: |
           gcloud auth configure-docker ${GAR_LOCATION}
@@ -91,6 +96,27 @@ jobs:
           gcloud secrets versions access latest --secret="database-uri" > /dev/null && echo "✅ database-uri exists" || echo "❌ database-uri missing"
           gcloud secrets versions access latest --secret="secret-key" > /dev/null && echo "✅ secret-key exists" || echo "❌ secret-key missing"
           gcloud secrets versions access latest --secret="square-access-token" > /dev/null && echo "✅ square-access-token exists" || echo "❌ square-access-token missing"
+
+      - name: Run database migrations
+        run: |
+          echo "🔄 Running database migrations..."
+          
+          # Get database URI from secrets
+          DATABASE_URI=$(gcloud secrets versions access latest --secret="database-uri")
+          
+          # Install Python dependencies for migration
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # Set environment variables for migration
+          export SQLALCHEMY_DATABASE_URI="$DATABASE_URI"
+          export PYTHONPATH="${GITHUB_WORKSPACE}"
+          
+          # Run Alembic migrations
+          cd migrations
+          alembic upgrade head
+          
+          echo "✅ Database migrations completed successfully"
 
       - name: Deploy to Cloud Run
         run: |
@@ -166,6 +192,31 @@ jobs:
           else
             echo "❌ Database connection failed: $DB_STATUS"
             echo "Deployment completed but with database issues"
+          fi
+          
+          # Test items API specifically (for items_view migration)
+          echo "🔍 Testing items API after migration..."
+          sleep 5  # Give the service a moment after deployment
+          
+          ITEMS_TEST=$(curl -s "${SERVICE_URL}/items/data" | python3 -c "
+          import sys, json
+          try:
+              data = json.load(sys.stdin)
+              if 'error' in data:
+                  print('error: ' + data['error'][:100] + '...')
+              elif 'data' in data and isinstance(data['data'], list):
+                  print('success: ' + str(len(data['data'])) + ' items')
+              else:
+                  print('unknown: unexpected response format')
+          except:
+              print('error: invalid json response')
+          " 2>/dev/null)
+          
+          if [[ "$ITEMS_TEST" == success* ]]; then
+            echo "✅ Items API working: $ITEMS_TEST"
+          else
+            echo "❌ Items API failed: $ITEMS_TEST"
+            echo "This may indicate the database migration didn't complete properly"
           fi
 
       - name: Verify traffic routing
