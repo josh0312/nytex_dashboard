@@ -263,6 +263,25 @@ async def complete_sync(request: Request):
         success_message = f"Complete production sync successful ({sync_mode}) - {total_changes} total changes"
         logger.info(success_message)
         
+        # Send success notification
+        try:
+            from app.services.notifications import send_sync_success_report
+            
+            # Create dummy results for notification
+            dummy_result = type('DummyResult', (), {
+                'success': True,
+                'records_processed': total_changes,
+                'records_added': sum(stats.get("created", 0) for stats in sync_stats.values() if isinstance(stats, dict) and "error" not in stats),
+                'records_updated': sum(stats.get("updated", 0) for stats in sync_stats.values() if isinstance(stats, dict) and "error" not in stats),
+                'duration_seconds': 0.0
+            })()
+            
+            notification_results = {'complete_sync': dummy_result}
+            send_sync_success_report(notification_results, "production")
+            logger.info("✅ Success notification sent")
+        except Exception as e:
+            logger.warning(f"Failed to send success notification: {e}")
+        
         # Enhanced response with catalog updates
         response_data = {
             "success": True,
@@ -287,6 +306,25 @@ async def complete_sync(request: Request):
         
     except Exception as e:
         logger.error(f"Error during complete sync: {str(e)}", exc_info=True)
+        
+        # Send failure notification
+        try:
+            from app.services.notifications import send_sync_failure_alert
+            
+            # Create failure results for notification
+            failure_result = type('FailureResult', (), {
+                'success': False,
+                'records_processed': 0,
+                'errors': [str(e)],
+                'duration_seconds': 0.0
+            })()
+            
+            notification_results = {'complete_sync': failure_result}
+            send_sync_failure_alert(notification_results, "production")
+            logger.info("📧 Failure notification sent")
+        except Exception as notify_error:
+            logger.warning(f"Failed to send failure notification: {notify_error}")
+        
         return JSONResponse({
             "success": False,
             "error": f"Complete sync error: {str(e)}",
@@ -825,10 +863,9 @@ async def sync_inventory_direct(access_token, base_url, db_url):
         return False
 
 async def fetch_catalog_objects_direct(access_token, base_url, object_type):
-    """Fetch catalog objects from Square API"""
+    """Fetch catalog objects from Square API, excluding archived items"""
     try:
         timeout = aiohttp.ClientTimeout(total=300)
-        url = f"{base_url}/v2/catalog/search"
         headers = {
             'Authorization': f'Bearer {access_token}',
             'Content-Type': 'application/json'
@@ -837,29 +874,59 @@ async def fetch_catalog_objects_direct(access_token, base_url, object_type):
         all_objects = []
         cursor = None
         
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            while True:
-                body = {
-                    "object_types": [object_type],
-                    "limit": 1000,
-                    "include_deleted_objects": False
-                }
-                
-                if cursor:
-                    body["cursor"] = cursor
-                
-                async with session.post(url, headers=headers, json=body) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        objects = data.get('objects', [])
-                        all_objects.extend(objects)
-                        
-                        cursor = data.get('cursor')
-                        if not cursor:
+        if object_type == "ITEM":
+            # For items, use SearchCatalogItems to filter out archived items
+            url = f"{base_url}/v2/catalog/search-catalog-items"
+            
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                while True:
+                    body = {
+                        "limit": 100,  # Maximum allowed for SearchCatalogItems
+                        "archived_state": "ARCHIVED_STATE_NOT_ARCHIVED"  # Exclude archived items
+                    }
+                    
+                    if cursor:
+                        body["cursor"] = cursor
+                    
+                    async with session.post(url, headers=headers, json=body) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            items = data.get('items', [])
+                            all_objects.extend(items)
+                            
+                            cursor = data.get('cursor')
+                            if not cursor:
+                                break
+                        else:
+                            logger.error(f"Square API error for {object_type}: {response.status}")
                             break
-                    else:
-                        logger.error(f"Square API error for {object_type}: {response.status}")
-                        break
+        else:
+            # For other object types, use the standard catalog search
+            url = f"{base_url}/v2/catalog/search"
+            
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                while True:
+                    body = {
+                        "object_types": [object_type],
+                        "limit": 1000,
+                        "include_deleted_objects": False
+                    }
+                    
+                    if cursor:
+                        body["cursor"] = cursor
+                    
+                    async with session.post(url, headers=headers, json=body) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            objects = data.get('objects', [])
+                            all_objects.extend(objects)
+                            
+                            cursor = data.get('cursor')
+                            if not cursor:
+                                break
+                        else:
+                            logger.error(f"Square API error for {object_type}: {response.status}")
+                            break
         
         return all_objects
         
@@ -1421,6 +1488,11 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
             # Sync items
             for item in items:
                 item_data_obj = item.get('item_data', {})
+                
+                # Skip archived items - they should not be in our database
+                if item_data_obj.get('is_archived', False):
+                    logger.debug(f"Skipping archived item: {item_data_obj.get('name', item['id'])}")
+                    continue
                 
                 # Extract category_id from categories array (Square API structure)
                 categories_list = item_data_obj.get('categories', [])

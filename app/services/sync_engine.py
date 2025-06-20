@@ -119,8 +119,25 @@ class SyncEngine:
         }
     
     def _get_database_url(self) -> str:
-        """Get database URL from environment or default"""
-        return os.getenv('DATABASE_URL', 'postgresql://nytex_user:NytexSecure2024!@localhost:5434/square_data_sync')
+        """Get database URL from environment or Config class"""
+        # First check for environment variables (production uses this)
+        db_url = os.getenv('DATABASE_URL') or os.getenv('SQLALCHEMY_DATABASE_URI')
+        if db_url:
+            # Convert asyncpg to regular postgresql for sync operations
+            if 'postgresql+asyncpg://' in db_url:
+                return db_url.replace('postgresql+asyncpg://', 'postgresql://')
+            return db_url
+        
+        # Fall back to main Config class (development uses this)
+        try:
+            # Import here to avoid circular imports
+            from app.config import Config
+            config_url = Config.get_sync_db_url()
+            return config_url
+        except Exception as e:
+            logger.warning(f"Could not get database URL from Config: {e}")
+            # Final fallback (should rarely be used)
+            return 'postgresql://postgres:password@localhost:5432/square_data_sync'
     
     async def sync_all(self, data_types: Optional[List[str]] = None) -> Dict[str, SyncResult]:
         """

@@ -276,12 +276,27 @@ class SyncOrchestrator:
         self.logger.info(summary)
         
         # Send notifications
+        environment = self._get_environment()
+        
         if failed_syncs:
             # Send failure alert
-            self.notification_service.send_sync_failure_alert(results, self._get_environment())
-        else:
-            # Send success report (only if all syncs succeeded)
-            self.notification_service.send_sync_success_report(results, self._get_environment())
+            self.notification_service.send_sync_failure_alert(results, environment)
+        
+        # Always send success report if there were any successful syncs
+        if results and any(result.success for result in results.values()):
+            self.notification_service.send_sync_success_report(results, environment)
+        elif not results and not dry_run:
+            # Send a "no syncs due" notification to confirm system is running
+            dummy_result = type('DummyResult', (), {
+                'success': True,
+                'records_processed': 0,
+                'records_added': 0,
+                'records_updated': 0,
+                'duration_seconds': 0.0
+            })()
+            
+            no_sync_results = {'system_check': dummy_result}
+            self.notification_service.send_sync_success_report(no_sync_results, environment)
         
         return results
     

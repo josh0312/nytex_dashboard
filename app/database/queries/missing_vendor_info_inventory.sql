@@ -1,97 +1,11 @@
--- Missing Vendor Info Inventory Report Query
--- Purpose: Identifies items with missing vendor information using Square catalog data
--- Checks: default_vendor_name, default_vendor_code from square_item_library_export and default_unit_cost from catalog_variations
--- Excludes: Archived items
--- Data Source: square_item_library_export table (Square catalog export) + catalog_variations (Square API sync)
--- Last Updated: 2025-01-27
+-- Missing Vendor Info Inventory Report Query (Updated to use items_view)
+-- Purpose: Identifies items with missing vendor information using standardized items_view
+-- Checks: vendor_name, vendor_code, and unit_cost from items_view
+-- Excludes: No need to exclude archived items (items_view already filters them)
+-- Data Source: items_view (standardized view that combines Square catalog export + API data)
+-- Last Updated: 2025-06-20
 
-WITH 
--- Get unit cost data from catalog_variations (Square API sync)
-unit_cost_data AS (
-    SELECT 
-        cv.id as item_variation_id,
-        cv.name as variation_name,
-        ci.name as item_name,
-        -- Extract unit cost amount from JSONB and convert to decimal
-        CASE 
-            WHEN cv.default_unit_cost IS NOT NULL 
-                AND cv.default_unit_cost->>'amount' IS NOT NULL
-            THEN (cv.default_unit_cost->>'amount')::numeric / 100.0  -- Convert cents to dollars
-            ELSE NULL
-        END as unit_cost_dollars
-    FROM catalog_variations cv
-    JOIN catalog_items ci ON cv.item_id = ci.id
-    WHERE cv.is_deleted = false
-    AND ci.is_deleted = false
-),
-
--- Identify items with missing vendor information from catalog export
-missing_vendor_info AS (
-    SELECT 
-        sile.item_name,
-        sile.sku,
-        sile.price,
-        sile.default_vendor_name,
-        sile.default_vendor_code,
-        -- Get unit cost from catalog_variations instead of square_item_library_export
-        ucd.unit_cost_dollars as default_unit_cost,
-        -- Determine the type of missing vendor information
-        CASE 
-            WHEN (sile.default_vendor_name IS NULL OR sile.default_vendor_name = '') 
-                AND (sile.default_vendor_code IS NULL OR sile.default_vendor_code = '')
-                AND (ucd.unit_cost_dollars IS NULL OR ucd.unit_cost_dollars = 0)
-                THEN 'Missing All Vendor Info'
-            WHEN (sile.default_vendor_name IS NULL OR sile.default_vendor_name = '') 
-                AND (sile.default_vendor_code IS NULL OR sile.default_vendor_code = '')
-                THEN 'No Vendor & No Code'
-            WHEN (sile.default_vendor_name IS NULL OR sile.default_vendor_name = '') 
-                AND (ucd.unit_cost_dollars IS NULL OR ucd.unit_cost_dollars = 0)
-                THEN 'No Vendor & No Cost'
-            WHEN (sile.default_vendor_code IS NULL OR sile.default_vendor_code = '')
-                AND (ucd.unit_cost_dollars IS NULL OR ucd.unit_cost_dollars = 0)
-                THEN 'No Code & No Cost'
-            WHEN (sile.default_vendor_name IS NULL OR sile.default_vendor_name = '') 
-                THEN 'No Vendor Name'
-            WHEN (sile.default_vendor_code IS NULL OR sile.default_vendor_code = '')
-                THEN 'No Vendor Code'
-            WHEN (ucd.unit_cost_dollars IS NULL OR ucd.unit_cost_dollars = 0)
-                THEN 'No Unit Cost'
-            ELSE 'Has Vendor Info'
-        END AS vendor_status,
-        -- Calculate quantity based on location data if available
-        CASE 
-            WHEN sile.location_data IS NOT NULL AND jsonb_typeof(sile.location_data) = 'object'
-            THEN (
-                SELECT COALESCE(SUM((value->>'quantity')::numeric), 0)
-                FROM jsonb_each(sile.location_data)
-                WHERE value->>'quantity' IS NOT NULL 
-                AND (value->>'quantity')::numeric > 0
-            )
-            ELSE 0
-        END AS total_quantity
-    FROM square_item_library_export sile
-    LEFT JOIN unit_cost_data ucd ON sile.item_name = ucd.item_name
-    WHERE sile.archived != 'Y'  -- Exclude archived items
-    AND (
-        -- Items with missing vendor name
-        (sile.default_vendor_name IS NULL OR sile.default_vendor_name = '')
-        OR 
-        -- Items with missing vendor code
-        (sile.default_vendor_code IS NULL OR sile.default_vendor_code = '')
-        OR
-        -- Items with missing unit cost (now from catalog_variations)
-        (ucd.unit_cost_dollars IS NULL OR ucd.unit_cost_dollars = 0)
-    )
-),
-
--- Filter to items with inventory or other relevant criteria
-filtered_missing_vendor_info AS (
-    SELECT *
-    FROM missing_vendor_info
-    -- Include all items missing any vendor information
-)
-
--- Main query to get items missing vendor info
+-- Main query to get items missing vendor info from standardized items_view
 SELECT DISTINCT
     item_name,
     -- Format price to currency with 2 decimal places
@@ -100,40 +14,74 @@ SELECT DISTINCT
         THEN TO_CHAR(price, '$999,999.99') 
         ELSE 'No Price' 
     END AS price,
-    COALESCE(total_quantity, 0) as quantity,
+    COALESCE(total_qty, 0) as quantity,
     -- Display vendor name or appropriate status
     CASE 
-        WHEN default_vendor_name IS NOT NULL AND default_vendor_name != '' 
-        THEN default_vendor_name
+        WHEN vendor_name IS NOT NULL AND vendor_name != '' 
+        THEN vendor_name
         ELSE 'No Vendor'
     END AS vendor_name,
-    -- Display vendor code or status
+    -- Display vendor code or status  
     CASE 
-        WHEN default_vendor_code IS NOT NULL AND default_vendor_code != '' 
-        THEN default_vendor_code
+        WHEN vendor_code IS NOT NULL AND vendor_code != '' 
+        THEN vendor_code
         ELSE 'No Code'
     END AS vendor_sku,
-    vendor_status,
-    -- Show unit cost for reference (now from catalog_variations)
+    -- Determine the type of missing vendor information
     CASE 
-        WHEN default_unit_cost IS NOT NULL 
-        THEN TO_CHAR(default_unit_cost, '$999,999.99') 
+        WHEN (vendor_name IS NULL OR vendor_name = '') 
+            AND (vendor_code IS NULL OR vendor_code = '')
+            AND (cost IS NULL OR cost = 0)
+            THEN 'Missing All Vendor Info'
+        WHEN (vendor_name IS NULL OR vendor_name = '') 
+            AND (vendor_code IS NULL OR vendor_code = '')
+            THEN 'No Vendor & No Code'
+        WHEN (vendor_name IS NULL OR vendor_name = '') 
+            AND (cost IS NULL OR cost = 0)
+            THEN 'No Vendor & No Cost'
+        WHEN (vendor_code IS NULL OR vendor_code = '')
+            AND (cost IS NULL OR cost = 0)
+            THEN 'No Code & No Cost'
+        WHEN (vendor_name IS NULL OR vendor_name = '') 
+            THEN 'No Vendor Name'
+        WHEN (vendor_code IS NULL OR vendor_code = '')
+            THEN 'No Vendor Code'
+        WHEN (cost IS NULL OR cost = 0)
+            THEN 'No Unit Cost'
+        ELSE 'Has Vendor Info'
+    END AS vendor_status,
+    -- Show unit cost for reference
+    CASE 
+        WHEN cost IS NOT NULL AND cost > 0
+        THEN TO_CHAR(cost, '$999,999.99') 
         ELSE 'No Cost' 
     END AS unit_cost
-FROM filtered_missing_vendor_info
+FROM items_view
+WHERE (
+    -- Items with missing vendor name
+    (vendor_name IS NULL OR vendor_name = '')
+    OR 
+    -- Items with missing vendor code
+    (vendor_code IS NULL OR vendor_code = '')
+    OR
+    -- Items with missing unit cost
+    (unit_cost IS NULL OR unit_cost = 0)
+)
 ORDER BY item_name;
 
 -- Note: This query shows:
--- 1. Items with missing vendor name (default_vendor_name is NULL or empty)
--- 2. Items with missing vendor code (default_vendor_code is NULL or empty)
--- 3. Items with missing unit cost (default_unit_cost from catalog_variations via Square API)
--- 4. Only non-archived items
--- 5. Uses Square catalog export data for vendor info + catalog_variations for unit cost
+-- 1. Items with missing vendor name (vendor_name is NULL or empty)
+-- 2. Items with missing vendor code (vendor_code is NULL or empty)  
+-- 3. Items with missing unit cost (unit_cost is NULL or zero)
+-- 4. Uses standardized items_view which automatically excludes archived items
+-- 5. items_view combines the best of Square catalog export + API sync data
 -- 6. Vendor status indicates specific type of missing vendor information
--- 7. Quantity calculated from location_data JSON field when available
--- 8. Unit cost now sourced from Square API sync data in catalog_variations table
+-- 7. Quantity comes from total_qty field in items_view
+-- 8. Unit cost sourced from items_view (combines export + API data)
 -- 
--- Data Sources: 
--- - square_item_library_export: vendor name/code from Square export
--- - catalog_variations: unit cost from Square API (default_unit_cost JSONB field)
--- This combines the best of both data sources for comprehensive vendor analysis. 
+-- Benefits of using items_view:
+-- - Consistent with other reports  
+-- - Automatically excludes archived items
+-- - Combines best data from multiple sources
+-- - Standardized field names and data types
+-- - No need for complex CTEs and joins 

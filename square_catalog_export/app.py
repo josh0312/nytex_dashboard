@@ -259,16 +259,16 @@ class SquareCatalogExporter:
             
             async with aiohttp.ClientSession() as client_session:
                 while True:
-                    url = f"{self.base_url}/v2/catalog/search"
+                    # Use SearchCatalogItems to properly filter archived items
+                    url = f"{self.base_url}/v2/catalog/search-catalog-items"
                     headers = {
                         'Authorization': f'Bearer {self.square_access_token}',
                         'Content-Type': 'application/json'
                     }
                     
                     body = {
-                        "object_types": ["ITEM"],
-                        "limit": 1000,
-                        "include_deleted_objects": False,
+                        "limit": 100,  # Maximum allowed for SearchCatalogItems
+                        "archived_state": "ARCHIVED_STATE_NOT_ARCHIVED",  # Exclude archived items
                         "include_related_objects": True  # Include variations and other related objects
                     }
                     
@@ -280,7 +280,7 @@ class SquareCatalogExporter:
                     async with client_session.post(url, headers=headers, json=body) as response:
                         if response.status == 200:
                             data = await response.json()
-                            items = data.get('objects', [])
+                            items = data.get('items', [])  # SearchCatalogItems returns 'items' not 'objects'
                             all_items.extend(items)
                             
                             # Also collect related objects (categories, etc.)

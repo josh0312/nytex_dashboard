@@ -119,12 +119,12 @@ class NotificationService:
         """Load email templates"""
         self.templates = {
             'sync_failure': {
-                'subject': '[NYTEX ALERT] Sync Failure - {{ data_types|join(", ") }}',
+                'subject': '[NYTEX {{ environment.upper() }} ALERT] 🚨 Sync Failure - {{ data_types|join(", ") }}',
                 'text': '''
 NYTEX Square Data Sync Failure Alert
 
 Time: {{ timestamp }}
-Environment: {{ environment }}
+Environment: {{ environment.upper() }}
 Failed Data Types: {{ data_types|join(", ") }}
 
 {% for data_type, result in results.items() %}
@@ -170,12 +170,13 @@ This is an automated alert from the NYTEX Sync System.
         .details { background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0; }
         .error-list { margin: 10px 0; padding-left: 20px; }
         .footer { margin-top: 30px; font-size: 12px; color: #666; }
+        .env-badge { background-color: #ffc107; color: #212529; padding: 4px 8px; border-radius: 3px; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="header">
         <h2>🚨 NYTEX Sync Failure Alert</h2>
-        <p>{{ timestamp }} - {{ environment }}</p>
+        <p>{{ timestamp }} - <span class="env-badge">{{ environment.upper() }}</span></p>
     </div>
     
     <div class="content">
@@ -224,14 +225,17 @@ This is an automated alert from the NYTEX Sync System.
                 '''
             },
             'sync_success': {
-                'subject': '[NYTEX] Daily Sync Complete - {{ total_records }} records processed',
+                'subject': '[NYTEX {{ environment.upper() }}] ✅ SUCCESS - Daily Sync Complete ({{ total_records }} records)',
                 'text': '''
 NYTEX Square Data Sync - Daily Summary
 
 Time: {{ timestamp }}
-Environment: {{ environment }}
+Environment: {{ environment.upper() }}
 Total Duration: {{ total_duration }}
 
+{{ success_message }}
+
+{% if not is_system_check %}
 === SYNC RESULTS ===
 {% for data_type, result in results.items() %}
 {{ data_type.upper() }}: ✅ SUCCESS
@@ -246,6 +250,12 @@ Total Updated Records: {{ total_updated }}
 Average Processing Time: {{ avg_duration }}s
 
 All syncs completed successfully. System is healthy.
+{% else %}
+=== SYSTEM STATUS ===
+The automated sync system is running correctly.
+No data synchronization was required at this time.
+All sync schedules are being monitored properly.
+{% endif %}
 
 This is an automated report from the NYTEX Sync System.
                 ''',
@@ -260,26 +270,39 @@ This is an automated report from the NYTEX Sync System.
         .success { background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; margin: 10px 0; border-radius: 5px; }
         .summary { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }
         .footer { margin-top: 30px; font-size: 12px; color: #666; }
+        .env-badge { background-color: #17a2b8; color: white; padding: 4px 8px; border-radius: 3px; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; margin: 15px 0; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #f2f2f2; }
+        .success-banner { background-color: #d4edda; border: 2px solid #28a745; padding: 15px; border-radius: 10px; text-align: center; margin: 15px 0; }
     </style>
 </head>
 <body>
     <div class="header">
         <h2>✅ NYTEX Daily Sync Complete</h2>
-        <p>{{ timestamp }} - {{ environment }}</p>
+        <p>{{ timestamp }} - <span class="env-badge">{{ environment.upper() }}</span></p>
     </div>
     
     <div class="content">
+        <div class="success-banner">
+            <h2 style="color: #28a745; margin: 0;">{{ success_message }}</h2>
+        </div>
+        
         <div class="summary">
             <h3>📊 Summary</h3>
             <p><strong>Total Duration:</strong> {{ total_duration }}</p>
+            {% if not is_system_check %}
             <p><strong>Total Records:</strong> {{ total_records }}</p>
             <p><strong>New Records:</strong> {{ total_added }}</p>
             <p><strong>Updated Records:</strong> {{ total_updated }}</p>
+            {% else %}
+            <p><strong>System Status:</strong> Healthy and Running</p>
+            <p><strong>Sync Status:</strong> No syncs due at this time</p>
+            <p><strong>Monitoring:</strong> Active</p>
+            {% endif %}
         </div>
         
+        {% if not is_system_check %}
         <h3>📋 Detailed Results</h3>
         <table>
             <tr>
@@ -301,10 +324,16 @@ This is an automated report from the NYTEX Sync System.
             </tr>
             {% endfor %}
         </table>
+        {% endif %}
         
         <div class="success">
+            {% if not is_system_check %}
             <p><strong>🎉 All syncs completed successfully!</strong></p>
             <p>System is healthy and all data is up to date.</p>
+            {% else %}
+            <p><strong>🔍 System check completed successfully!</strong></p>
+            <p>Automated sync system is running correctly and monitoring all schedules.</p>
+            {% endif %}
         </div>
     </div>
     
@@ -316,7 +345,7 @@ This is an automated report from the NYTEX Sync System.
                 '''
             },
             'system_alert': {
-                'subject': '[NYTEX SYSTEM] {{ alert_type }} - {{ title }}',
+                'subject': '[NYTEX {{ environment.upper() }} SYSTEM] {{ alert_type }} - {{ title }}',
                 'text': '''
 NYTEX System Alert
 
@@ -510,11 +539,22 @@ This is an automated alert from the NYTEX Sync System.
     
     def send_sync_success_report(self, results: Dict[str, Any], environment: str = "production") -> bool:
         """Send daily sync success report"""
+        # Check if this is a system check (no actual syncs)
+        is_system_check = len(results) == 1 and 'system_check' in results
+        
         total_records = sum(r.records_processed for r in results.values())
-        total_added = sum(r.records_added for r in results.values())
-        total_updated = sum(r.records_updated for r in results.values())
-        total_duration = sum(r.duration_seconds for r in results.values())
+        total_added = sum(getattr(r, 'records_added', 0) for r in results.values())
+        total_updated = sum(getattr(r, 'records_updated', 0) for r in results.values())
+        total_duration = sum(getattr(r, 'duration_seconds', 0) for r in results.values())
         avg_duration = total_duration / len(results) if results else 0
+        
+        # Adjust subject and content for system check
+        if is_system_check:
+            subject_template = '[NYTEX {{ environment.upper() }}] ✅ SUCCESS - System Check (No syncs due)'
+            success_message = "🔍 SYSTEM CHECK COMPLETED - No syncs were due at this time"
+        else:
+            subject_template = '[NYTEX {{ environment.upper() }}] ✅ SUCCESS - Daily Sync Complete ({{ total_records }} records)'
+            success_message = "🎉 ALL SYNCS COMPLETED SUCCESSFULLY! 🎉"
         
         context = {
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -524,11 +564,18 @@ This is an automated alert from the NYTEX Sync System.
             'total_added': total_added,
             'total_updated': total_updated,
             'total_duration': f"{total_duration:.1f}s",
-            'avg_duration': f"{avg_duration:.1f}"
+            'avg_duration': f"{avg_duration:.1f}",
+            'is_system_check': is_system_check,
+            'success_message': success_message
         }
         
-        # Render templates
-        subject = self._render_template('sync_success', 'subject', context)
+        # Use custom subject for system check, otherwise use template
+        if is_system_check:
+            template = Template(subject_template)
+            subject = template.render(**context)
+        else:
+            subject = self._render_template('sync_success', 'subject', context)
+        
         body_text = self._render_template('sync_success', 'text', context)
         body_html = self._render_template('sync_success', 'html', context)
         
@@ -538,7 +585,7 @@ This is an automated alert from the NYTEX Sync System.
             body_html=body_html,
             priority='normal',
             category='sync_success',
-            metadata={'total_records': total_records}
+            metadata={'total_records': total_records, 'is_system_check': is_system_check}
         )
         
         return self._send_notification(message)

@@ -268,7 +268,7 @@ class IncrementalSyncService:
                     while True:
                         payload = {
                             "object_types": [object_type],
-                            "include_deleted_objects": False,
+                            "include_deleted_objects": True,  # Include archived items so we can remove them
                             "limit": 1000
                         }
                         
@@ -600,11 +600,36 @@ class IncrementalSyncService:
             categories = item_info.get('categories', [])
             category_id = categories[0]['id'] if categories else None
 
+            # Handle archived items - remove them from our database
+            if item_info.get('is_archived', False):
+                item_id = item_data['id']
+                item_name = item_info.get('name', item_id)
+                
+                # Check if this item exists in our database
+                existing_item = await session.execute(
+                    text("SELECT id FROM catalog_items WHERE id = :item_id"),
+                    {"item_id": item_id}
+                )
+                
+                if existing_item.fetchone():
+                    # Item exists in our DB but is archived in Square - remove it
+                    await session.execute(
+                        text("DELETE FROM catalog_items WHERE id = :item_id"),
+                        {"item_id": item_id}
+                    )
+                    logger.info(f"Removed archived item from database: {item_name} ({item_id})")
+                    changes += 1
+                else:
+                    logger.debug(f"Skipping archived item (not in our DB): {item_name} ({item_id})")
+                
+                continue
+
             stmt = insert(CatalogItem).values(
                 id=item_data['id'],
                 name=item_info.get('name', ''),
                 description=item_info.get('description', ''),
                 category_id=category_id,
+                is_archived=False,  # Only non-archived items in our database
                 is_deleted=False,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
@@ -616,6 +641,7 @@ class IncrementalSyncService:
                     name=stmt.excluded.name,
                     description=stmt.excluded.description,
                     category_id=stmt.excluded.category_id,
+                    is_archived=stmt.excluded.is_archived,
                     is_deleted=stmt.excluded.is_deleted,
                     updated_at=stmt.excluded.updated_at
                 )

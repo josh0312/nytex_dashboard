@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Job Identification -->
+    <key>Label</key>
+    <string>com.nytex.daily-sync</string>
+    
+    <!-- Program to run -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/.venv/bin/python</string>
+        <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/scripts/sync_orchestrator.py</string>
+    </array>
+    
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard</string>
+    
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/.venv/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>VIRTUAL_ENV</key>
+        <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/.venv</string>
+    </dict>
+    
+    <!-- Schedule: Daily at 1:00 AM Central (6:00 AM UTC) -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>1</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    
+    <!-- Key feature: Run missed jobs when system wakes up -->
+    <key>RunAtLoad</key>
+    <false/>
+    
+    <!-- Enable this to run at system startup if needed -->
+    <key>LaunchOnlyOnce</key>
+    <false/>
+    
+    <!-- Keep the job loaded even if it fails -->
+    <key>KeepAlive</key>
+    <false/>
+    
+    <!-- Standard output and error logging -->
+    <key>StandardOutPath</key>
+    <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/logs/launchd_sync.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/logs/launchd_sync_error.log</string>
+    
+    <!-- Nice level (lower priority) -->
+    <key>Nice</key>
+    <integer>10</integer>
+    
+    <!-- Only run when logged in (optional - remove if you want it to run even when not logged in) -->
+    <key>LimitLoadToSessionType</key>
+    <string>Aqua</string>
+</dict>
+</plist> 
