@@ -65,7 +65,7 @@ WHERE (
     (vendor_code IS NULL OR vendor_code = '')
     OR
     -- Items with missing unit cost
-    (unit_cost IS NULL OR unit_cost = 0)
+    (cost IS NULL OR cost = 0)
 )
 ORDER BY item_name;
 
