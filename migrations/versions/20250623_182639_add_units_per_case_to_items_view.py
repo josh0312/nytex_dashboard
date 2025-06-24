@@ -19,12 +19,11 @@ depends_on = None
 def upgrade():
     """Add units_per_case to items_view"""
     
-    # First, drop the existing view  
-    op.execute("DROP VIEW IF EXISTS items_view")
+    # First, drop the existing view
+    op.execute("DROP VIEW items_view")
     
-    # Grant permissions to nytex_app after view creation
-    def create_view_and_grant_permissions():
-        op.execute("""
+    # Create the new view with units_per_case data
+    op.execute("""
         CREATE VIEW items_view AS
         SELECT 
             -- Basic item information
