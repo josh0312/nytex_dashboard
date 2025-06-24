@@ -89,7 +89,7 @@ def run_command(cmd, description, show_output=False):
 
 def setup_iam_permissions():
     """Setup IAM permissions for GitHub Actions deployment"""
-    print_step(1, 6, "Setting up IAM Permissions")
+    print_step(1, 7, "Setting up IAM Permissions")
     
     # Define the service accounts
     compute_sa = "932676587025-compute@developer.gserviceaccount.com"
@@ -119,7 +119,7 @@ def setup_iam_permissions():
 
 def verify_cloud_run_access():
     """Verify we can access Cloud Run service"""
-    print_step(2, 6, "Verifying Cloud Run Access")
+    print_step(2, 7, "Verifying Cloud Run Access")
     
     cmd = "gcloud run services describe nytex-dashboard --region=us-central1 --format='value(status.url)'"
     success, output = run_command(cmd, "Checking Cloud Run service access")
@@ -133,7 +133,7 @@ def verify_cloud_run_access():
 
 def run_tests():
     """Run deployment readiness tests"""
-    print_step(3, 6, "Running Deployment Readiness Tests")
+    print_step(3, 7, "Running Deployment Readiness Tests")
     
     # Run the deployment readiness script
     success, output = run_command(
@@ -160,7 +160,7 @@ def get_current_commit():
 
 def push_changes():
     """Push any pending changes"""
-    print_step(4, 6, "Checking and Pushing Changes")
+    print_step(5, 7, "Checking and Pushing Changes")
     
     # Check if there are any changes to commit
     result = subprocess.run(['git', 'status', '--porcelain'], 
@@ -194,7 +194,7 @@ def push_changes():
 
 def wait_for_workflow_start(commit_hash, max_wait=120):
     """Wait for GitHub Actions workflow to start with longer timeout"""
-    print_step(5, 6, "Waiting for CI/CD Pipeline to Start")
+    print_step(6, 7, "Waiting for CI/CD Pipeline to Start")
     
     spinner = ProgressSpinner()
     start_time = time.time()
@@ -254,7 +254,7 @@ def wait_for_workflow_start(commit_hash, max_wait=120):
 
 def monitor_workflow_simple(workflow_id, run_number):
     """Simple workflow monitoring with fallback to Cloud Run checking"""
-    print_step(6, 6, f"Monitoring Deployment Progress")
+    print_step(7, 7, f"Monitoring Deployment Progress")
     
     if workflow_id:
         print_info(f"Monitoring workflow run #{run_number}")
@@ -363,6 +363,39 @@ def monitor_workflow_simple(workflow_id, run_number):
         print_error("Application health check failed")
         return False
 
+def deploy_microservices():
+    """Deploy supporting microservices"""
+    print_step(4, 7, "Deploying Supporting Microservices")
+    
+    # Deploy Square Catalog Export microservice
+    print_info("Deploying Square Catalog Export microservice...")
+    
+    microservice_dir = project_root / "square_catalog_export"
+    
+    if microservice_dir.exists():
+        deploy_script = microservice_dir / "deploy.sh"
+        if deploy_script.exists():
+            try:
+                result = subprocess.run(['./deploy.sh'], cwd=microservice_dir, capture_output=True, text=True)
+                
+                if result.returncode == 0:
+                    print_success("Square Catalog Export microservice deployed successfully")
+                    return True
+                else:
+                    print_error("Square Catalog Export microservice deployment failed")
+                    if result.stderr:
+                        print(f"   Error: {result.stderr.strip()}")
+                    return False
+            except Exception as e:
+                print_error(f"Error deploying microservice: {e}")
+                return False
+        else:
+            print_warning("No deploy script found for Square Catalog Export microservice")
+            return True
+    else:
+        print_warning("Square Catalog Export microservice directory not found")
+        return True
+
 def main():
     """Main execution flow"""
     print_header("🚀 Enhanced NyTex Dashboard Deployment")
@@ -383,16 +416,20 @@ def main():
             print_error("Deployment aborted due to test failures")
             sys.exit(1)
         
-        # Step 4: Push changes
+        # Step 4: Deploy microservices first
+        if not deploy_microservices():
+            print_warning("Microservice deployment failed, but continuing with main app deployment")
+        
+        # Step 5: Push changes
         success, commit_hash = push_changes()
         if not success:
             print_error("Failed to push changes")
             sys.exit(1)
         
-        # Step 5: Wait for workflow to start
+        # Step 6: Wait for workflow to start
         workflow_id, run_number = wait_for_workflow_start(commit_hash)
         
-        # Step 6: Monitor deployment
+        # Step 7: Monitor deployment
         success = monitor_workflow_simple(workflow_id, run_number)
         
         if success:
