@@ -1536,9 +1536,21 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
                     else:
                         stats["items"]["updated"] += 1
             
+            # Get existing item IDs to validate foreign key constraints
+            existing_items_result = await conn.execute(text("SELECT id FROM catalog_items WHERE is_deleted = false"))
+            existing_item_ids = {row[0] for row in existing_items_result.fetchall()}
+            
             # Sync variations
+            skipped_variations = 0
             for variation in variations:
                 variation_data_obj = variation.get('item_variation_data', {})
+                item_id = variation_data_obj.get('item_id')
+                
+                # Skip variations whose parent item doesn't exist
+                if item_id not in existing_item_ids:
+                    logger.debug(f"Skipping variation {variation['id']} - parent item {item_id} not found")
+                    skipped_variations += 1
+                    continue
                 
                 # Extract unit cost data
                 default_unit_cost = variation_data_obj.get('default_unit_cost')
@@ -1547,7 +1559,7 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
                 variation_data = {
                     'id': variation['id'],
                     'name': variation_data_obj.get('name', ''),
-                    'item_id': variation_data_obj.get('item_id'),
+                    'item_id': item_id,
                     'sku': variation_data_obj.get('sku', ''),
                     'price_money': json.dumps(variation_data_obj.get('price_money', {})),
                     'default_unit_cost': default_unit_cost_json,
@@ -1633,6 +1645,8 @@ async def sync_catalog_incremental(access_token, base_url, db_url, full_refresh=
                             """), vendor_info_record)
             
             mode_text = "FULL REFRESH" if full_refresh else "INCREMENTAL"
+            if skipped_variations > 0:
+                logger.warning(f"⚠️ Skipped {skipped_variations} variations due to missing parent items")
             logger.info(f"✅ Catalog sync completed ({mode_text}): {stats}")
         
         await engine.dispose()
