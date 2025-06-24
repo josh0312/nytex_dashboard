@@ -493,8 +493,8 @@ class SquareCatalogExporter:
                         variation_name=variation_data.get('name', ''),
                         sku=variation_data.get('sku', ''),
                         description=description,
-                        categories=categories_from_api,  # Use categories from Square API
-                        reporting_category=categories_from_api,  # Same as categories - should always match
+                        categories=category_name if category_name else categories_from_api,  # Prefer database category, fallback to API
+                        reporting_category=reporting_category_name if reporting_category_name else categories_from_api,  # Prefer database reporting category, fallback to API
                         seo_title=seo_title,
                         seo_description=seo_description,
                         permalink=permalink,
