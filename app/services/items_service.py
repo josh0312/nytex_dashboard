@@ -159,23 +159,43 @@ class ItemsService:
         # Apply search if provided
         conditions = []
         if search:
+            # Escape single quotes for SQL safety
+            escaped_search = search.replace("'", "''")
             conditions.append(f"""
-                (item_name ILIKE '%{search}%' 
-                OR sku ILIKE '%{search}%' 
-                OR description ILIKE '%{search}%'
-                OR vendor_name ILIKE '%{search}%')
+                (item_name ILIKE '%{escaped_search}%' 
+                OR sku ILIKE '%{escaped_search}%' 
+                OR description ILIKE '%{escaped_search}%'
+                OR vendor_name ILIKE '%{escaped_search}%')
             """)
         
         # Apply filters if provided
         if filters:
+            logger.info(f"Processing filters: {filters}")
             for field, value in filters.items():
+                logger.info(f"Processing filter - field: {field}, value: {value}, type: {type(value)}")
                 if value:  # Only apply non-empty filters
                     if field in ['price', 'cost', 'profit_margin_percent', 'profit_markup_percent']:
                         # Numeric fields
                         conditions.append(f"{field} = {value}")
                     else:
-                        # String fields
-                        conditions.append(f"{field} ILIKE '%{value}%'")
+                        # String fields - handle both single values and arrays
+                        if isinstance(value, list):
+                            # Handle multi-select filters (arrays)
+                            if len(value) == 1:
+                                # Single value in array, treat as single filter
+                                escaped_value = str(value[0]).replace("'", "''")
+                                conditions.append(f"{field} ILIKE '%{escaped_value}%'")
+                            else:
+                                # Multiple values, use OR conditions
+                                or_conditions = []
+                                for v in value:
+                                    escaped_v = str(v).replace("'", "''")
+                                    or_conditions.append(f"{field} ILIKE '%{escaped_v}%'")
+                                conditions.append(f"({' OR '.join(or_conditions)})")
+                        else:
+                            # Single string value
+                            escaped_value = str(value).replace("'", "''")
+                            conditions.append(f"{field} ILIKE '%{escaped_value}%'")
         
         # Add WHERE clause if we have conditions
         if conditions:
@@ -194,5 +214,6 @@ class ItemsService:
             query += f" ORDER BY {sort_field} {direction}"
         else:
             query += " ORDER BY item_name ASC"  # Default sort
-            
+        
+        logger.info(f"Generated query: {query}")
         return query 

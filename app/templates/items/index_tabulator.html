@@ -390,6 +390,52 @@
         min-width: 60px !important;
     }
     
+    /* Pagination styling */
+    .tabulator .tabulator-footer {
+        background-color: var(--tabulator-header-bg) !important;
+        border-top: 1px solid var(--tabulator-border) !important;
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-paginator {
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-paginator select {
+        background-color: var(--tabulator-input-bg) !important;
+        border: 1px solid var(--tabulator-input-border) !important;
+        color: var(--tabulator-input-text) !important;
+        border-radius: 0.375rem !important;
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.875rem !important;
+    }
+    
+    .tabulator .tabulator-paginator select:focus {
+        outline: 2px solid #3b82f6 !important;
+        outline-offset: 2px !important;
+        border-color: #3b82f6 !important;
+    }
+    
+    .tabulator .tabulator-paginator label {
+        color: var(--tabulator-text) !important;
+    }
+    
+    .tabulator .tabulator-page {
+        background-color: var(--tabulator-input-bg) !important;
+        border: 1px solid var(--tabulator-input-border) !important;
+        color: var(--tabulator-input-text) !important;
+    }
+    
+    .tabulator .tabulator-page:hover {
+        background-color: var(--tabulator-row-hover) !important;
+    }
+    
+    .tabulator .tabulator-page.active {
+        background-color: #3b82f6 !important;
+        color: white !important;
+        border-color: #3b82f6 !important;
+    }
+
     /* Loading and empty state */
     .tabulator .tabulator-loader {
         background-color: var(--tabulator-bg) !important;
@@ -466,20 +512,62 @@
         background: var(--tabulator-text);
     }
 
-    /* Mobile-specific styles */
+    /* Row styling for clickable rows (both mobile and desktop) */
     .mobile-item-row {
         transition: background-color 0.2s;
     }
     
-    /* Mobile row hover effects - applied at table level */
-    .dev-mobile-mode .tabulator .tabulator-row:hover {
+    /* Desktop and mobile row hover effects - show clickable cursor and highlight */
+    .tabulator .tabulator-row:hover {
         background-color: rgba(59, 130, 246, 0.1) !important;
         cursor: pointer !important;
     }
     
-    /* Add visual indicator for mobile clickable rows */
-    .dev-mobile-mode .tabulator .tabulator-row {
-        position: relative;
+    /* Add visual indicator for all clickable rows */
+    .tabulator .tabulator-row {
+        position: relative !important;
+    }
+    
+    /* Desktop-specific indicator (chevron on right side) */
+    @media (min-width: 768px) {
+        /* Make desktop rows clearly clickable */
+        .tabulator .tabulator-row {
+            transition: all 0.2s ease !important;
+            border-left: 3px solid transparent !important;
+        }
+        
+        .tabulator .tabulator-row:hover {
+            background-color: rgba(59, 130, 246, 0.1) !important;
+            cursor: pointer !important;
+            border-left: 3px solid #3b82f6 !important;
+            transform: translateX(2px) !important;
+        }
+        
+        .tabulator .tabulator-row::after {
+            content: '→' !important;
+            position: absolute !important;
+            right: 12px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            color: #9ca3af !important;
+            font-size: 16px !important;
+            font-weight: bold !important;
+            opacity: 0.6 !important;
+            transition: all 0.2s ease !important;
+            z-index: 10 !important;
+        }
+        
+        .tabulator .tabulator-row:hover::after {
+            opacity: 1 !important;
+            color: #3b82f6 !important;
+            transform: translateY(-50%) translateX(2px) !important;
+        }
+    }
+    
+    /* Mobile-specific styles for development mode */
+    .dev-mobile-mode .tabulator .tabulator-row:hover {
+        background-color: rgba(59, 130, 246, 0.1) !important;
+        cursor: pointer !important;
     }
     
     .dev-mobile-mode .tabulator .tabulator-row::after {
@@ -508,6 +596,18 @@
     @media (min-width: 480px) {
         .slide-panel {
             max-width: 400px;
+        }
+    }
+    
+    @media (min-width: 768px) {
+        .slide-panel {
+            max-width: 500px;
+        }
+    }
+    
+    @media (min-width: 1024px) {
+        .slide-panel {
+            max-width: 600px;
         }
     }
     
@@ -641,30 +741,7 @@
             visibility: hidden !important;
         }
         
-        /* Ensure mobile row click behavior */
-        .tabulator .tabulator-row:hover {
-            background-color: rgba(59, 130, 246, 0.1) !important;
-            cursor: pointer !important;
-        }
-        
-        /* Add visual indicator for mobile clickable rows */
-        .tabulator .tabulator-row {
-            position: relative;
-        }
-        
-        .tabulator .tabulator-row::after {
-            content: '';
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 6px;
-            height: 6px;
-            border-right: 2px solid #9ca3af;
-            border-bottom: 2px solid #9ca3af;
-            transform: translateY(-50%) rotate(-45deg);
-            opacity: 0.6;
-        }
+        /* Mobile row click behavior - these are already handled globally above */
     }
 </style>
 {% endblock %}
@@ -778,7 +855,7 @@
     <div id="items-table" class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-600"></div>
 </div>
 
-<!-- Slide-in Panel for Item Details (Mobile) -->
+<!-- Slide-in Panel for Item Details (Mobile & Desktop) -->
 <div id="item-slide-panel" 
      class="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white dark:bg-gray-800 shadow-xl slide-panel closed">
     
@@ -841,6 +918,53 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Create Tabulator with responsive configuration
     console.log("Creating Tabulator table...");
+    
+    // Shared quantity formatter function for all quantity columns
+    function formatQuantity(cell, formatterParams) {
+        try {
+            const value = cell.getValue();
+            const qty = value || 0;
+            
+            // Get units per case from row data, default to 12
+            const rowData = cell.getRow().getData();
+            const unitsPerCase = rowData.units_per_case || 12;
+            const lowStockThreshold = Math.round(unitsPerCase * 0.3); // 30% of a case
+            
+            // Debug logging for first few items
+            if (Math.random() < 0.05) { // Log ~5% of items to avoid spam
+                console.log(`Qty formatter: qty=${qty}, unitsPerCase=${unitsPerCase}, threshold=${lowStockThreshold}`);
+            }
+            
+            // Determine colors and styles based on quantity levels
+            let style = 'padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-block; min-width: 24px; text-align: center;';
+            let colorClass = '';
+            let bgClass = '';
+            
+            if (qty === 0) {
+                // Red for zero quantity  
+                style += ' color: #dc2626; background-color: rgba(254, 226, 226, 0.8);';
+                colorClass = 'text-red-600 dark:text-red-400';
+                bgClass = 'bg-red-50 dark:bg-red-900/20';
+            } else if (qty <= lowStockThreshold) {
+                // Amber for low stock (below 30% of case)
+                style += ' color: #d97706; background-color: rgba(254, 243, 199, 0.8);';
+                colorClass = 'text-amber-600 dark:text-amber-400';
+                bgClass = 'bg-amber-50 dark:bg-amber-900/20';
+            } else {
+                // Green for good stock
+                style += ' color: #059669; background-color: rgba(220, 252, 231, 0.8);';
+                colorClass = 'text-green-600 dark:text-green-400';
+                bgClass = 'bg-green-50 dark:bg-green-900/20';
+            }
+            
+            // Use both inline styles (for immediate effect) and Tailwind classes (for theme support)
+            return `<div class="px-1 py-0.5 rounded font-semibold ${colorClass} ${bgClass}" style="${style}">${qty}</div>`;
+        } catch (e) {
+            console.warn("Quantity formatter error:", e);
+            return qty || "0";
+        }
+    }
+    
     table = new Tabulator("#items-table", {
         // Data fetching
         ajaxURL: "/items/data",
@@ -994,17 +1118,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sorter: "number",
                 hozAlign: "center",
                 // responsive: 0 // Disabled - we handle this manually,
-                formatter: function(cell, formatterParams) {
-                    try {
-                        const value = cell.getValue();
-                        if (value === 0) return "0";
-                        if (value > 0) return `<span style="color: #059669; font-weight: 600;">${value}</span>`;
-                        return `<span style="color: #dc2626; font-weight: 600;">${value}</span>`;
-                    } catch (e) {
-                        console.warn("Formatter error:", e);
-                        return "";
-                    }
-                }
+                formatter: formatQuantity
             },
             
             // Desktop-only columns (hidden on mobile)
@@ -1127,6 +1241,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Aubrey Location",
+                        formatter: formatQuantity,
                         // responsive: 8 // Disabled - we handle this manually
                     },
                     {
@@ -1136,6 +1251,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Bridgefarmer Location",
+                        formatter: formatQuantity,
                         // responsive: 8 // Disabled - we handle this manually
                     },
                     {
@@ -1145,6 +1261,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Building Location",
+                        formatter: formatQuantity,
                         // responsive: 8 // Disabled - we handle this manually
                     },
                     {
@@ -1154,6 +1271,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "FloMo Location",
+                        formatter: formatQuantity,
                         // responsive: 8 // Disabled - we handle this manually
                     },
                     {
@@ -1163,6 +1281,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Justin Location",
+                        formatter: formatQuantity,
                         // responsive: 8 // Disabled - we handle this manually
                     },
                     {
@@ -1172,6 +1291,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Quinlan Location",
+                        formatter: formatQuantity,
                         // responsive: 8 // Disabled - we handle this manually
                     },
                     {
@@ -1181,6 +1301,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         sorter: "number",
                         hozAlign: "center",
                         tooltip: "Terrell Location",
+                        formatter: formatQuantity,
                         // responsive: 8 // Disabled - we handle this manually
                     }
                 ]
@@ -1262,47 +1383,35 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100); // Small delay to ensure table is fully built
         },
         
-        // Row click handler for mobile slide panel
+        // Row click handler for slide panel (works on both mobile and desktop)
         rowClick: function(e, row) {
-            console.log("Row clicked!");
+            console.log("Tabulator rowClick triggered!");
             console.log("Should show mobile view:", shouldShowMobileView());
             console.log("isMobileView:", isMobileView);
             console.log("window.innerWidth:", window.innerWidth);
             
-            // Handle row clicks for mobile devices (screen size < 768px) OR development mobile mode
-            const isMobileDevice = window.innerWidth < 768;
-            const shouldHandleClick = isMobileDevice || isMobileView;
-            
-            console.log("Is mobile device:", isMobileDevice);
-            console.log("Should handle click:", shouldHandleClick);
-            
-            if (shouldHandleClick) {
-                const rowData = row.getData();
-                console.log("Row data:", rowData);
-                if (rowData && rowData.sku) {
-                    console.log("Opening slide panel for SKU:", rowData.sku);
-                    openItemSlidePanel(rowData.sku);
-                } else {
-                    console.log("No SKU found in row data");
-                }
+            // Handle row clicks for both mobile and desktop
+            const rowData = row.getData();
+            console.log("Row data:", rowData);
+            if (rowData && rowData.sku) {
+                console.log("Opening slide panel for SKU:", rowData.sku);
+                openItemSlidePanel(rowData.sku);
+                // Prevent event bubbling to avoid triggering document click listener
+                e.stopPropagation();
             } else {
-                console.log("Not in mobile view/device, ignoring click");
+                console.log("No SKU found in row data");
             }
         },
         
-        // Row mouse events for visual feedback in mobile mode
+        // Row mouse events for visual feedback (now works on both mobile and desktop)
         rowMouseEnter: function(e, row) {
-            if (shouldShowMobileView()) {
-                row.getElement().style.cursor = 'pointer';
-                row.getElement().style.backgroundColor = 'rgba(59, 130, 246, 0.1)'; // Light blue highlight
-            }
+            row.getElement().style.cursor = 'pointer';
+            row.getElement().style.backgroundColor = 'rgba(59, 130, 246, 0.1)'; // Light blue highlight
         },
         
         rowMouseLeave: function(e, row) {
-            if (shouldShowMobileView()) {
-                row.getElement().style.cursor = 'default';
-                row.getElement().style.backgroundColor = ''; // Remove highlight
-            }
+            row.getElement().style.cursor = 'default';
+            row.getElement().style.backgroundColor = ''; // Remove highlight
         }
     });
 
@@ -1316,10 +1425,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Clicked element:", e.target);
             console.log("Mobile view?", shouldShowMobileView());
             
-            // Check if this is a row click
+            // Check if this is a row click - works for both mobile and desktop
             const rowElement = e.target.closest('.tabulator-row');
-            if (rowElement && shouldShowMobileView()) {
-                console.log("Row element found:", rowElement);
+            if (rowElement) {
+                console.log("Row element found via document listener:", rowElement);
                 
                 // Try to get row data from Tabulator
                 if (table) {
@@ -1810,22 +1919,16 @@ function updateColumnVisibilityForScreenSize() {
     }
 }
 
-// Mobile slide panel functionality
+// Slide panel functionality (works for both mobile and desktop)
 function openItemSlidePanel(sku) {
     console.log("openItemSlidePanel called with SKU:", sku);
     console.log("shouldShowMobileView():", shouldShowMobileView());
     console.log("window.innerWidth:", window.innerWidth);
     
     const isMobileDevice = window.innerWidth < 768;
-    const shouldShow = isMobileDevice || isMobileView;
     
     console.log("Is mobile device:", isMobileDevice);
-    console.log("Should show panel:", shouldShow);
-    
-    if (!shouldShow) {
-        console.log("Not in mobile view/device, returning early");
-        return;
-    }
+    console.log("Showing panel for both mobile and desktop");
     
     console.log("Setting loading state...");
     
@@ -2044,10 +2147,8 @@ window.addEventListener('resize', function() {
         // Update column visibility based on new screen size
         updateColumnVisibilityForScreenSize();
         
-        // Close slide panel if user switches to desktop (unless in dev mobile mode)
-        if (window.innerWidth >= 768 && !isMobileView) {
-            closeItemSlidePanel();
-        }
+        // Note: No longer auto-closing slide panel on desktop resize
+        // Users can now use the slide panel on both mobile and desktop
     }, 150);
 });
 
