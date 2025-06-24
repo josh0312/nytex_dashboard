@@ -2019,6 +2019,9 @@ function renderItemDetails(item) {
                     ${item.description}
                 </p>
                 ` : ''}
+                <p class="text-sm panel-text-secondary mt-2">
+                    <strong>Units Per Case:</strong> ${item.units_per_case || 12}
+                </p>
             </div>
             
             <!-- Pricing -->
