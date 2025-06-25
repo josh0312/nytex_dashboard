@@ -1,0 +1,75 @@
+<!-- Weather Summary Component -->
+<div class="space-y-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <h3 class="text-base font-semibold text-gray-900 dark:text-white">Weather Overview</h3>
+        <div class="flex items-center space-x-2">
+            <i data-lucide="cloud" class="w-4 h-4 text-gray-400"></i>
+        </div>
+    </div>
+
+    <!-- Weather Stats -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- Rain Count -->
+        <div class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {{ weather_stats.rain_count if weather_stats else 0 }}
+            </div>
+            <div class="text-xs text-blue-600 dark:text-blue-400 font-medium">Locations with Rain</div>
+        </div>
+
+        <!-- Clear Weather -->
+        <div class="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                {{ weather_stats.clear_count if weather_stats else 0 }}
+            </div>
+            <div class="text-xs text-yellow-600 dark:text-yellow-400 font-medium">Clear Weather</div>
+        </div>
+
+        <!-- Average Temperature -->
+        <div class="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {{ "%.0f"|format(weather_stats.avg_temp) if weather_stats and weather_stats.avg_temp else "--" }}°F
+            </div>
+            <div class="text-xs text-orange-600 dark:text-orange-400 font-medium">Average Temp</div>
+        </div>
+
+        <!-- Weather Data Coverage -->
+        <div class="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div class="text-2xl font-bold text-green-600 dark:text-green-400">
+                {{ weather_stats.data_coverage if weather_stats else 0 }}%
+            </div>
+            <div class="text-xs text-green-600 dark:text-green-400 font-medium">Data Coverage</div>
+        </div>
+    </div>
+
+    <!-- Today's Weather Note -->
+    {% if weather_stats and weather_stats.rain_count == 0 %}
+    <div class="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+        <div class="flex items-center justify-center space-x-2">
+            <i data-lucide="sun" class="w-4 h-4 text-green-600 dark:text-green-400"></i>
+            <span class="text-sm text-green-600 dark:text-green-400 font-medium">
+                No rain reported at any locations today
+            </span>
+        </div>
+    </div>
+    {% elif weather_stats and weather_stats.rain_count > 0 %}
+    <div class="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+        <div class="flex items-center justify-center space-x-2">
+            <i data-lucide="cloud-rain" class="w-4 h-4 text-blue-600 dark:text-blue-400"></i>
+            <span class="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                {{ weather_stats.rain_count }} location{{ 's' if weather_stats.rain_count != 1 else '' }} experiencing rain
+            </span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Initialize Lucide icons -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+</script> 

@@ -119,11 +119,15 @@ class SquareService:
             total_sales = sum(float(order.get('total_money', {}).get('amount', 0)) / 100 for order in all_orders)
             logger.info(f"Calculated total sales: ${total_sales:,.2f}")
             
+            # Filter out $0 orders (no sale transactions to open cash drawer)
+            orders_with_sales = [order for order in all_orders if float(order.get('total_money', {}).get('amount', 0)) > 0]
+            logger.info(f"Filtered out {len(all_orders) - len(orders_with_sales)} $0 orders (no sale transactions)")
+            
             # Process location data
             locations_data = {}
             for loc in active_locations:
                 loc_id = loc.get('id')
-                loc_orders = [order for order in all_orders if order.get('location_id') == loc_id]
+                loc_orders = [order for order in orders_with_sales if order.get('location_id') == loc_id]
                 loc_sales = sum(float(order.get('total_money', {}).get('amount', 0)) / 100 for order in loc_orders)
                 
                 locations_data[loc_id] = {
@@ -136,8 +140,8 @@ class SquareService:
             
             response_data = {
                 'total_sales': total_sales,
-                'total_orders': len(all_orders),
-                'orders': all_orders,
+                'total_orders': len(orders_with_sales),
+                'orders': orders_with_sales,
                 'locations': locations_data
             }
             

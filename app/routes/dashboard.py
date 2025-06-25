@@ -311,6 +311,92 @@ async def get_annual_sales_comparison(request: Request):
             "message": "Unable to load annual sales comparison"
         })
 
+@router.get("/metrics/weather_summary")
+async def get_weather_summary(request: Request):
+    """Get weather summary for dashboard"""
+    try:
+        from app.services.weather_service import WeatherService
+        from app.services.location_service import LocationService
+        
+        location_service = LocationService()
+        weather_service = WeatherService()
+        
+        # Get all locations
+        locations = await location_service.get_all_locations()
+        
+        # Get weather stats
+        weather_stats = {
+            'rain_count': 0,
+            'clear_count': 0,
+            'avg_temp': 0,
+            'data_coverage': 0,
+            'total_locations': len(locations)
+        }
+        
+        temps = []
+        weather_data_count = 0
+        
+        for location in locations:
+            if location.get('address') and location['address'].get('postal_code'):
+                try:
+                    weather = await weather_service.get_weather_by_zip(location['address']['postal_code'])
+                    if weather:
+                        weather_data_count += 1
+                        
+                        # Check for rain/precipitation
+                        weather_main = weather.get('weather', {}).get('main', '').lower()
+                        if 'rain' in weather_main or 'drizzle' in weather_main or 'thunderstorm' in weather_main:
+                            weather_stats['rain_count'] += 1
+                        elif 'clear' in weather_main or 'sun' in weather_main:
+                            weather_stats['clear_count'] += 1
+                        
+                        # Collect temperature
+                        if weather.get('main') and weather['main'].get('temp'):
+                            temps.append(weather['main']['temp'])
+                            
+                except Exception as e:
+                    logger.warning(f"Could not get weather for location {location['name']}: {str(e)}")
+        
+        # Calculate averages
+        if temps:
+            weather_stats['avg_temp'] = sum(temps) / len(temps)
+        
+        if locations:
+            weather_stats['data_coverage'] = round((weather_data_count / len(locations)) * 100)
+        
+        return templates.TemplateResponse("dashboard/components/weather_summary.html", {
+            "request": request,
+            "weather_stats": weather_stats
+        })
+    except Exception as e:
+        logger.error(f"Error fetching weather summary: {str(e)}", exc_info=True)
+        return templates.TemplateResponse("dashboard/components/error.html", {
+            "request": request,
+            "title": "Weather Summary",
+            "message": "Unable to load weather summary"
+        })
+
+@router.get("/metrics/locations_overview")
+async def get_locations_overview(request: Request):
+    """Get locations overview for dashboard"""
+    try:
+        from app.services.location_service import LocationService
+        
+        location_service = LocationService()
+        locations = await location_service.get_all_locations()
+        
+        return templates.TemplateResponse("dashboard/components/dashboard_locations.html", {
+            "request": request,
+            "locations": locations
+        })
+    except Exception as e:
+        logger.error(f"Error fetching locations overview: {str(e)}", exc_info=True)
+        return templates.TemplateResponse("dashboard/components/error.html", {
+            "request": request,
+            "title": "Locations Overview",
+            "message": "Unable to load locations overview"
+        })
+
 @router.get("/metrics/annual_sales_comparison_simple")
 async def get_annual_sales_comparison_simple(request: Request):
     """Get annual sales comparison using raw SQL that we know works"""

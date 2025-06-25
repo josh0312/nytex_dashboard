@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% set page_title = location_data.location.name + " - Location Details" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Breadcrumb -->
+    <nav class="flex" aria-label="Breadcrumb">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/locations" class="text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">
+                    <i data-lucide="map-pin" class="w-4 h-4 mr-2"></i>
+                    Locations
+                </a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-gray-400"></i>
+                    <span class="ml-1 text-sm font-medium text-gray-900 dark:text-white">{{ location_data.location.name }}</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <!-- Location Header -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div class="flex items-start justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ location_data.location.name }}</h1>
+                {% if location_data.location.description %}
+                <p class="text-gray-600 dark:text-gray-400 mt-2">{{ location_data.location.description }}</p>
+                {% endif %}
+                
+                <!-- Address Info -->
+                {% if location_data.location.address %}
+                <div class="flex items-center mt-3 text-sm text-gray-500 dark:text-gray-400">
+                    <i data-lucide="map-pin" class="w-4 h-4 mr-2"></i>
+                    {% if location_data.location.address.locality %}
+                        {{ location_data.location.address.locality }}, {{ location_data.location.address.administrative_district_level_1 }}
+                        {% if location_data.location.address.postal_code %}
+                            {{ location_data.location.address.postal_code }}
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% endif %}
+                
+                <!-- Contact Info -->
+                <div class="flex items-center space-x-4 mt-2">
+                    {% if location_data.location.phone_number %}
+                    <div class="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                        <i data-lucide="phone" class="w-4 h-4 mr-2"></i>
+                        {{ location_data.location.phone_number }}
+                    </div>
+                    {% endif %}
+                    {% if location_data.location.business_email %}
+                    <div class="flex items-center text-sm text-gray-500 dark:text-gray-400">
+                        <i data-lucide="mail" class="w-4 h-4 mr-2"></i>
+                        {{ location_data.location.business_email }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Status and Weather -->
+            <div class="flex items-center space-x-4">
+                {% if location_data.current.weather %}
+                <div class="text-center">
+                    <div class="flex items-center justify-center">
+                        <img src="http://openweathermap.org/img/w/{{ location_data.current.weather.icon }}.png" 
+                             alt="{{ location_data.current.weather.description }}"
+                             class="w-12 h-12">
+                    </div>
+                    <div class="text-sm font-medium text-gray-900 dark:text-white">
+                        {{ location_data.current.weather.temp }}°F
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ location_data.current.weather.description|title }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <span class="px-3 py-1 text-sm font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 rounded-full">
+                    {{ location_data.location.status|title }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Metrics -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Current Performance</h2>
+            <p class="text-gray-600 dark:text-gray-400">Today's metrics and recent performance</p>
+        </div>
+        
+        <div hx-get="/locations/{{ location_data.location.id }}/current" 
+             hx-trigger="load" 
+             hx-target="this">
+            <!-- Loading state -->
+            <div class="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+                {% for i in range(4) %}
+                <div class="text-center">
+                    <div class="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto mb-2"></div>
+                    <div class="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto"></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Historical Data and Inventory Tabs -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <!-- Tab Navigation -->
+        <div class="border-b border-gray-200 dark:border-gray-700">
+            <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+                <button class="tab-button py-4 px-1 border-b-2 border-blue-500 font-medium text-sm text-blue-600 dark:text-blue-400"
+                        data-tab="historical" onclick="switchTab('historical')">
+                    <i data-lucide="trending-up" class="w-4 h-4 mr-2 inline"></i>
+                    Historical Data
+                </button>
+                <button class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300 dark:hover:border-gray-600"
+                        data-tab="inventory" onclick="switchTab('inventory')">
+                    <i data-lucide="package" class="w-4 h-4 mr-2 inline"></i>
+                    Inventory
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-6">
+            <!-- Historical Data Tab -->
+            <div id="historical-tab" class="tab-content">
+                <div hx-get="/locations/{{ location_data.location.id }}/historical" 
+                     hx-trigger="load" 
+                     hx-target="this">
+                    <!-- Loading state -->
+                    <div class="space-y-6">
+                        <div class="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                        <div class="h-64 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Tab -->
+            <div id="inventory-tab" class="tab-content hidden">
+                <div hx-get="/locations/{{ location_data.location.id }}/inventory" 
+                     hx-trigger="load" 
+                     hx-target="this">
+                    <!-- Loading state -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        {% for i in range(4) %}
+                        <div class="text-center">
+                            <div class="h-6 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto mb-2"></div>
+                            <div class="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mx-auto"></div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab switching script -->
+<script>
+    function switchTab(tabName) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        
+        // Remove active styling from all tab buttons
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.classList.remove('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+            button.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+        });
+        
+        // Show selected tab content
+        const selectedTab = document.getElementById(tabName + '-tab');
+        if (selectedTab) {
+            selectedTab.classList.remove('hidden');
+        }
+        
+        // Add active styling to selected tab button
+        const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
+        if (selectedButton) {
+            selectedButton.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            selectedButton.classList.add('border-blue-500', 'text-blue-600', 'dark:text-blue-400');
+        }
+    }
+
+    // Initialize with historical tab active
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        switchTab('historical');
+    });
+</script>
+{% endblock %} 

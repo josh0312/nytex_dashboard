@@ -1,0 +1,671 @@
+<div class="space-y-8">
+    <!-- 2025 Seasonal Performance (moved to top) -->
+    {% if historical.seasonal_breakdown %}
+    <div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">2025 Seasonal Performance</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {% for season, data in historical.seasonal_breakdown.items() %}
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 text-center">
+                <div class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">{{ season }}</div>
+                <div class="text-xl font-bold text-gray-900 dark:text-white">
+                    ${{ "{:,.0f}".format(data.total_sales or 0) }}
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ data.total_orders or 0 }} orders
+                </div>
+                {% if (data.total_orders or 0) > 0 %}
+                <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                    ${{ "{:,.0f}".format(data.avg_per_order or 0) }} avg
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Yearly Performance Chart (new chart format) -->
+    {% if historical.yearly_performance %}
+    <div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Yearly Performance</h3>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <div class="h-64">
+                <canvas id="locationYearlyPerformanceChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Annual Sales Comparison Chart (by season) -->
+    {% if historical.annual_comparison %}
+    <div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Annual Sales Comparison (by Season)</h3>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <div class="h-64">
+                <canvas id="locationAnnualComparisonChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Seasons Summary (Current Year) -->
+    {% if historical.seasonal_breakdown %}
+    <div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Firework Season Performance (2025)</h3>
+        {% set sorted_seasons = historical.seasonal_breakdown.items()|list|sort(attribute='1.total_sales', reverse=true) %}
+        <div class="space-y-2">
+            {% for season, data in sorted_seasons %}
+            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-sm font-medium text-blue-600 dark:text-blue-400 mr-3">
+                        {{ loop.index }}
+                    </div>
+                    <div class="font-medium text-gray-900 dark:text-white">{{ season }}</div>
+                </div>
+                <div class="text-right">
+                    <div class="font-medium text-gray-900 dark:text-white">
+                        ${{ "{:,.0f}".format(data.total_sales or 0) }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ data.total_orders or 0 }} orders
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Historical Season Rankings (Last 3 Years) -->
+    {% if historical.season_rankings %}
+    <div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            <i data-lucide="trophy" class="w-5 h-5 inline-block mr-2"></i>
+            Best Performing Seasons (All Years)
+        </h3>
+        <div class="space-y-3">
+            {% for ranking in historical.season_rankings[:5] %}
+            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center justify-center w-10 h-10 rounded-full 
+                        {% if ranking.rank == 1 %}bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400
+                        {% elif ranking.rank == 2 %}bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300
+                        {% elif ranking.rank == 3 %}bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400
+                        {% else %}bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400{% endif %}">
+                        <span class="text-sm font-bold">#{{ ranking.rank }}</span>
+                    </div>
+                    <div>
+                        <div class="text-gray-900 dark:text-white font-medium">{{ ranking.season_name }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            ${{ "{:,.0f}".format(ranking.avg_order_value or 0) }} avg per order
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-green-600 dark:text-green-400 font-semibold">
+                        ${{ "{:,.0f}".format(ranking.total_sales or 0) }}
+                    </div>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ ranking.total_orders or 0 }} orders total
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Operating Seasons Calendar -->
+    {% if historical.operating_seasons %}
+    <div>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            <i data-lucide="calendar" class="w-5 h-5 inline-block mr-2"></i>
+            2025 Firework Operating Seasons
+        </h3>
+        <div class="grid gap-3">
+            {% for season in historical.operating_seasons %}
+            <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 
+                {% if season.name == 'July 4th' %}border-red-500
+                {% elif season.name == 'Memorial Day' %}border-blue-500
+                {% elif season.name == 'New Years Eve' %}border-purple-500
+                {% elif season.name == 'Texas Independence' %}border-orange-500
+                {% elif season.name == 'Diwali' %}border-yellow-500
+                {% else %}border-gray-400{% endif %}">
+                <div>
+                    <div class="text-gray-900 dark:text-white font-medium">{{ season.name }}</div>
+                    {% if season.rule_description %}
+                    <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ season.rule_description }}</div>
+                    {% endif %}
+                </div>
+                <div class="text-right">
+                    <div class="text-gray-700 dark:text-gray-300 text-sm font-medium">
+                        {{ season.start_date.strftime('%b %d') }} - {{ season.end_date.strftime('%b %d') }}
+                    </div>
+                    {% set days_duration = (season.end_date - season.start_date).days + 1 %}
+                    <div class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ days_duration }} days
+                        {% if season.name == 'July 4th' %}<span class="text-red-500 font-medium">• Peak Season</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Chart Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (function() {
+        // Helper function to generate colors for each year
+        function getColorForYear(year, isDarkMode) {
+            const colors = [
+                { 
+                    background: isDarkMode ? '#BE123C' : '#FECDD3', 
+                    border: isDarkMode ? '#E11D48' : '#BE123C' 
+                }, // Rose - 2018
+                { 
+                    background: isDarkMode ? '#0F766E' : '#CCFBF1', 
+                    border: isDarkMode ? '#14B8A6' : '#0F766E' 
+                }, // Teal - 2019
+                { 
+                    background: isDarkMode ? '#EA580C' : '#FED7AA', 
+                    border: isDarkMode ? '#F97316' : '#EA580C' 
+                }, // Orange - 2020
+                { 
+                    background: isDarkMode ? '#059669' : '#A7F3D0', 
+                    border: isDarkMode ? '#10B981' : '#059669' 
+                }, // Green - 2021
+                { 
+                    background: isDarkMode ? '#D97706' : '#FDE68A', 
+                    border: isDarkMode ? '#F59E0B' : '#D97706' 
+                }, // Yellow - 2022
+                { 
+                    background: isDarkMode ? '#DC2626' : '#FECACA', 
+                    border: isDarkMode ? '#EF4444' : '#DC2626' 
+                }, // Red - 2023
+                { 
+                    background: isDarkMode ? '#7C3AED' : '#DDD6FE', 
+                    border: isDarkMode ? '#8B5CF6' : '#7C3AED' 
+                }, // Purple - 2024
+                { 
+                    background: isDarkMode ? '#2563EB' : '#BFDBFE', 
+                    border: isDarkMode ? '#3B82F6' : '#2563EB' 
+                }, // Blue - 2025
+                { 
+                    background: isDarkMode ? '#0891B2' : '#A5F3FC', 
+                    border: isDarkMode ? '#0EA5E9' : '#0891B2' 
+                }  // Cyan - 2026+
+            ];
+            const index = (year - 2018) % colors.length;
+            return colors[index];
+        }
+
+        // Create Yearly Performance Chart (one bar per year with trend line and average)
+        function createYearlyPerformanceChart() {
+            // Destroy existing chart if it exists
+            const existingChart = Chart.getChart('locationYearlyPerformanceChart');
+            if (existingChart) {
+                existingChart.destroy();
+            }
+
+            const canvas = document.getElementById('locationYearlyPerformanceChart');
+            if (!canvas) {
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return;
+            }
+
+            // Dark mode detection
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            const textColor = isDarkMode ? '#FFFFFF' : '#1F2937';
+            const gridColor = isDarkMode ? '#9CA3AF' : '#E5E7EB';
+            
+            const chartData = {{ historical.yearly_performance|tojson|safe }};
+            
+            if (!chartData || !chartData.yearly_data || chartData.yearly_data.length === 0) {
+                const container = canvas.parentElement;
+                container.innerHTML = `
+                    <div class="flex items-center justify-center h-full">
+                        <p class="text-gray-500 dark:text-gray-400">No yearly performance data available</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const yearlyData = chartData.yearly_data;
+            const overallAverage = chartData.overall_average;
+
+            // Prepare data for chart
+            const years = yearlyData.map(item => item.year.toString());
+            const sales = yearlyData.map(item => item.total_sales);
+            
+            // Generate colors for each year
+            const colors = yearlyData.map(item => getColorForYear(item.year, isDarkMode));
+
+            // Calculate trend line using linear regression (excluding current year)
+            const currentYear = new Date().getFullYear();
+            const completeYearIndices = [];
+            const completeYearSales = [];
+            
+            yearlyData.forEach((item, index) => {
+                if (item.year !== currentYear) {
+                    completeYearIndices.push(index);
+                    completeYearSales.push(item.total_sales);
+                }
+            });
+            
+            let trendData = [];
+            if (completeYearSales.length >= 2) {
+                const n = completeYearSales.length;
+                const sumX = completeYearIndices.reduce((a, b) => a + b, 0);
+                const sumY = completeYearSales.reduce((a, b) => a + b, 0);
+                const sumXY = completeYearSales.map((y, i) => completeYearIndices[i] * y).reduce((a, b) => a + b, 0);
+                const sumXX = completeYearIndices.map(x => x * x).reduce((a, b) => a + b, 0);
+                
+                const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+                const intercept = (sumY - slope * sumX) / n;
+                
+                // Generate trend line for all years, but only show it for complete years
+                trendData = years.map((_, i) => {
+                    const year = yearlyData[i].year;
+                    return year !== currentYear ? slope * i + intercept : null;
+                });
+            } else {
+                // Not enough data for trend line
+                trendData = years.map(() => null);
+            }
+            
+            // Create average line data (horizontal line, excluding current year)
+            const averageData = years.map((_, i) => {
+                const year = yearlyData[i].year;
+                return year !== currentYear ? overallAverage : null;
+            });
+
+            const datasets = [
+                {
+                    type: 'bar',
+                    label: 'Total Sales',
+                    data: sales,
+                    backgroundColor: colors.map(c => c.background),
+                    borderColor: colors.map(c => c.border),
+                    borderWidth: 2,
+                    borderRadius: 4,
+                    order: 3
+                },
+                {
+                    type: 'line',
+                    label: 'Trend Line',
+                    data: trendData,
+                    borderColor: isDarkMode ? '#F59E0B' : '#D97706',
+                    backgroundColor: 'transparent',
+                    borderWidth: 3,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    order: 1,
+                    tension: 0,
+                    spanGaps: false
+                },
+                {
+                    type: 'line',
+                    label: 'Average ($' + overallAverage.toLocaleString(undefined, {maximumFractionDigits: 0}) + ') - Complete Years',
+                    data: averageData,
+                    borderColor: isDarkMode ? '#10B981' : '#059669',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [10, 5],
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    order: 2,
+                    spanGaps: false
+                }
+            ];
+
+            new Chart(ctx, {
+                data: {
+                    labels: years,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: textColor,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                font: {
+                                    size: 12
+                                },
+                                filter: function(item, chart) {
+                                    // Only show legend for trend and average lines
+                                    return item.text !== 'Total Sales';
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    return 'Year ' + context[0].label;
+                                },
+                                label: function(context) {
+                                    if (context.dataset.type === 'bar') {
+                                        const dataIndex = context.dataIndex;
+                                        const yearData = yearlyData[dataIndex];
+                                        return [
+                                            'Total Sales: $' + context.raw.toLocaleString(undefined, {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            }),
+                                            'Total Orders: ' + yearData.total_orders.toLocaleString(),
+                                            'Average Order: $' + yearData.avg_order_value.toLocaleString(undefined, {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            })
+                                        ];
+                                    } else if (context.dataset.label.includes('Trend Line')) {
+                                        return 'Trend: $' + context.raw.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        });
+                                    } else if (context.dataset.label.includes('Average')) {
+                                        return 'Overall Average: $' + context.raw.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        });
+                                    }
+                                    return '';
+                                },
+                                labelColor: function(context) {
+                                    if (context.dataset.type === 'bar') {
+                                        return {
+                                            borderColor: context.dataset.borderColor[context.dataIndex],
+                                            backgroundColor: context.dataset.backgroundColor[context.dataIndex]
+                                        };
+                                    }
+                                    return {
+                                        borderColor: context.dataset.borderColor,
+                                        backgroundColor: context.dataset.borderColor
+                                    };
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: gridColor,
+                                lineWidth: 1
+                            },
+                            ticks: {
+                                color: textColor,
+                                font: {
+                                    size: 11
+                                },
+                                callback: function(value) {
+                                    if (value === 0) return '$0';
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: textColor,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create Annual Sales Comparison Chart (by season)
+        function createLocationAnnualChart() {
+            // Destroy existing chart if it exists
+            const existingChart = Chart.getChart('locationAnnualComparisonChart');
+            if (existingChart) {
+                existingChart.destroy();
+            }
+
+            const canvas = document.getElementById('locationAnnualComparisonChart');
+            if (!canvas) {
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                return;
+            }
+
+            // Dark mode detection
+            const isDarkMode = document.documentElement.classList.contains('dark');
+            const textColor = isDarkMode ? '#FFFFFF' : '#1F2937';
+            const gridColor = isDarkMode ? '#9CA3AF' : '#E5E7EB';
+            
+            const seasonTotals = {{ historical.annual_comparison|tojson|safe }};
+            
+            if (!seasonTotals || seasonTotals.length === 0) {
+                const container = canvas.parentElement;
+                container.innerHTML = `
+                    <div class="flex items-center justify-center h-full">
+                        <p class="text-gray-500 dark:text-gray-400">No sales data available</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Process data for the chart with enhanced metrics
+            const seasons = new Set();
+            const years = new Set();
+            const dataByYearAndSeason = {};
+            const metricsData = {}; // Store detailed metrics for tooltips
+
+            // First pass: collect all unique seasons and years with detailed data
+            seasonTotals.forEach(yearData => {
+                const year = yearData.year;
+                years.add(year);
+                if (!metricsData[year]) {
+                    metricsData[year] = {};
+                }
+                yearData.seasons.forEach(season => {
+                    seasons.add(season.name);
+                    if (!dataByYearAndSeason[year]) {
+                        dataByYearAndSeason[year] = {};
+                    }
+                    dataByYearAndSeason[year][season.name] = season.total_amount;
+                    
+                    // Store detailed metrics for tooltips
+                    metricsData[year][season.name] = {
+                        total_sales: season.total_sales || season.total_amount,
+                        order_count: season.order_count || 0,
+                        avg_order_value: season.avg_order_value || 0
+                    };
+                });
+            });
+
+            // Define season order by start date (chronological order through the year)
+            const seasonOrder = [
+                'Texas Independence Day', // Feb 25 - Mar 2
+                'San Jacinto Day',        // Apr 16 - Apr 21
+                'Memorial Day',           // May 22 - May 27
+                'July 4th',              // Jun 24 - Jul 4
+                'Diwali',                // Oct 26 - Nov 3
+                'New Years Eve'          // Dec 20 - Jan 1
+            ];
+            
+            // Sort seasons by chronological order, putting any unknown seasons at the end
+            const sortedSeasons = Array.from(seasons).sort((a, b) => {
+                const indexA = seasonOrder.indexOf(a);
+                const indexB = seasonOrder.indexOf(b);
+                
+                // If both seasons are in the order list, sort by their position
+                if (indexA !== -1 && indexB !== -1) {
+                    return indexA - indexB;
+                }
+                // If only one is in the order list, it goes first
+                if (indexA !== -1) return -1;
+                if (indexB !== -1) return 1;
+                // If neither is in the order list, sort alphabetically
+                return a.localeCompare(b);
+            });
+            
+            const sortedYears = Array.from(years).sort();
+
+            // Create datasets (one for each year)
+            const datasets = sortedYears.map(year => {
+                const yearColor = getColorForYear(year, isDarkMode);
+                return {
+                    label: year.toString(),
+                    data: sortedSeasons.map(season => dataByYearAndSeason[year]?.[season] || 0),
+                    backgroundColor: yearColor.background,
+                    borderColor: yearColor.border,
+                    borderWidth: 2,
+                    borderRadius: 4
+                };
+            });
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedSeasons,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: textColor,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: function(context) {
+                                    const season = context[0].label;
+                                    const year = context[0].dataset.label;
+                                    
+                                    // Add day of week for July 4th
+                                    if (season === 'July 4th') {
+                                        const july4th = new Date(parseInt(year), 6, 4); // Month is 0-indexed, so 6 = July
+                                        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                                        const dayOfWeek = dayNames[july4th.getDay()];
+                                        return `${season} ${year} (${dayOfWeek})`;
+                                    }
+                                    
+                                    return `${season} ${year}`;
+                                },
+                                label: function(context) {
+                                    const year = context.dataset.label;
+                                    const season = context.label;
+                                    const metrics = metricsData[year] && metricsData[year][season];
+                                    
+                                    if (metrics) {
+                                        return [
+                                            'Total Sales: $' + metrics.total_sales.toLocaleString(undefined, {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            }),
+                                            'Total Orders: ' + metrics.order_count.toLocaleString(),
+                                            'Average Order: $' + metrics.avg_order_value.toLocaleString(undefined, {
+                                                minimumFractionDigits: 2,
+                                                maximumFractionDigits: 2
+                                            })
+                                        ];
+                                    } else {
+                                        // Fallback for older data format
+                                        return year + ': $' + context.raw.toLocaleString(undefined, {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'logarithmic',
+                            beginAtZero: false,
+                            grid: {
+                                color: gridColor,
+                                lineWidth: 1
+                            },
+                            ticks: {
+                                color: textColor,
+                                font: {
+                                    size: 11
+                                },
+                                callback: function(value) {
+                                    if (value === 0) return '$0';
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: textColor,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create charts initially with a small delay
+        setTimeout(() => {
+            createYearlyPerformanceChart();
+            createLocationAnnualChart();
+        }, 200);
+
+        // Listen for theme changes and recreate charts
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    setTimeout(() => {
+                        createYearlyPerformanceChart();
+                        createLocationAnnualChart();
+                    }, 100);
+                }
+            });
+        });
+
+        observer.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    })();
+</script>
+
+<script>
+    // Initialize Lucide icons for the dynamically loaded content
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+</script> 

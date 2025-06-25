@@ -9,6 +9,7 @@ from .routes.metrics import router as metrics_router
 from .routes.reports import reports_router
 from .routes.catalog import router as catalog_router
 from .routes.auth import router as auth_router
+from .routes.locations import router as locations_router
 from .middleware.template_monitor import TemplateMonitorMiddleware
 from .middleware.proxy_middleware import ProxyHeaderMiddleware
 # from .middleware.auth_middleware import AuthMiddleware  # DISABLED: Authentication removed for public access
@@ -69,6 +70,7 @@ app.include_router(dashboard_router, prefix="/dashboard", tags=["dashboard"])
 app.include_router(metrics_router, prefix="/metrics", tags=["metrics"])
 app.include_router(reports_router, prefix="/reports", tags=["reports"])
 app.include_router(catalog_router, prefix="/catalog", tags=["catalog"])
+app.include_router(locations_router, prefix="/locations", tags=["locations"])
 app.include_router(tools_router, prefix="/tools")
 app.include_router(items_router, prefix="/items")
 app.include_router(admin_router)  # Admin routes with /admin prefix

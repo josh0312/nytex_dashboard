@@ -1,0 +1,932 @@
+<div class="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+    <!-- Today's Sales -->
+    <div class="text-center">
+        <div class="text-2xl font-bold text-green-600 dark:text-green-400">
+            ${{ "{:,.2f}".format(current.today_sales) }}
+        </div>
+        <div class="text-sm text-gray-500 dark:text-gray-400">Today's Sales</div>
+    </div>
+
+    <!-- Today's Orders -->
+    <div class="text-center">
+        <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {{ current.today_orders }}
+        </div>
+        <div class="text-sm text-gray-500 dark:text-gray-400">Today's Orders</div>
+    </div>
+
+    <!-- This Year's Sales -->
+    <div class="text-center">
+        <div class="text-2xl font-bold text-purple-600 dark:text-purple-400">
+            ${{ "{:,.0f}".format(current.total_sales_year) }}
+        </div>
+        <div class="text-sm text-gray-500 dark:text-gray-400">{{ "2025" }} Sales</div>
+    </div>
+
+    <!-- This Year's Orders -->
+    <div class="text-center">
+        <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">
+            {{ current.total_orders_year }}
+        </div>
+        <div class="text-sm text-gray-500 dark:text-gray-400">{{ "2025" }} Orders</div>
+    </div>
+</div>
+
+<!-- Current Season Performance -->
+<div class="px-6 pb-6">
+    {% if current.season_performance and current.season_performance.season_name != 'Off Season' %}
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            {{ current.season_performance.season_name }} Season - Day {{ current.season_performance.current_day }}
+        </h3>
+        
+        <!-- Season Progress - Vertical Bar Chart -->
+        {% if current.season_performance.cumulative_progress %}
+        <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Season Progress After {{ current.season_performance.current_day }} Day{{ 's' if current.season_performance.current_day != 1 else '' }}
+            </h4>
+            
+            <!-- Vertical bar chart -->
+            <div class="relative" style="height: 200px;">
+                <canvas id="seasonProgressChart" class="w-full h-full"></canvas>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Daily Sales Comparison - Fixed 11 Day Layout -->
+        {% if current.season_performance.daily_data %}
+        <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daily Sales Comparison</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Sales amounts by year - perfectly aligned with order counts below
+            </p>
+            <div class="relative" style="height: 200px;">
+                <canvas id="dailySalesChart" class="w-full h-full"></canvas>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daily Order Counts</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Order counts by year - aligned with sales chart above
+            </p>
+            <div class="relative" style="height: 120px;">
+                <canvas id="dailyOrdersChart" class="w-full h-full"></canvas>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daily Average Sale Amount</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Average per order by year - aligned with charts above
+            </p>
+            <div class="relative" style="height: 120px;">
+                <canvas id="dailyAverageChart" class="w-full h-full"></canvas>
+            </div>
+        </div>
+
+        <!-- Daily Weather Chart -->
+        <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daily Weather</h4>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                <span id="weatherChartDescription">High, low temperatures and weather conditions for each day of the season</span>
+            </p>
+            <div class="relative" style="height: 120px;">
+                <div id="dailyWeatherChart" class="w-full h-full"></div>
+            </div>
+        </div>
+        {% else %}
+        <div class="mb-4">
+            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Daily Sales Comparison</h4>
+            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4" style="height: 180px;">
+                <div class="h-full flex items-center justify-center text-gray-600 dark:text-gray-400">
+                    <div class="text-center">
+                        <i data-lucide="trending-up" class="w-8 h-8 mx-auto mb-2"></i>
+                        <p class="text-sm">Daily comparison chart will appear as data becomes available.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Off Season</h3>
+        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+            <div class="text-center text-gray-600 dark:text-gray-400">
+                <i data-lucide="calendar" class="w-8 h-8 mx-auto mb-2"></i>
+                <p>Currently in off season period</p>
+                <p class="text-sm mt-1">No active firework season</p>
+            </div>
+        </div>
+    {% endif %}
+    
+    {% if current.weather %}
+    <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="text-sm font-medium text-gray-900 dark:text-white">Current Weather</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">{{ current.weather.description|title }}</div>
+            </div>
+            <div class="flex items-center">
+                <img src="http://openweathermap.org/img/w/{{ current.weather.icon }}.png" 
+                     alt="{{ current.weather.description }}"
+                     class="w-10 h-10 mr-2">
+                <div class="text-xl font-semibold text-gray-900 dark:text-white">
+                    {{ current.weather.temp }}°F
+                </div>
+            </div>
+        </div>
+        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            High: {{ current.weather.temp_max }}°F | Low: {{ current.weather.temp_min }}°F | Humidity: {{ current.weather.humidity }}%
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    // Initialize Lucide icons for the dynamically loaded content
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
+    // Initialize Season Progress Chart
+    {% if current.season_performance and current.season_performance.cumulative_progress %}
+    function initSeasonProgressChart() {
+        const ctx = document.getElementById('seasonProgressChart');
+        if (ctx && typeof Chart !== 'undefined') {
+            // Destroy existing chart if it exists
+            if (window.seasonProgressChart && typeof window.seasonProgressChart.destroy === 'function') {
+                window.seasonProgressChart.destroy();
+            }
+            
+            const progressData = {{ current.season_performance.cumulative_progress | tojson }};
+            
+            // Prepare data for Chart.js
+            const labels = progressData.map(p => p.year.toString());
+            const salesData = progressData.map(p => p.total_sales);
+            
+            const yearColors = {
+                2025: '#3b82f6',  // Blue - current year
+                2024: '#10b981',  // Green
+                2023: '#f59e0b',  // Yellow
+                2022: '#ef4444',  // Red
+                2021: '#8b5cf6',  // Purple
+                2020: '#f97316',  // Orange
+                2019: '#06b6d4',  // Cyan
+                2018: '#84cc16'   // Lime
+            };
+            
+            const backgroundColors = progressData.map(p => yearColors[p.year] || '#6b7280');
+            
+            window.seasonProgressChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cumulative Sales',
+                        data: salesData,
+                        backgroundColor: backgroundColors,
+                        borderColor: backgroundColors,
+                        borderWidth: 2,
+                        borderRadius: 4,
+                        maxBarThickness: 40
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false  // Hide legend since we only have one dataset
+                        },
+                        tooltip: {
+                            backgroundColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+                            titleColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
+                            bodyColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
+                            borderColor: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    const progress = progressData[context.dataIndex];
+                                    return [
+                                        `Sales: $${progress.total_sales.toLocaleString()}`,
+                                        `Orders: ${progress.total_orders}`,
+                                        `Avg per Order: $${progress.avg_per_order}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'
+                            },
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'
+                            },
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                },
+                                maxTicksLimit: 6
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    
+    // Initialize with better timing
+    function initSeasonProgressChartWithRetry() {
+        const canvas = document.getElementById('seasonProgressChart');
+        if (canvas && typeof Chart !== 'undefined') {
+            initSeasonProgressChart();
+        } else {
+            // Retry after a short delay
+            setTimeout(initSeasonProgressChartWithRetry, 100);
+        }
+    }
+    
+    // Try to initialize immediately
+    initSeasonProgressChartWithRetry();
+    
+    // Also listen for HTMX events
+    document.addEventListener('htmx:afterSettle', function(evt) {
+        if (evt.detail.target.querySelector && evt.detail.target.querySelector('#seasonProgressChart')) {
+            setTimeout(() => initSeasonProgressChart(), 50);
+        }
+    });
+    {% endif %}
+    
+    // Initialize Daily Sales Chart - Separated Charts Approach
+    {% if current.season_performance and current.season_performance.daily_data %}
+    const dailyData = {{ current.season_performance.daily_data | tojson }};
+    
+    // Shared configuration for both charts
+    const allLabels = [];
+    for (let i = 1; i <= 11; i++) {
+        allLabels.push(`Day ${i}`);
+    }
+    
+    const years = new Set();
+    dailyData.forEach(day => {
+        day.years.forEach(yearData => {
+            years.add(yearData.year);
+        });
+    });
+    
+    const yearColors = {
+        2025: '#3b82f6',  // Blue - current year
+        2024: '#10b981',  // Green
+        2023: '#f59e0b',  // Yellow
+        2022: '#ef4444',  // Red
+        2021: '#8b5cf6',  // Purple
+        2020: '#f97316',  // Orange
+        2019: '#06b6d4',  // Cyan
+        2018: '#84cc16'   // Lime
+    };
+    
+    function initDailySalesChart() {
+        const ctx = document.getElementById('dailySalesChart');
+        if (!ctx || typeof Chart === 'undefined') return;
+        
+        // Destroy existing chart if it exists
+        if (window.dailySalesChart && typeof window.dailySalesChart.destroy === 'function') {
+            window.dailySalesChart.destroy();
+        }
+        
+        const datasets = [];
+        
+        // Create bar datasets for each year
+        Array.from(years).sort((a, b) => a - b).forEach(year => {
+            const salesData = [];
+            for (let dayNum = 1; dayNum <= 11; dayNum++) {
+                const dayRecord = dailyData.find(day => day.day === dayNum);
+                if (dayRecord) {
+                    const yearRecord = dayRecord.years.find(y => y.year === year);
+                    salesData.push(yearRecord ? yearRecord.sales : 0);
+                } else {
+                    salesData.push(0);
+                }
+            }
+            
+            datasets.push({
+                label: year.toString(),
+                data: salesData,
+                backgroundColor: yearColors[year] || '#6b7280',
+                borderColor: yearColors[year] || '#6b7280',
+                borderWidth: year === 2025 ? 2 : 1,
+                borderRadius: 4
+            });
+        });
+        
+        window.dailySalesChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: allLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'point',
+                    intersect: true
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 10,
+                            boxWidth: 12,
+                            color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+                        titleColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
+                        bodyColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
+                        borderColor: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: function(context) {
+                                const dayNum = context[0].dataIndex + 1;
+                                const year = context[0].dataset.label;
+                                return `${year} - Day ${dayNum}`;
+                            },
+                            label: function(context) {
+                                const dayNum = context.dataIndex + 1;
+                                const year = context.dataset.label;
+                                
+                                const dayRecord = dailyData.find(day => day.day === dayNum);
+                                if (dayRecord) {
+                                    const yearRecord = dayRecord.years.find(y => y.year.toString() === year);
+                                    if (yearRecord) {
+                                        return [
+                                            `Sales: $${yearRecord.sales.toLocaleString()}`,
+                                            `Orders: ${yearRecord.orders}`,
+                                            `Avg per Order: $${yearRecord.avg_per_order}`
+                                        ];
+                                    }
+                                }
+                                return `Sales: $${context.parsed.y.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280',
+                            maxRotation: 0
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280',
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            },
+                            maxTicksLimit: 6
+                        },
+                        title: {
+                            display: true,
+                            text: 'Sales ($)',
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    function initDailyOrdersChart() {
+        const ctx = document.getElementById('dailyOrdersChart');
+        if (!ctx || typeof Chart === 'undefined') return;
+        
+        // Destroy existing chart if it exists
+        if (window.dailyOrdersChart && typeof window.dailyOrdersChart.destroy === 'function') {
+            window.dailyOrdersChart.destroy();
+        }
+        
+        const datasets = [];
+        
+        // Create bar datasets for each year
+        Array.from(years).sort((a, b) => a - b).forEach(year => {
+            const ordersData = [];
+            for (let dayNum = 1; dayNum <= 11; dayNum++) {
+                const dayRecord = dailyData.find(day => day.day === dayNum);
+                if (dayRecord) {
+                    const yearRecord = dayRecord.years.find(y => y.year === year);
+                    ordersData.push(yearRecord ? yearRecord.orders : 0);
+                } else {
+                    ordersData.push(0);
+                }
+            }
+            
+            datasets.push({
+                label: year.toString(),
+                data: ordersData,
+                backgroundColor: yearColors[year] || '#6b7280',
+                borderColor: yearColors[year] || '#6b7280',
+                borderWidth: year === 2025 ? 2 : 1,
+                borderRadius: 4
+            });
+        });
+        
+        window.dailyOrdersChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: allLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'point',
+                    intersect: true
+                },
+                plugins: {
+                    legend: {
+                        display: false // Hide legend since it's shown in sales chart
+                    },
+                    tooltip: {
+                        backgroundColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+                        titleColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
+                        bodyColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
+                        borderColor: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: function(context) {
+                                const dayNum = context[0].dataIndex + 1;
+                                const year = context[0].dataset.label;
+                                return `${year} - Day ${dayNum}`;
+                            },
+                            label: function(context) {
+                                const dayNum = context.dataIndex + 1;
+                                const year = context.dataset.label;
+                                
+                                const dayRecord = dailyData.find(day => day.day === dayNum);
+                                if (dayRecord) {
+                                    const yearRecord = dayRecord.years.find(y => y.year.toString() === year);
+                                    if (yearRecord) {
+                                        return [
+                                            `Orders: ${yearRecord.orders}`,
+                                            `Sales: $${yearRecord.sales.toLocaleString()}`,
+                                            `Avg per Order: $${yearRecord.avg_per_order}`
+                                        ];
+                                    }
+                                }
+                                return `Orders: ${context.parsed.y}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280',
+                            maxRotation: 0
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280',
+                            maxTicksLimit: 6
+                        },
+                        title: {
+                            display: true,
+                            text: 'Orders',
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function initDailyAverageChart() {
+        const ctx = document.getElementById('dailyAverageChart');
+        if (!ctx || typeof Chart === 'undefined') return;
+        
+        // Destroy existing chart if it exists
+        if (window.dailyAverageChart && typeof window.dailyAverageChart.destroy === 'function') {
+            window.dailyAverageChart.destroy();
+        }
+        
+        const datasets = [];
+        
+        // Create bar datasets for each year
+        Array.from(years).sort((a, b) => a - b).forEach(year => {
+            const averageData = [];
+            for (let dayNum = 1; dayNum <= 11; dayNum++) {
+                const dayRecord = dailyData.find(day => day.day === dayNum);
+                if (dayRecord) {
+                    const yearRecord = dayRecord.years.find(y => y.year === year);
+                    // Handle avg_per_order - it might be a number or string
+                    let avgValue = 0;
+                    if (yearRecord && yearRecord.avg_per_order !== undefined) {
+                        if (typeof yearRecord.avg_per_order === 'string') {
+                            avgValue = parseFloat(yearRecord.avg_per_order.replace('$', ''));
+                        } else {
+                            avgValue = parseFloat(yearRecord.avg_per_order);
+                        }
+                    }
+                    averageData.push(isNaN(avgValue) ? 0 : avgValue);
+                } else {
+                    averageData.push(0);
+                }
+            }
+            
+            datasets.push({
+                label: year.toString(),
+                data: averageData,
+                backgroundColor: yearColors[year] || '#6b7280',
+                borderColor: yearColors[year] || '#6b7280',
+                borderWidth: year === 2025 ? 2 : 1,
+                borderRadius: 4
+            });
+        });
+        
+        window.dailyAverageChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: allLabels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'point',
+                    intersect: true
+                },
+                plugins: {
+                    legend: {
+                        display: false // Hide legend since it's shown in sales chart
+                    },
+                    tooltip: {
+                        backgroundColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+                        titleColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
+                        bodyColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
+                        borderColor: document.documentElement.classList.contains('dark') ? '#374151' : '#e5e7eb',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: function(context) {
+                                const dayNum = context[0].dataIndex + 1;
+                                const year = context[0].dataset.label;
+                                return `${year} - Day ${dayNum}`;
+                            },
+                            label: function(context) {
+                                const dayNum = context.dataIndex + 1;
+                                const year = context.dataset.label;
+                                
+                                const dayRecord = dailyData.find(day => day.day === dayNum);
+                                if (dayRecord) {
+                                    const yearRecord = dayRecord.years.find(y => y.year.toString() === year);
+                                    if (yearRecord) {
+                                        // Format avg_per_order properly
+                                        const avgDisplay = typeof yearRecord.avg_per_order === 'string' 
+                                            ? yearRecord.avg_per_order 
+                                            : `$${yearRecord.avg_per_order.toFixed(2)}`;
+                                        return [
+                                            `Avg per Order: ${avgDisplay}`,
+                                            `Orders: ${yearRecord.orders}`,
+                                            `Sales: $${yearRecord.sales.toLocaleString()}`
+                                        ];
+                                    }
+                                }
+                                return `Avg per Order: $${context.parsed.y.toFixed(2)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280',
+                            maxRotation: 0
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: document.documentElement.classList.contains('dark') ? '#374151' : '#f3f4f6'
+                        },
+                        ticks: {
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280',
+                            callback: function(value) {
+                                return '$' + value.toFixed(2);
+                            },
+                            maxTicksLimit: 6
+                        },
+                        title: {
+                            display: true,
+                            text: 'Avg per Order ($)',
+                            color: document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialize Daily Weather Chart
+    function initDailyWeatherChart() {
+        const container = document.getElementById('dailyWeatherChart');
+        if (!container) return;
+        
+        // Clear any existing content
+        container.innerHTML = '';
+        
+        // Get weather data
+        {% if current.season_performance and current.season_performance.weather_data %}
+        const weatherData = {{ current.season_performance.weather_data | tojson }};
+        {% else %}
+        const weatherData = [];
+        {% endif %}
+        
+        console.log('Weather data for chart:', weatherData); // Debug log
+        
+        // Update description based on data type
+        const descriptionElement = document.getElementById('weatherChartDescription');
+        if (descriptionElement) {
+            if (weatherData.length > 0 && weatherData[0].precipitation_count !== undefined) {
+                descriptionElement.textContent = 'Number of locations experiencing precipitation each day (0 = green, >0 = blue)';
+            } else {
+                descriptionElement.textContent = 'High, low temperatures and weather conditions for each day of the season';
+            }
+        }
+        
+        // Create weather container with grid layout to match charts
+        container.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(11, 1fr);
+            gap: 4px;
+            padding: 10px 20px 10px 55px;
+            align-items: center;
+            height: 100%;
+        `;
+        
+        // Create 11 weather day slots (Day 1 through Day 11)
+        for (let dayNum = 1; dayNum <= 11; dayNum++) {
+            // Find weather data for this day
+            const weather = weatherData.find(w => w.day === dayNum) || {
+                day: dayNum,
+                date: `--/--`,
+                temp_high: null,
+                temp_low: null,
+                weather_icon: null,
+                weather_description: 'No data available',
+                humidity: null,
+                is_current: false
+            };
+            
+            // Debug logging for first few days
+            if (dayNum <= 3) {
+                console.log(`Day ${dayNum} weather:`, weather);
+            }
+            
+            // Create weather day container
+            const dayContainer = document.createElement('div');
+            dayContainer.className = 'weather-day';
+            dayContainer.style.cssText = `
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 2px;
+                cursor: pointer;
+                border-radius: 4px;
+                transition: background-color 0.2s;
+                ${weather.is_current ? 'background-color: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3);' : ''}
+            `;
+            
+            // Add hover effect
+            dayContainer.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = document.documentElement.classList.contains('dark') ? 'rgba(55, 65, 81, 0.5)' : 'rgba(243, 244, 246, 0.5)';
+            });
+            
+            dayContainer.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = weather.is_current ? 'rgba(59, 130, 246, 0.1)' : 'transparent';
+            });
+            
+            // Day label
+            const dayLabel = document.createElement('div');
+            dayLabel.textContent = `Day ${dayNum}`;
+            dayLabel.style.cssText = `
+                font-size: 9px;
+                color: ${document.documentElement.classList.contains('dark') ? '#9ca3af' : '#6b7280'};
+                margin-bottom: 2px;
+                font-weight: 500;
+                text-align: center;
+            `;
+            
+            // Precipitation count display (for combined locations) or weather icon (for individual locations)
+            const weatherContainer = document.createElement('div');
+            weatherContainer.style.cssText = `
+                width: 32px;
+                height: 32px;
+                margin-bottom: 2px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 14px;
+            `;
+            
+            if (weather.precipitation_count !== undefined) {
+                // Combined locations - show precipitation count
+                const count = weather.precipitation_count || 0;
+                const isRaining = count > 0;
+                
+                weatherContainer.textContent = count.toString();
+                weatherContainer.style.backgroundColor = isRaining ? '#3b82f6' : '#10b981'; // Blue if rain, green if no rain
+                weatherContainer.style.color = '#ffffff';
+                weatherContainer.title = `${count} location${count !== 1 ? 's' : ''} experiencing precipitation`;
+            } else if (weather.weather_icon && weather.weather_icon !== null) {
+                // Individual location - show weather icon
+                weatherContainer.style.backgroundColor = 'transparent';
+                const weatherIcon = document.createElement('img');
+                weatherIcon.src = `http://openweathermap.org/img/w/${weather.weather_icon}.png`;
+                weatherIcon.alt = weather.weather_description || 'Weather';
+                weatherIcon.style.cssText = `
+                    width: 24px;
+                    height: 24px;
+                    object-fit: contain;
+                `;
+                weatherContainer.appendChild(weatherIcon);
+            } else {
+                // No weather data available - show placeholder
+                weatherContainer.style.backgroundColor = 'transparent';
+                const placeholder = document.createElement('div');
+                placeholder.style.cssText = `
+                    width: 16px;
+                    height: 16px;
+                    border: 1px dashed ${document.documentElement.classList.contains('dark') ? '#6b7280' : '#d1d5db'};
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 8px;
+                    color: ${document.documentElement.classList.contains('dark') ? '#6b7280' : '#9ca3af'};
+                `;
+                placeholder.textContent = '?';
+                weatherContainer.appendChild(placeholder);
+            }
+            
+            // Temperature display (only for individual locations)
+            const tempContainer = document.createElement('div');
+            tempContainer.style.cssText = `
+                text-align: center;
+                line-height: 1.1;
+            `;
+            
+            if (weather.precipitation_count === undefined && weather.temp_high !== null && weather.temp_low !== null) {
+                // Individual location - show temperatures
+                const highTemp = document.createElement('div');
+                highTemp.textContent = `${Math.round(weather.temp_high)}°`;
+                highTemp.style.cssText = `
+                    font-size: 9px;
+                    font-weight: 600;
+                    color: ${document.documentElement.classList.contains('dark') ? '#f87171' : '#ef4444'};
+                `;
+                
+                const lowTemp = document.createElement('div');
+                lowTemp.textContent = `${Math.round(weather.temp_low)}°`;
+                lowTemp.style.cssText = `
+                    font-size: 8px;
+                    color: ${document.documentElement.classList.contains('dark') ? '#60a5fa' : '#3b82f6'};
+                `;
+                
+                tempContainer.appendChild(highTemp);
+                tempContainer.appendChild(lowTemp);
+            } else if (weather.precipitation_count === undefined) {
+                // Individual location - no temperature data
+                const noTemp = document.createElement('div');
+                noTemp.textContent = '--°';
+                noTemp.style.cssText = `
+                    font-size: 8px;
+                    color: ${document.documentElement.classList.contains('dark') ? '#6b7280' : '#9ca3af'};
+                `;
+                tempContainer.appendChild(noTemp);
+            }
+            
+            // Add tooltip functionality
+            dayContainer.title = createWeatherTooltip(weather);
+            
+            // Assemble the day container
+            dayContainer.appendChild(dayLabel);
+            dayContainer.appendChild(weatherContainer);
+            dayContainer.appendChild(tempContainer);
+            
+            container.appendChild(dayContainer);
+        }
+        
+        // Helper function to create tooltip text
+        function createWeatherTooltip(weather) {
+            let tooltip = `${weather.date} - Day ${weather.day}`;
+            
+            if (weather.precipitation_count !== undefined) {
+                // Combined locations - show precipitation count
+                const count = weather.precipitation_count || 0;
+                tooltip += `\n${count} location${count !== 1 ? 's' : ''} with precipitation`;
+                if (count === 0) {
+                    tooltip += `\nAll locations clear weather`;
+                }
+            } else {
+                // Individual location - show detailed weather
+                if (weather.temp_high !== null && weather.temp_low !== null) {
+                    tooltip += `\nHigh: ${weather.temp_high}°F`;
+                    tooltip += `\nLow: ${weather.temp_low}°F`;
+                    if (weather.temp_avg !== null) {
+                        tooltip += `\nAverage: ${weather.temp_avg}°F`;
+                    }
+                }
+                
+                if (weather.weather_description) {
+                    tooltip += `\nWeather: ${weather.weather_description}`;
+                }
+                
+                if (weather.humidity !== null) {
+                    tooltip += `\nHumidity: ${weather.humidity}%`;
+                }
+                
+                if (weather.precipitation !== null) {
+                    tooltip += `\nPrecipitation: ${weather.precipitation}mm`;
+                }
+                
+                if (weather.wind_speed !== null) {
+                    tooltip += `\nWind Speed: ${weather.wind_speed}mph`;
+                }
+            }
+            
+            if (weather.is_current) {
+                tooltip += `\n(Current Day)`;
+            }
+            
+            return tooltip;
+        }
+    }
+
+    // Initialize all four charts with retry logic
+    function initDailyChartsWithRetry() {
+        if (typeof Chart !== 'undefined') {
+            initDailySalesChart();
+            initDailyOrdersChart();
+            initDailyAverageChart();
+            initDailyWeatherChart();
+        } else {
+            setTimeout(initDailyChartsWithRetry, 100);
+        }
+    }
+    
+    // Try to initialize immediately
+    initDailyChartsWithRetry();
+    
+    // Also listen for HTMX events
+    document.addEventListener('htmx:afterSettle', function(evt) {
+        if (evt.detail.target.querySelector && (
+            evt.detail.target.querySelector('#dailySalesChart') || 
+            evt.detail.target.querySelector('#dailyOrdersChart') ||
+            evt.detail.target.querySelector('#dailyAverageChart') ||
+            evt.detail.target.querySelector('#dailyWeatherChart')
+        )) {
+            setTimeout(() => {
+                initDailySalesChart();
+                initDailyOrdersChart();
+                initDailyAverageChart();
+                initDailyWeatherChart();
+            }, 50);
+        }
+    });
+    {% endif %}
+
+</script> 
