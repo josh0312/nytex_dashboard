@@ -71,6 +71,7 @@ gcloud run deploy nytex-dashboard \
     --update-secrets "SMTP_USERNAME=smtp-username:latest" \
     --update-secrets "SMTP_PASSWORD=smtp-password:latest" \
     --update-secrets "SMTP_SENDER_EMAIL=smtp-sender-email:latest" \
+    --update-secrets "SYNC_NOTIFICATIONS_ENABLED=sync-notifications-enabled:latest" \
     --update-secrets "SYNC_NOTIFICATION_RECIPIENTS=sync-notification-recipients:latest"
 
 echo "✅ Deployment completed successfully!"
