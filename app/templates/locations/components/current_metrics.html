@@ -312,7 +312,15 @@
                 const dayRecord = dailyData.find(day => day.day === dayNum);
                 if (dayRecord) {
                     const yearRecord = dayRecord.years.find(y => y.year === year);
-                    salesData.push(yearRecord ? yearRecord.sales : 0);
+                    const actualSales = yearRecord ? yearRecord.sales : 0;
+                    // For current year, ensure small positive values are visible by using minimum display value
+                    if (year === 2025 && actualSales > 0) {
+                        const maxValue = Math.max(...dailyData.flatMap(d => d.years.map(y => y.sales)));
+                        const minDisplayValue = maxValue * 0.02; // 2% of max value for visibility
+                        salesData.push(Math.max(actualSales, minDisplayValue));
+                    } else {
+                        salesData.push(actualSales);
+                    }
                 } else {
                     salesData.push(0);
                 }
@@ -351,6 +359,7 @@
                             color: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151'
                         }
                     },
+
                     tooltip: {
                         backgroundColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
                         titleColor: document.documentElement.classList.contains('dark') ? '#f3f4f6' : '#374151',
@@ -371,6 +380,7 @@
                                 if (dayRecord) {
                                     const yearRecord = dayRecord.years.find(y => y.year.toString() === year);
                                     if (yearRecord) {
+                                        // Always show actual sales value in tooltip, not display value
                                         return [
                                             `Sales: $${yearRecord.sales.toLocaleString()}`,
                                             `Orders: ${yearRecord.orders}`,
@@ -405,6 +415,7 @@
                             },
                             maxTicksLimit: 6
                         },
+
                         title: {
                             display: true,
                             text: 'Sales ($)',

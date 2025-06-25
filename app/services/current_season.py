@@ -1,12 +1,12 @@
 from sqlalchemy.future import select
-from app.database import get_session
-from app.models import OperatingSeason
+from app.database.connection import get_db
+from app.database.models.operating_season import OperatingSeason
 from app.logger import logger
 from datetime import datetime
 
 async def get_current_season():
     """Get the current operating season based on today's date"""
-    async with get_session() as session:
+    async with get_db() as session:
         today = datetime.now().date()
         logger.info(f"Checking for active season on date: {today}")
 

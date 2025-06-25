@@ -22,7 +22,14 @@
     </div>
 
     <!-- Seasonal Sales -->
-    {% include 'dashboard/components/seasonal_sales.html' %}
+    <div hx-get="/dashboard/metrics/seasonal_sales"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <!-- Loading state -->
+        <div class="animate-pulse bg-green-100 dark:bg-green-800 rounded-lg shadow-sm p-4">
+            <div class="h-16 bg-green-200 dark:bg-green-700 rounded"></div>
+        </div>
+    </div>
 
     <!-- Low Stock Items -->
     {% include 'dashboard/components/low_stock.html' %}

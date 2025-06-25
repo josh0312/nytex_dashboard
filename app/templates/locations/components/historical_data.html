@@ -249,12 +249,12 @@
 
             // Calculate trend line using linear regression (excluding current year)
             const currentYear = new Date().getFullYear();
-            const completeYearIndices = [];
+            const completeYears = [];
             const completeYearSales = [];
             
-            yearlyData.forEach((item, index) => {
+            yearlyData.forEach((item) => {
                 if (item.year !== currentYear) {
-                    completeYearIndices.push(index);
+                    completeYears.push(item.year);
                     completeYearSales.push(item.total_sales);
                 }
             });
@@ -262,10 +262,10 @@
             let trendData = [];
             if (completeYearSales.length >= 2) {
                 const n = completeYearSales.length;
-                const sumX = completeYearIndices.reduce((a, b) => a + b, 0);
+                const sumX = completeYears.reduce((a, b) => a + b, 0);
                 const sumY = completeYearSales.reduce((a, b) => a + b, 0);
-                const sumXY = completeYearSales.map((y, i) => completeYearIndices[i] * y).reduce((a, b) => a + b, 0);
-                const sumXX = completeYearIndices.map(x => x * x).reduce((a, b) => a + b, 0);
+                const sumXY = completeYearSales.map((y, i) => completeYears[i] * y).reduce((a, b) => a + b, 0);
+                const sumXX = completeYears.map(x => x * x).reduce((a, b) => a + b, 0);
                 
                 const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
                 const intercept = (sumY - slope * sumX) / n;
@@ -273,7 +273,13 @@
                 // Generate trend line for all years, but only show it for complete years
                 trendData = years.map((_, i) => {
                     const year = yearlyData[i].year;
-                    return year !== currentYear ? slope * i + intercept : null;
+                    if (year !== currentYear) {
+                        const trendValue = slope * year + intercept;
+                        // Ensure trendline doesn't go below zero
+                        return Math.max(0, trendValue);
+                    } else {
+                        return null;
+                    }
                 });
             } else {
                 // Not enough data for trend line

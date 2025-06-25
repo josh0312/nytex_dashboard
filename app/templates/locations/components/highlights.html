@@ -1,33 +1,117 @@
-<!-- Location Highlights - Just the key metrics without charts -->
+<!-- Location Highlights - Key metrics with year-over-year comparison arrows -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <!-- Today's Sales -->
     <div class="text-center">
-        <div class="text-lg font-bold text-green-600 dark:text-green-400">
-            ${{ "{:,.2f}".format(current.today_sales) }}
+        <div class="flex items-center justify-center space-x-1">
+            <div class="text-lg font-bold text-green-600 dark:text-green-400">
+                ${{ "{:,.2f}".format(current.today_sales) }}
+            </div>
+            {% if yoy_comparison and yoy_comparison.today_sales %}
+                {% set comp = yoy_comparison.today_sales %}
+                <div class="relative group">
+                    {% if comp.direction == 'up' %}
+                        <span class="text-green-500 cursor-help text-sm">▲</span>
+                    {% elif comp.direction == 'down' %}
+                        <span class="text-red-500 cursor-help text-sm">▼</span>
+                    {% else %}
+                        <span class="text-orange-500 cursor-help text-sm">—</span>
+                    {% endif %}
+                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded shadow-lg whitespace-nowrap">
+                        {% if comp.direction == 'flat' %}
+                            No change vs same date last year
+                        {% else %}
+                            {{ "{:+.1f}".format(comp.percentage if comp.direction == 'up' else -comp.percentage) }}% vs same date last year
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
         <div class="text-xs text-gray-500 dark:text-gray-400">Today's Sales</div>
     </div>
 
     <!-- Today's Orders -->
     <div class="text-center">
-        <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
-            {{ current.today_orders }}
+        <div class="flex items-center justify-center space-x-1">
+            <div class="text-lg font-bold text-blue-600 dark:text-blue-400">
+                {{ current.today_orders }}
+            </div>
+            {% if yoy_comparison and yoy_comparison.today_orders %}
+                {% set comp = yoy_comparison.today_orders %}
+                <div class="relative group">
+                    {% if comp.direction == 'up' %}
+                        <span class="text-green-500 cursor-help text-sm">▲</span>
+                    {% elif comp.direction == 'down' %}
+                        <span class="text-red-500 cursor-help text-sm">▼</span>
+                    {% else %}
+                        <span class="text-orange-500 cursor-help text-sm">—</span>
+                    {% endif %}
+                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded shadow-lg whitespace-nowrap">
+                        {% if comp.direction == 'flat' %}
+                            No change vs same date last year
+                        {% else %}
+                            {{ "{:+.1f}".format(comp.percentage if comp.direction == 'up' else -comp.percentage) }}% vs same date last year
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
         <div class="text-xs text-gray-500 dark:text-gray-400">Today's Orders</div>
     </div>
 
-    <!-- This Year's Sales -->
+    <!-- This Year's Sales (Season to Date) -->
     <div class="text-center">
-        <div class="text-lg font-bold text-purple-600 dark:text-purple-400">
-            ${{ "{:,.0f}".format(current.total_sales_year) }}
+        <div class="flex items-center justify-center space-x-1">
+            <div class="text-lg font-bold text-purple-600 dark:text-purple-400">
+                ${{ "{:,.0f}".format(current.total_sales_year) }}
+            </div>
+            {% if yoy_comparison and yoy_comparison.season_sales %}
+                {% set comp = yoy_comparison.season_sales %}
+                <div class="relative group">
+                    {% if comp.direction == 'up' %}
+                        <span class="text-green-500 cursor-help text-sm">▲</span>
+                    {% elif comp.direction == 'down' %}
+                        <span class="text-red-500 cursor-help text-sm">▼</span>
+                    {% else %}
+                        <span class="text-orange-500 cursor-help text-sm">—</span>
+                    {% endif %}
+                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded shadow-lg whitespace-nowrap">
+                        {% if comp.direction == 'flat' %}
+                            No change vs same period last year
+                        {% else %}
+                            {{ "{:+.1f}".format(comp.percentage if comp.direction == 'up' else -comp.percentage) }}% vs same period last year
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
         <div class="text-xs text-gray-500 dark:text-gray-400">{{ "2025" }} Sales</div>
     </div>
 
-    <!-- This Year's Orders -->
+    <!-- This Year's Orders (Season to Date) -->
     <div class="text-center">
-        <div class="text-lg font-bold text-orange-600 dark:text-orange-400">
-            {{ current.total_orders_year }}
+        <div class="flex items-center justify-center space-x-1">
+            <div class="text-lg font-bold text-orange-600 dark:text-orange-400">
+                {{ current.total_orders_year }}
+            </div>
+            {% if yoy_comparison and yoy_comparison.season_orders %}
+                {% set comp = yoy_comparison.season_orders %}
+                <div class="relative group">
+                    {% if comp.direction == 'up' %}
+                        <span class="text-green-500 cursor-help text-sm">▲</span>
+                    {% elif comp.direction == 'down' %}
+                        <span class="text-red-500 cursor-help text-sm">▼</span>
+                    {% else %}
+                        <span class="text-orange-500 cursor-help text-sm">—</span>
+                    {% endif %}
+                    <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 px-2 py-1 text-xs text-white bg-gray-900 dark:bg-gray-700 rounded shadow-lg whitespace-nowrap">
+                        {% if comp.direction == 'flat' %}
+                            No change vs same period last year
+                        {% else %}
+                            {{ "{:+.1f}".format(comp.percentage if comp.direction == 'up' else -comp.percentage) }}% vs same period last year
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
         </div>
         <div class="text-xs text-gray-500 dark:text-gray-400">{{ "2025" }} Orders</div>
     </div>

@@ -244,7 +244,7 @@ async def location_historical_data(request: Request, location_id: str):
 
 @router.get("/{location_id}/highlights")
 async def location_highlights(request: Request, location_id: str):
-    """Get basic highlights for a location (HTMX endpoint for index page)"""
+    """Get basic highlights for a location with year-over-year comparison (HTMX endpoint for dashboard cards)"""
     try:
         location_service = LocationService()
         location_data = await location_service.get_location_overview(location_id)
@@ -255,10 +255,15 @@ async def location_highlights(request: Request, location_id: str):
                 "message": "Location not found"
             })
         
+        # Get comprehensive year-over-year comparison
+        from app.routes.dashboard import get_location_comprehensive_comparison
+        yoy_comparison = await get_location_comprehensive_comparison(location_id, location_data['current'])
+        
         return templates.TemplateResponse("locations/components/highlights.html", {
             "request": request,
             "current": location_data['current'],
-            "location": location_data['location']
+            "location": location_data['location'],
+            "yoy_comparison": yoy_comparison
         })
     except Exception as e:
         logger.error(f"Error getting highlights for {location_id}: {str(e)}")

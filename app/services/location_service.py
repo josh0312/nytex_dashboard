@@ -851,7 +851,7 @@ class LocationService:
             }
 
     async def _get_combined_daily_season_comparison(self, session: AsyncSession, season_name: str, current_day: int) -> List[Dict[str, Any]]:
-        """Get combined daily sales comparison for current season across all locations and years"""
+        """Get combined daily sales comparison for current season across all locations and years with no time filtering"""
         try:
             # Get aggregated daily season data across ALL locations for comparison (2018-2025)
             query = """
@@ -882,7 +882,10 @@ class LocationService:
                             THEN CAST(o.total_money->>'amount' AS INTEGER) 
                             ELSE 0 
                         END), 0) as daily_sales,
-                        COUNT(CASE WHEN o.state = 'COMPLETED' THEN 1 END) as daily_orders
+                        COUNT(CASE 
+                            WHEN o.state = 'COMPLETED' 
+                            THEN 1 
+                        END) as daily_orders
                     FROM operating_seasons os
                     LEFT JOIN orders o ON 
                         CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) >= os.start_date
@@ -947,8 +950,15 @@ class LocationService:
             return []
 
     async def _get_combined_cumulative_season_progress(self, session: AsyncSession, season_name: str, current_day: int) -> List[Dict[str, Any]]:
-        """Get combined cumulative season progress across all locations"""
+        """Get combined cumulative season progress across all locations with time-of-day filtering"""
         try:
+            from app.utils.timezone import get_central_now
+            
+            # Get current time in CDT for time-of-day comparison
+            current_central_time = get_central_now()
+            current_time_of_day = current_central_time.time()
+            current_date = current_central_time.date()
+            
             # Get cumulative progress for each year across ALL locations
             query = """
                 WITH season_cumulative AS (
@@ -957,12 +967,40 @@ class LocationService:
                         COALESCE(SUM(CASE 
                             WHEN o.state = 'COMPLETED' AND o.total_money IS NOT NULL 
                             AND (CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) - os.start_date + 1) <= :current_day
+                            AND (
+                                -- For historical years: apply time filter only to the current day of season
+                                EXTRACT(YEAR FROM os.start_date) < EXTRACT(YEAR FROM CURRENT_DATE)
+                                AND (
+                                    (CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) - os.start_date + 1) < :current_day
+                                    OR (
+                                        (CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) - os.start_date + 1) = :current_day
+                                        AND CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS TIME) <= :current_time_of_day
+                                    )
+                                )
+                                OR
+                                -- For current year: include all orders (they're naturally limited by current time)
+                                EXTRACT(YEAR FROM os.start_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+                            )
                             THEN CAST(o.total_money->>'amount' AS INTEGER) 
                             ELSE 0 
                         END), 0) as cumulative_sales,
                         COUNT(CASE 
                             WHEN o.state = 'COMPLETED' 
                             AND (CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) - os.start_date + 1) <= :current_day
+                            AND (
+                                -- For historical years: apply time filter only to the current day of season
+                                EXTRACT(YEAR FROM os.start_date) < EXTRACT(YEAR FROM CURRENT_DATE)
+                                AND (
+                                    (CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) - os.start_date + 1) < :current_day
+                                    OR (
+                                        (CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) - os.start_date + 1) = :current_day
+                                        AND CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS TIME) <= :current_time_of_day
+                                    )
+                                )
+                                OR
+                                -- For current year: include all orders (they're naturally limited by current time)
+                                EXTRACT(YEAR FROM os.start_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+                            )
                             THEN 1 
                         END) as cumulative_orders
                     FROM operating_seasons os
@@ -994,7 +1032,8 @@ class LocationService:
             
             result = await session.execute(text(query), {
                 "season_name": season_name,
-                "current_day": current_day
+                "current_day": current_day,
+                "current_time_of_day": current_time_of_day
             })
             
             cumulative_data = []
@@ -1676,7 +1715,7 @@ class LocationService:
             return cumulative_progress
 
     async def _get_daily_season_comparison(self, session: AsyncSession, location_id: str, season_name: str, current_day: int) -> List[Dict[str, Any]]:
-        """Get daily sales comparison for current season across years"""
+        """Get daily sales comparison for current season across years with no time filtering"""
         try:
             # Get historical season data for comparison (2018-2025)
             # Only include years where the location had sales during that season
@@ -1731,7 +1770,10 @@ class LocationService:
                         sd.season_year,
                         sd.day_number,
                         sd.day_date,
-                        COUNT(o.id) as orders,
+                        COUNT(CASE 
+                            WHEN o.state = 'COMPLETED' 
+                            THEN 1 
+                        END) as orders,
                         COALESCE(SUM(CASE 
                             WHEN o.state = 'COMPLETED' AND o.total_money IS NOT NULL 
                             THEN CAST(o.total_money->>'amount' AS INTEGER) 
@@ -1776,7 +1818,7 @@ class LocationService:
             daily_data = []
             for row in result.fetchall():
                 # Log for debugging
-                logger.info(f"Daily data for day {row[0]} ({row[1]}): {len(row[2])} years of data")
+                logger.info(f"Daily data for day {row[0]} ({row[1]}) (NO time filter): {len(row[2])} years of data")
                 daily_data.append({
                     'day': int(row[0]),
                     'date': row[1].strftime('%m/%d'),
@@ -1790,8 +1832,15 @@ class LocationService:
             return []
 
     async def _get_cumulative_season_progress(self, session: AsyncSession, location_id: str, season_name: str, current_day: int) -> List[Dict[str, Any]]:
-        """Get cumulative season progress for year-over-year comparison"""
+        """Get cumulative season progress for year-over-year comparison with time-of-day filtering"""
         try:
+            from app.utils.timezone import get_central_now
+            
+            # Get current time in CDT for time-of-day comparison
+            current_central_time = get_central_now()
+            current_time_of_day = current_central_time.time()
+            current_date = current_central_time.date()
+            
             # Fix the date range calculation - for current_day = 1, we want just the start_date
             # For current_day = 2, we want start_date + 1 day, etc.
             query = """
@@ -1826,9 +1875,40 @@ class LocationService:
                         EXTRACT(YEAR FROM os.start_date) as season_year,
                         os.start_date,
                         os.start_date + INTERVAL '1 day' * (:current_day - 1) as end_date_for_comparison,
-                        COUNT(o.id) as total_orders,
+                        COUNT(CASE 
+                            WHEN o.state = 'COMPLETED' 
+                            AND (
+                                -- For historical years: apply time filter only to the current day of season
+                                EXTRACT(YEAR FROM os.start_date) < EXTRACT(YEAR FROM CURRENT_DATE)
+                                AND (
+                                    CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) < (os.start_date + INTERVAL '1 day' * (:current_day - 1))
+                                    OR (
+                                        CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) = (os.start_date + INTERVAL '1 day' * (:current_day - 1))
+                                        AND CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS TIME) <= :current_time_of_day
+                                    )
+                                )
+                                OR
+                                -- For current year: include all orders (they're naturally limited by current time)
+                                EXTRACT(YEAR FROM os.start_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+                            )
+                            THEN 1 
+                        END) as total_orders,
                         COALESCE(SUM(CASE 
                             WHEN o.state = 'COMPLETED' AND o.total_money IS NOT NULL 
+                            AND (
+                                -- For historical years: apply time filter only to the current day of season
+                                EXTRACT(YEAR FROM os.start_date) < EXTRACT(YEAR FROM CURRENT_DATE)
+                                AND (
+                                    CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) < (os.start_date + INTERVAL '1 day' * (:current_day - 1))
+                                    OR (
+                                        CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) = (os.start_date + INTERVAL '1 day' * (:current_day - 1))
+                                        AND CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS TIME) <= :current_time_of_day
+                                    )
+                                )
+                                OR
+                                -- For current year: include all orders (they're naturally limited by current time)
+                                EXTRACT(YEAR FROM os.start_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+                            )
                             THEN CAST(o.total_money->>'amount' AS INTEGER) 
                             ELSE 0 
                         END), 0) as total_sales_cents
@@ -1862,13 +1942,14 @@ class LocationService:
             result = await session.execute(text(query), {
                 "season_name": season_name,
                 "location_id": location_id,
-                "current_day": current_day
+                "current_day": current_day,
+                "current_time_of_day": current_time_of_day
             })
             
             progress_data = []
             for row in result.fetchall():
                 # Log the date ranges for debugging
-                logger.info(f"Season progress for {row[0]}: {row[1]} orders, ${row[2]}, dates {row[4]} to {row[5]}")
+                logger.info(f"Season progress for {row[0]} (time filter on current day only): {row[1]} orders, ${row[2]}, dates {row[4]} to {row[5]}")
                 progress_data.append({
                     'year': int(row[0]),
                     'total_orders': row[1],

@@ -12,31 +12,39 @@ from app.logger import logger
 from app.utils.timezone import convert_utc_to_central, CENTRAL_TZ
 
 class SeasonService:
-    def __init__(self):
-        self.database_url = os.getenv('DATABASE_URL')
-        if not self.database_url:
-            raise ValueError("DATABASE_URL environment variable is required")
-        
-        # Handle both sync and async database URLs
-        if self.database_url.startswith('postgresql://'):
-            self.database_url = self.database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
-        elif not self.database_url.startswith('postgresql+asyncpg://'):
-            self.database_url = 'postgresql+asyncpg://' + self.database_url
-        
-        self.engine = create_async_engine(self.database_url, echo=False)
-        self.SessionLocal = async_sessionmaker(self.engine, expire_on_commit=False)
+    def __init__(self, session: AsyncSession = None):
+        self.session = session
+        if not session:
+            # Fallback to creating our own connection if no session provided
+            self.database_url = os.getenv('DATABASE_URL')
+            if not self.database_url:
+                raise ValueError("DATABASE_URL environment variable is required")
+            
+            # Handle both sync and async database URLs
+            if self.database_url.startswith('postgresql://'):
+                self.database_url = self.database_url.replace('postgresql://', 'postgresql+asyncpg://', 1)
+            elif not self.database_url.startswith('postgresql+asyncpg://'):
+                self.database_url = 'postgresql+asyncpg://' + self.database_url
+            
+            self.engine = create_async_engine(self.database_url, echo=False)
+            self.SessionLocal = async_sessionmaker(self.engine, expire_on_commit=False)
 
     @asynccontextmanager
     async def _get_session_context(self):
         """Async context manager for database sessions"""
-        async with self.SessionLocal() as session:
-            try:
-                yield session
-            except Exception:
-                await session.rollback()
-                raise
-            finally:
-                await session.close()
+        if self.session:
+            # Use the provided session
+            yield self.session
+        else:
+            # Create our own session
+            async with self.SessionLocal() as session:
+                try:
+                    yield session
+                except Exception:
+                    await session.rollback()
+                    raise
+                finally:
+                    await session.close()
 
     def _get_season_date_ranges(self, year: int) -> Dict[str, Tuple[date, date]]:
         """
@@ -181,6 +189,64 @@ class SeasonService:
         except Exception as e:
             logger.error(f"Error getting yearly season totals: {str(e)}", exc_info=True)
             return {}
+
+    async def get_seasonal_sales(self, current_season):
+        """Get daily sales data for the current season"""
+        try:
+            if not current_season:
+                logger.warning("No current season provided")
+                return None
+                
+            async with self._get_session_context() as session:
+                logger.info(f"Getting seasonal sales for {current_season['name']} ({current_season['start_date']} to {current_season['end_date']})")
+                
+                # Query daily sales within the season date range
+                query = """
+                    SELECT 
+                        DATE(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') as order_date,
+                        SUM(COALESCE(CAST(o.total_money->>'amount' AS INTEGER), 0)) as daily_amount,
+                        COUNT(*) as daily_transactions
+                    FROM orders o
+                    WHERE o.state = 'COMPLETED'
+                    AND DATE(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') >= :start_date
+                    AND DATE(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') <= :end_date
+                    GROUP BY DATE(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago')
+                    ORDER BY order_date
+                """
+                
+                result = await session.execute(text(query), {
+                    "start_date": current_season['start_date'],
+                    "end_date": current_season['end_date']
+                })
+                daily_sales = result.fetchall()
+                
+                if not daily_sales:
+                    logger.warning(f"No sales data found for season {current_season['name']}")
+                    return None
+                
+                # Process the results
+                dates = []
+                amounts = []
+                transactions = []
+                
+                for row in daily_sales:
+                    order_date, daily_amount, daily_transactions = row
+                    dates.append(order_date)
+                    # Convert from cents to dollars
+                    amounts.append((daily_amount or 0) / 100)
+                    transactions.append(daily_transactions or 0)
+                
+                logger.info(f"Found {len(dates)} days of sales data for season {current_season['name']}")
+                
+                return {
+                    'dates': dates,
+                    'amounts': amounts,
+                    'transactions': transactions
+                }
+                
+        except Exception as e:
+            logger.error(f"Error getting seasonal sales: {str(e)}", exc_info=True)
+            return None
 
     async def close(self):
         """Close database connections"""

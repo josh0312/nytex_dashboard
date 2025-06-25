@@ -11,6 +11,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import select, func
+from datetime import datetime, timedelta
+from app.utils.timezone import get_central_now
 
 router = APIRouter()
 
@@ -19,22 +21,28 @@ async def get_cached_seasonal_sales():
     try:
         logger.info("Fetching fresh seasonal sales...")
         
+        # Get current season first
+        current_season_data = await get_current_season()
+        logger.debug(f"Got current season data: {current_season_data}")
+        
+        if not current_season_data:
+            logger.warning("No active season found")
+            return None, None
+
+        season_name = current_season_data.get('name') if current_season_data else None
+        if not season_name:
+            logger.warning("No season name found in season data")
+            return None, None
+
+        # Get seasonal sales with a fresh session
         async with get_db() as session:
             logger.debug("Got database session")
-            # Get current season
-            current_season = await get_current_season()
-            logger.debug(f"Got current season: {current_season}")
-            
-            if not current_season:
-                logger.warning("No active season found")
-                return None, None
-
-            # Get seasonal sales
             season_service = SeasonService(session)
             logger.debug("Created season service")
-            sales_data = await season_service.get_seasonal_sales(current_season)
+            sales_data = await season_service.get_seasonal_sales(current_season_data)
             logger.debug(f"Got sales data: {bool(sales_data)}")
-            return sales_data, current_season
+            # Return sales data and the full season object (not just the name)
+            return sales_data, current_season_data
 
     except Exception as e:
         logger.error(f"Error fetching seasonal sales: {str(e)}", exc_info=True)
@@ -198,6 +206,40 @@ async def get_locations(request: Request):
             "request": request,
             "title": "Location Sales",
             "message": "Unable to load location sales"
+        })
+
+@router.get("/metrics/seasonal_sales")
+async def get_seasonal_sales_component(request: Request):
+    """Get seasonal sales component"""
+    try:
+        logger.info("Loading seasonal sales component")
+        
+        # Get seasonal sales data
+        sales_data, current_season = await get_cached_seasonal_sales()
+        
+        # Unpack sales data for template
+        dates = []
+        amounts = []
+        transactions = []
+        if sales_data:
+            dates = [d.strftime('%b %d') for d in sales_data['dates']]
+            amounts = sales_data['amounts']
+            transactions = sales_data['transactions']
+        
+        return templates.TemplateResponse("dashboard/components/seasonal_sales.html", {
+            "request": request,
+            "sales_data": sales_data,
+            "current_season": current_season,
+            "dates": dates,
+            "amounts": amounts,
+            "transactions": transactions
+        })
+    except Exception as e:
+        logger.error(f"Error loading seasonal sales component: {str(e)}", exc_info=True)
+        return templates.TemplateResponse("dashboard/components/error.html", {
+            "request": request,
+            "title": "Seasonal Sales",
+            "message": "Unable to load seasonal sales"
         })
 
 @router.get("/metrics/total_sales")
@@ -562,4 +604,156 @@ async def simple_count(request: Request):
             count = result.scalar()
             return {"status": "success", "operating_seasons_count": count}
     except Exception as e:
-        return {"status": "error", "error": str(e)} 
+        return {"status": "error", "error": str(e)}
+
+async def get_location_comprehensive_comparison(location_id: str, current_data: dict) -> dict:
+    """Get comprehensive year-over-year comparison for location's metrics"""
+    try:
+        from app.utils.timezone import get_central_now
+        from app.services.current_season import get_current_season
+        
+        # Get current date and season info
+        current_central = get_central_now()
+        current_date = current_central.date()
+        last_year_date = current_date.replace(year=current_date.year - 1)
+        current_season_data = await get_current_season()
+        current_season = current_season_data.get('name') if current_season_data else None
+        
+        async with get_db() as session:
+            comparisons = {}
+            
+            # 1. TODAY vs SAME DATE LAST YEAR
+            today_query = """
+                SELECT 
+                    COUNT(CASE WHEN o.state = 'COMPLETED' THEN 1 END) as last_year_orders,
+                    COALESCE(SUM(CASE 
+                        WHEN o.state = 'COMPLETED' AND o.total_money IS NOT NULL 
+                        THEN CAST(o.total_money->>'amount' AS INTEGER) 
+                        ELSE 0 
+                    END), 0) as last_year_sales_cents
+                FROM orders o
+                WHERE o.location_id = :location_id
+                AND CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) = :last_year_date
+                AND o.state = 'COMPLETED'
+            """
+            
+            result = await session.execute(text(today_query), {
+                "location_id": location_id,
+                "last_year_date": last_year_date
+            })
+            
+            row = result.fetchone()
+            if row:
+                last_year_today_orders = int(row[0] or 0)
+                last_year_today_sales = float(row[1] or 0) / 100.0
+                
+                # Calculate today's comparisons
+                comparisons['today_sales'] = _calculate_comparison(
+                    current_data.get('today_sales', 0), 
+                    last_year_today_sales
+                )
+                comparisons['today_orders'] = _calculate_comparison(
+                    current_data.get('today_orders', 0), 
+                    last_year_today_orders
+                )
+            
+            # 2. CURRENT SEASON (up to current day) vs LAST YEAR SAME SEASON (up to same day)
+            if current_season:
+                # Get current season info
+                season_query = """
+                    SELECT start_date, end_date, name
+                    FROM operating_seasons 
+                    WHERE name = :season_name 
+                    AND EXTRACT(YEAR FROM start_date) = :current_year
+                """
+                
+                season_result = await session.execute(text(season_query), {
+                    "season_name": current_season,
+                    "current_year": current_date.year
+                })
+                
+                season_row = season_result.fetchone()
+                if season_row:
+                    season_start = season_row[0]
+                    current_day = (current_date - season_start).days + 1
+                    
+                    # Get last year's season data up to the same day count
+                    last_year_season_query = """
+                        WITH season_comparison AS (
+                            SELECT 
+                                os.start_date,
+                                EXTRACT(YEAR FROM os.start_date) as season_year,
+                                COUNT(CASE WHEN o.state = 'COMPLETED' THEN 1 END) as season_orders,
+                                COALESCE(SUM(CASE 
+                                    WHEN o.state = 'COMPLETED' AND o.total_money IS NOT NULL 
+                                    THEN CAST(o.total_money->>'amount' AS INTEGER) 
+                                    ELSE 0 
+                                END), 0) as season_sales_cents
+                            FROM operating_seasons os
+                            LEFT JOIN orders o ON 
+                                o.location_id = :location_id
+                                AND CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) >= os.start_date
+                                AND CAST((o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') AS DATE) <= os.start_date + INTERVAL '1 day' * (:current_day - 1)
+                                AND o.state = 'COMPLETED'
+                            WHERE os.name = :season_name
+                            AND EXTRACT(YEAR FROM os.start_date) IN (:current_year, :last_year)
+                            GROUP BY os.start_date, EXTRACT(YEAR FROM os.start_date)
+                        )
+                        SELECT 
+                            season_year,
+                            season_orders,
+                            season_sales_cents / 100.0 as season_sales
+                        FROM season_comparison
+                        ORDER BY season_year
+                    """
+                    
+                    season_comp_result = await session.execute(text(last_year_season_query), {
+                        "location_id": location_id,
+                        "season_name": current_season,
+                        "current_day": current_day,
+                        "current_year": current_date.year,
+                        "last_year": current_date.year - 1
+                    })
+                    
+                    season_data = {}
+                    for row in season_comp_result.fetchall():
+                        year = int(row[0])
+                        orders = int(row[1] or 0)
+                        sales = float(row[2] or 0)
+                        season_data[year] = {"orders": orders, "sales": sales}
+                    
+                    # Calculate season comparisons (current year up to current day vs last year up to same day)
+                    if (current_date.year - 1) in season_data:
+                        last_year_season = season_data[current_date.year - 1]
+                        
+                        comparisons['season_sales'] = _calculate_comparison(
+                            current_data.get('total_sales_year', 0),
+                            last_year_season['sales']
+                        )
+                        comparisons['season_orders'] = _calculate_comparison(
+                            current_data.get('total_orders_year', 0),
+                            last_year_season['orders']
+                        )
+            
+            return comparisons
+            
+    except Exception as e:
+        logger.error(f"Error getting comprehensive comparison for location {location_id}: {str(e)}")
+        return {}
+
+def _calculate_comparison(current_value: float, last_year_value: float) -> dict:
+    """Helper function to calculate comparison direction and percentage"""
+    if last_year_value > 0:
+        change = ((current_value - last_year_value) / last_year_value) * 100
+        if abs(change) < 0.1:  # Less than 0.1% difference
+            return {"direction": "flat", "percentage": 0}
+        elif change > 0:
+            return {"direction": "up", "percentage": change}
+        else:
+            return {"direction": "down", "percentage": abs(change)}
+    elif current_value > 0:
+        # Had value this year but not last year
+        return {"direction": "up", "percentage": 100}
+    else:
+        # No data for either year
+        return None 
