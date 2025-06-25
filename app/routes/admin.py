@@ -333,31 +333,44 @@ async def complete_sync(request: Request):
 
 @router.post("/incremental-sync")
 async def incremental_sync_api(request: Request):
-    """API endpoint for incremental sync operations"""
+    """API endpoint for incremental sync operations using the fixed sync engine"""
     try:
-        logger.info("🔄 Starting incremental sync via API")
+        logger.info("🔄 Starting incremental sync via API using fixed sync engine")
         
-        sync_service = IncrementalSyncService()
+        # Import the fixed sync engine
+        from app.services.sync_engine import SyncEngine
+        
+        # Parse request body to check for sync options
+        request_body = {}
+        try:
+            request_body = await request.json()
+        except:
+            pass  # No JSON body is fine, use defaults
+        
+        sync_types = request_body.get('sync_types', ['orders'])  # Default to orders only for incremental
+        
+        sync_engine = SyncEngine()
         
         async with get_session() as session:
-            result = await sync_service.run_incremental_sync(session)
+            result = await sync_engine.sync_orders_incremental(session)
             await session.commit()
             
             if result['success']:
-                logger.info(f"✅ Incremental sync completed: {result['total_changes']} changes applied")
+                total_changes = result.get('orders_processed', 0)
+                logger.info(f"✅ Incremental sync completed: {total_changes} changes applied")
                 return JSONResponse({
                     "success": True,
-                    "message": f"Incremental sync completed successfully - {result['total_changes']} changes applied",
-                    "total_changes": result['total_changes'],
-                    "results": result['results'],
-                    "timestamp": result['timestamp']
+                    "message": f"Incremental sync completed successfully - {total_changes} changes applied",
+                    "total_changes": total_changes,
+                    "results": result,
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 })
             else:
-                logger.error(f"❌ Incremental sync failed: {result['error']}")
+                logger.error(f"❌ Incremental sync failed: {result.get('error', 'Unknown error')}")
                 return JSONResponse({
                     "success": False,
-                    "error": result['error'],
-                    "timestamp": result['timestamp']
+                    "error": result.get('error', 'Unknown error'),
+                    "timestamp": datetime.now(timezone.utc).isoformat()
                 }, status_code=500)
         
     except Exception as e:
