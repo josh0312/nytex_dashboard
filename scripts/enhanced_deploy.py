@@ -204,8 +204,20 @@ def wait_for_workflow_start(commit_hash, max_wait=120):
         try:
             # Limit API calls to avoid rate limiting
             if api_calls % 10 == 0:  # Only call API every 20 seconds
+                # Get GitHub token for authentication
+                try:
+                    token_result = subprocess.run(['gh', 'auth', 'token'], capture_output=True, text=True)
+                    if token_result.returncode == 0:
+                        token = token_result.stdout.strip()
+                        headers = {"Authorization": f"token {token}"}
+                    else:
+                        headers = {}
+                except:
+                    headers = {}
+                
                 response = requests.get(
                     "https://api.github.com/repos/josh0312/nytex_dashboard/actions/runs?per_page=5",
+                    headers=headers,
                     timeout=10
                 )
                 
@@ -235,8 +247,20 @@ def wait_for_workflow_start(commit_hash, max_wait=120):
     
     # Check if a recent deployment exists
     try:
+        # Get GitHub token for authentication
+        try:
+            token_result = subprocess.run(['gh', 'auth', 'token'], capture_output=True, text=True)
+            if token_result.returncode == 0:
+                token = token_result.stdout.strip()
+                headers = {"Authorization": f"token {token}"}
+            else:
+                headers = {}
+        except:
+            headers = {}
+            
         response = requests.get(
             "https://api.github.com/repos/josh0312/nytex_dashboard/actions/runs?per_page=1",
+            headers=headers,
             timeout=10
         )
         if response.status_code == 200:

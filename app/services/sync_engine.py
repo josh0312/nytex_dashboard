@@ -214,16 +214,21 @@ class SyncEngine:
             location_ids = [loc['id'] for loc in locations]
             logger.info(f"   Found {len(location_ids)} active locations")
             
-            # Step 2: Get last sync timestamp or use days_back
-            last_sync = await self._get_last_sync_timestamp('orders')
-            if last_sync is None:
-                # First sync - get all orders (same as our emergency script)
+            # Step 2: Get start date from most recent order in database
+            engine = create_engine(self.database_url)
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT MAX(created_at) FROM orders"))
+                last_order_date = result.scalar()
+            
+            if last_order_date is None:
+                # No orders in database - get all orders
                 start_date = None
                 logger.info("   First sync - fetching ALL orders")
             else:
-                # Incremental sync - get orders since last sync
-                start_date = last_sync
-                logger.info(f"   Incremental sync since {start_date}")
+                # Incremental sync - get orders from our last order date (no +1 second restriction)
+                # This ensures we don't miss any orders around the same timestamp
+                start_date = last_order_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                logger.info(f"   Incremental sync from date: {start_date} (last order was: {last_order_date})")
             
             # Step 3: Fetch orders from Square API
             all_orders = []
@@ -234,9 +239,11 @@ class SyncEngine:
                 while True:
                     logger.info(f"   📄 Fetching page {page}...")
                     
-                    # Build request body (same as emergency script)
+                    # Build request body (use return_entries for faster response)
                     request_body = {
                         "location_ids": location_ids,
+                        "limit": 100,
+                        "return_entries": True,
                         "query": {
                             "filter": {
                                 "state_filter": {
@@ -249,7 +256,7 @@ class SyncEngine:
                     # Add date filter if we have a start date
                     if start_date:
                         request_body["query"]["filter"]["date_time_filter"] = {
-                            "updated_at": {
+                            "created_at": {
                                 "start_at": start_date.isoformat()
                             }
                         }
@@ -272,10 +279,29 @@ class SyncEngine:
                             )
                         
                         data = await response.json()
-                        orders = data.get('orders', [])
-                        all_orders.extend(orders)
                         
-                        logger.info(f"   📄 Page {page}: {len(orders)} orders (total: {len(all_orders)})")
+                        # Handle order_entries response format
+                        order_entries = data.get('order_entries', [])
+                        if order_entries:
+                            # Convert order_entries to order IDs and fetch full orders
+                            order_ids = [entry['order_id'] for entry in order_entries]
+                            
+                            # Fetch full orders by IDs
+                            full_orders = []
+                            for order_id in order_ids:
+                                async with session.get(f"{self.square_base_url}/v2/orders/{order_id}") as order_response:
+                                    if order_response.status == 200:
+                                        order_data = await order_response.json()
+                                        if 'order' in order_data:
+                                            full_orders.append(order_data['order'])
+                            
+                            all_orders.extend(full_orders)
+                            logger.info(f"   📄 Page {page}: {len(order_entries)} entries -> {len(full_orders)} orders (total: {len(all_orders)})")
+                        else:
+                            # Fallback to orders format (shouldn't happen with return_entries=True)
+                            orders = data.get('orders', [])
+                            all_orders.extend(orders)
+                            logger.info(f"   📄 Page {page}: {len(orders)} orders (total: {len(all_orders)})")
                         
                         # Check for more pages
                         cursor = data.get('cursor')
