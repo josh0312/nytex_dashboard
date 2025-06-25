@@ -2792,3 +2792,49 @@ async def migrate_order_line_items():
             "success": False,
             "error": str(e)
         }
+
+@router.get("/debug-email-config")
+async def debug_email_config():
+    """Debug email configuration to troubleshoot notification issues"""
+    try:
+        import os
+        from app.services.notifications import NotificationService
+        
+        # Check environment variables
+        env_check = {
+            'SYNC_NOTIFICATIONS_ENABLED': os.getenv('SYNC_NOTIFICATIONS_ENABLED', 'NOT_SET'),
+            'SMTP_SERVER': os.getenv('SMTP_SERVER', 'NOT_SET'),
+            'SMTP_USERNAME': os.getenv('SMTP_USERNAME', 'NOT_SET')[:10] + '...' if os.getenv('SMTP_USERNAME') else 'NOT_SET',
+            'SMTP_PASSWORD': 'SET' if os.getenv('SMTP_PASSWORD') else 'NOT_SET',
+            'SMTP_SENDER_EMAIL': os.getenv('SMTP_SENDER_EMAIL', 'NOT_SET')[:10] + '...' if os.getenv('SMTP_SENDER_EMAIL') else 'NOT_SET',
+            'SYNC_NOTIFICATION_RECIPIENTS': os.getenv('SYNC_NOTIFICATION_RECIPIENTS', 'NOT_SET')[:15] + '...' if os.getenv('SYNC_NOTIFICATION_RECIPIENTS') else 'NOT_SET',
+        }
+        
+        # Check notification service initialization
+        try:
+            service = NotificationService()
+            email_channel = service.channels.get('email')
+            
+            service_check = {
+                'email_channel_exists': email_channel is not None,
+                'email_channel_enabled': email_channel.enabled if email_channel else False,
+                'smtp_server': email_channel.smtp_server if email_channel else 'N/A',
+                'recipients_count': len(email_channel.recipients) if email_channel else 0,
+                'recipients': email_channel.recipients[:2] if email_channel and email_channel.recipients else [],
+                'rate_limit_count': len(email_channel.last_notification_times) if email_channel else 0
+            }
+        except Exception as e:
+            service_check = {'error': str(e)}
+        
+        return JSONResponse({
+            'environment_variables': env_check,
+            'notification_service': service_check,
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in debug-email-config: {str(e)}", exc_info=True)
+        return JSONResponse({
+            'error': str(e),
+            'timestamp': datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
