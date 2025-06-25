@@ -354,6 +354,23 @@ async def incremental_sync_api(request: Request):
         # Use the fixed sync engine to sync orders
         result = await sync_engine.sync_orders(days_back=30)  # Check last 30 days for missing orders
         
+        # Send notification regardless of success/failure
+        try:
+            from app.services.notifications import send_sync_success_report, send_sync_failure_alert
+            
+            if result.success:
+                # Send success notification
+                notification_results = {'incremental_sync': result}
+                send_sync_success_report(notification_results, "production")
+                logger.info("✅ Success notification sent")
+            else:
+                # Send failure notification
+                notification_results = {'incremental_sync': result}
+                send_sync_failure_alert(notification_results, "production")
+                logger.info("📧 Failure notification sent")
+        except Exception as e:
+            logger.warning(f"Failed to send notification: {e}")
+        
         if result.success:
             total_changes = result.records_processed
             logger.info(f"✅ Incremental sync completed: {total_changes} changes applied")
@@ -382,6 +399,37 @@ async def incremental_sync_api(request: Request):
         return JSONResponse({
             "success": False,
             "error": f"Incremental sync API error: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
+
+@router.post("/test-notifications")
+async def test_notifications_api(request: Request):
+    """Test email notifications to verify they're working"""
+    try:
+        logger.info("📧 Testing email notifications")
+        
+        from app.services.notifications import NotificationService
+        
+        # Test notification service
+        service = NotificationService()
+        
+        # Send test notifications
+        test_results = service.test_notifications()
+        
+        logger.info(f"📧 Test notification results: {test_results}")
+        
+        return JSONResponse({
+            "success": True,
+            "message": "Email notification test completed",
+            "results": test_results,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Error testing notifications: {str(e)}", exc_info=True)
+        return JSONResponse({
+            "success": False,
+            "error": f"Notification test error: {str(e)}",
             "timestamp": datetime.now(timezone.utc).isoformat()
         }, status_code=500)
 
