@@ -1550,8 +1550,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateTableWithMobileFilters() {
-        const searchTerm = mobileGlobalSearchInput ? mobileGlobalSearchInput.value.trim() : "";
-        const category = mobileCategoryFilter ? mobileCategoryFilter.value : "";
+        // Get elements fresh each time to avoid stale references
+        const mobileSearchInput = document.getElementById("mobile-global-search");
+        const mobileCategorySelect = document.getElementById("mobile-category-filter");
+        
+        const searchTerm = mobileSearchInput ? mobileSearchInput.value.trim() : "";
+        const category = mobileCategorySelect ? mobileCategorySelect.value : "";
         const checkboxes = document.querySelectorAll('.mobile-location-checkbox:checked');
         const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
         
@@ -2277,22 +2281,42 @@ function clearLocationFilter() {
 }
 
 function toggleMobileLocationDropdown() {
+    console.log("toggleMobileLocationDropdown called");
     const dropdown = document.getElementById('mobile-location-filter-dropdown');
     const arrow = document.getElementById('mobile-location-dropdown-arrow');
     
+    console.log("Mobile dropdown element:", dropdown);
+    console.log("Mobile arrow element:", arrow);
+    
+    if (!dropdown) {
+        console.error("Mobile location dropdown not found");
+        return;
+    }
+    
     if (dropdown.classList.contains('hidden')) {
+        console.log("Showing mobile dropdown");
         dropdown.classList.remove('hidden');
-        arrow.style.transform = 'rotate(180deg)';
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
     } else {
+        console.log("Hiding mobile dropdown");
         dropdown.classList.add('hidden');
-        arrow.style.transform = 'rotate(0deg)';
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
     }
 }
 
 function updateMobileLocationFilter() {
+    console.log("updateMobileLocationFilter called");
     const checkboxes = document.querySelectorAll('.mobile-location-checkbox:checked');
     const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
     const filterText = document.getElementById('mobile-location-filter-text');
+    
+    console.log("Mobile location filter - checkboxes found:", checkboxes.length);
+    console.log("Mobile location filter - selected locations:", selectedLocations);
+    
+    if (!filterText) {
+        console.error("Mobile location filter text element not found");
+        return;
+    }
     
     if (selectedLocations.length === 0) {
         filterText.textContent = 'Filter by locations...';
@@ -2306,6 +2330,7 @@ function updateMobileLocationFilter() {
     }
     
     // Update table with new filter
+    console.log("Calling updateTableWithMobileFilters");
     updateTableWithMobileFilters();
 }
 
