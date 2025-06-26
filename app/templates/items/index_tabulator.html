@@ -1549,42 +1549,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function updateTableWithMobileFilters() {
-        // Get elements fresh each time to avoid stale references
-        const mobileSearchInput = document.getElementById("mobile-global-search");
-        const mobileCategorySelect = document.getElementById("mobile-category-filter");
-        
-        const searchTerm = mobileSearchInput ? mobileSearchInput.value.trim() : "";
-        const category = mobileCategorySelect ? mobileCategorySelect.value : "";
-        const checkboxes = document.querySelectorAll('.mobile-location-checkbox:checked');
-        const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
-        
-        console.log("Mobile filters - Search:", searchTerm, "Category:", category, "Locations:", selectedLocations);
-        
-        // Build new URL with parameters for remote filtering
-        let newUrl = "/items/data";
-        const params = [];
-        
-        if (searchTerm) {
-            params.push("global_search=" + encodeURIComponent(searchTerm));
-        }
-        if (category) {
-            params.push("category=" + encodeURIComponent(category));
-        }
-        if (selectedLocations.length > 0) {
-            params.push("locations=" + encodeURIComponent(selectedLocations.join(',')));
-        }
-        
-        if (params.length > 0) {
-            newUrl += "?" + params.join("&");
-        }
-        
-        console.log("Updating table with URL:", newUrl);
-        
-        // Update the table's AJAX URL and refresh data
-        table.setData(newUrl);
-    }
-
     // Export functionality
     document.getElementById("download-xlsx").addEventListener("click", function() {
         console.log("Export button clicked");
@@ -1768,6 +1732,47 @@ document.addEventListener('DOMContentLoaded', function() {
         attributeFilter: ['class']
     });
 });
+
+// Mobile filter function (global scope for mobile UI access)
+function updateTableWithMobileFilters() {
+    // Get elements fresh each time to avoid stale references
+    const mobileSearchInput = document.getElementById("mobile-global-search");
+    const mobileCategorySelect = document.getElementById("mobile-category-filter");
+    
+    const searchTerm = mobileSearchInput ? mobileSearchInput.value.trim() : "";
+    const category = mobileCategorySelect ? mobileCategorySelect.value : "";
+    const checkboxes = document.querySelectorAll('.mobile-location-checkbox:checked');
+    const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
+    
+    console.log("Mobile filters - Search:", searchTerm, "Category:", category, "Locations:", selectedLocations);
+    
+    // Build new URL with parameters for remote filtering
+    let newUrl = "/items/data";
+    const params = [];
+    
+    if (searchTerm) {
+        params.push("global_search=" + encodeURIComponent(searchTerm));
+    }
+    if (category) {
+        params.push("category=" + encodeURIComponent(category));
+    }
+    if (selectedLocations.length > 0) {
+        params.push("locations=" + encodeURIComponent(selectedLocations.join(',')));
+    }
+    
+    if (params.length > 0) {
+        newUrl += "?" + params.join("&");
+    }
+    
+    console.log("Updating table with URL:", newUrl);
+    
+    // Update the table's AJAX URL and refresh data
+    if (typeof table !== 'undefined' && table) {
+        table.setData(newUrl);
+    } else {
+        console.error("Table object not available");
+    }
+}
 
 // Header collapse functionality
 function toggleHeaderCollapse() {
@@ -2281,12 +2286,8 @@ function clearLocationFilter() {
 }
 
 function toggleMobileLocationDropdown() {
-    console.log("toggleMobileLocationDropdown called");
     const dropdown = document.getElementById('mobile-location-filter-dropdown');
     const arrow = document.getElementById('mobile-location-dropdown-arrow');
-    
-    console.log("Mobile dropdown element:", dropdown);
-    console.log("Mobile arrow element:", arrow);
     
     if (!dropdown) {
         console.error("Mobile location dropdown not found");
@@ -2294,24 +2295,18 @@ function toggleMobileLocationDropdown() {
     }
     
     if (dropdown.classList.contains('hidden')) {
-        console.log("Showing mobile dropdown");
         dropdown.classList.remove('hidden');
         if (arrow) arrow.style.transform = 'rotate(180deg)';
     } else {
-        console.log("Hiding mobile dropdown");
         dropdown.classList.add('hidden');
         if (arrow) arrow.style.transform = 'rotate(0deg)';
     }
 }
 
 function updateMobileLocationFilter() {
-    console.log("updateMobileLocationFilter called");
     const checkboxes = document.querySelectorAll('.mobile-location-checkbox:checked');
     const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
     const filterText = document.getElementById('mobile-location-filter-text');
-    
-    console.log("Mobile location filter - checkboxes found:", checkboxes.length);
-    console.log("Mobile location filter - selected locations:", selectedLocations);
     
     if (!filterText) {
         console.error("Mobile location filter text element not found");
@@ -2330,7 +2325,6 @@ function updateMobileLocationFilter() {
     }
     
     // Update table with new filter
-    console.log("Calling updateTableWithMobileFilters");
     updateTableWithMobileFilters();
 }
 
