@@ -142,6 +142,17 @@ class ItemsService:
                     values = [row[0] for row in result.fetchall() if row[0]]
                     filter_options[key] = sorted(set(values))
             
+            # Add location options with friendly names
+            filter_options['locations'] = [
+                'Aubrey',
+                'Bridgefarmer', 
+                'Building',
+                'FloMo',
+                'Justin',
+                'Quinlan',
+                'Terrell'
+            ]
+            
             return filter_options
             
         except Exception as e:
@@ -174,7 +185,28 @@ class ItemsService:
             for field, value in filters.items():
                 logger.info(f"Processing filter - field: {field}, value: {value}, type: {type(value)}")
                 if value:  # Only apply non-empty filters
-                    if field in ['price', 'cost', 'profit_margin_percent', 'profit_markup_percent']:
+                    if field == 'locations':
+                        # Handle location filtering with OR logic for quantities > 0
+                        if isinstance(value, list):
+                            location_conditions = []
+                            location_mapping = {
+                                'Aubrey': 'aubrey_qty',
+                                'Bridgefarmer': 'bridgefarmer_qty',
+                                'Building': 'building_qty',
+                                'FloMo': 'flomo_qty',
+                                'Justin': 'justin_qty',
+                                'Quinlan': 'quinlan_qty',
+                                'Terrell': 'terrell_qty'
+                            }
+                            
+                            for location in value:
+                                if location in location_mapping:
+                                    qty_field = location_mapping[location]
+                                    location_conditions.append(f"{qty_field} > 0")
+                            
+                            if location_conditions:
+                                conditions.append(f"({' OR '.join(location_conditions)})")
+                    elif field in ['price', 'cost', 'profit_margin_percent', 'profit_markup_percent']:
                         # Numeric fields
                         conditions.append(f"{field} = {value}")
                     else:

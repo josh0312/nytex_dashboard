@@ -12,6 +12,7 @@ from app.config import Config
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
+
 @router.get("/", response_class=HTMLResponse)
 async def items_page(
     request: Request,
@@ -100,7 +101,8 @@ async def items_data(
     sort: Optional[str] = Query(None, description="Column to sort by"),
     dir: str = Query("asc", description="Sort direction"),
     global_search: Optional[str] = Query(None, description="Global search term"),
-    category: Optional[str] = Query(None, description="Category filter")
+    category: Optional[str] = Query(None, description="Category filter"),
+    locations: Optional[str] = Query(None, description="Location filter (comma-separated)")
 ):
     """
     JSON API endpoint for Tabulator table data with server-side processing
@@ -138,6 +140,14 @@ async def items_data(
             if category:
                 filters['category'] = category
                 logger.info(f"Mobile category filter applied: {category}")
+            
+            # Handle mobile locations filter
+            if locations:
+                # Parse comma-separated location names
+                location_list = [loc.strip() for loc in locations.split(',') if loc.strip()]
+                if location_list:
+                    filters['locations'] = location_list
+                    logger.info(f"Mobile locations filter applied: {location_list}")
             
             # Parse Tabulator's filter parameters
             # Tabulator sends filters as filter[0][field], filter[0][type], filter[0][value]
@@ -197,7 +207,8 @@ async def items_data(
                         'description': 'description',
                         'vendor_code': 'vendor_code',
                         'price': 'price',
-                        'cost': 'cost'
+                        'cost': 'cost',
+                        'locations': 'locations'
                     }
                     
                     mapped_field = field_mapping.get(field_name, field_name)
@@ -431,6 +442,8 @@ async def test_mobile(request: Request):
     Mobile test page for debugging column hiding
     """
     return templates.TemplateResponse("items/test_mobile.html", {"request": request})
+
+
 
 @router.get("/details/{item_sku}", response_class=JSONResponse)
 async def get_item_details(

@@ -716,23 +716,7 @@
         .tabulator-col[tabulator-field="flomo_qty"],
         .tabulator-col[tabulator-field="justin_qty"],
         .tabulator-col[tabulator-field="quinlan_qty"],
-        .tabulator-col[tabulator-field="terrell_qty"],
-        .tabulator-cell[tabulator-field="sku"],
-        .tabulator-cell[tabulator-field="category"],
-        .tabulator-cell[tabulator-field="price"],
-        .tabulator-cell[tabulator-field="description"],
-        .tabulator-cell[tabulator-field="vendor_name"],
-        .tabulator-cell[tabulator-field="vendor_code"],
-        .tabulator-cell[tabulator-field="cost"],
-        .tabulator-cell[tabulator-field="profit_margin_percent"],
-        .tabulator-cell[tabulator-field="profit_markup_percent"],
-        .tabulator-cell[tabulator-field="aubrey_qty"],
-        .tabulator-cell[tabulator-field="bridgefarmer_qty"],
-        .tabulator-cell[tabulator-field="building_qty"],
-        .tabulator-cell[tabulator-field="flomo_qty"],
-        .tabulator-cell[tabulator-field="justin_qty"],
-        .tabulator-cell[tabulator-field="quinlan_qty"],
-        .tabulator-cell[tabulator-field="terrell_qty"] {
+        .tabulator-col[tabulator-field="terrell_qty"] {
             display: none !important;
             width: 0 !important;
             min-width: 0 !important;
@@ -805,20 +789,72 @@
             
             <!-- Desktop Global Search Row -->
             <div class="mb-3 desktop-filters">
-                <div class="max-w-md">
-                    <label for="global-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Global Search
-                    </label>
-                    <input 
-                        type="text" 
-                        id="global-search" 
-                        name="global-search"
-                        placeholder="Search across all fields..."
-                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
-                    >
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Search across item names, SKUs, descriptions, categories, vendors, and codes
-                    </p>
+                <div class="flex gap-4 items-start">
+                    <div class="flex-1 max-w-md">
+                        <label for="global-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Global Search
+                        </label>
+                        <input 
+                            type="text" 
+                            id="global-search" 
+                            name="global-search"
+                            placeholder="Search across all fields..."
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                        >
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 h-8">
+                            Search across item names, SKUs, descriptions, categories, vendors, and codes
+                        </p>
+                    </div>
+                    
+                    <div class="w-48 relative">
+                        <label for="location-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Locations
+                        </label>
+                        <div class="relative">
+                            <button 
+                                type="button"
+                                id="location-filter-button"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm bg-white text-left flex items-center justify-between"
+                                onclick="toggleLocationDropdown()"
+                            >
+                                <span id="location-filter-text" class="text-gray-500 dark:text-gray-400">Select locations...</span>
+                                <svg class="h-4 w-4 text-gray-400 transform transition-transform" id="location-dropdown-arrow">
+                                    <path fill="currentColor" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                                </svg>
+                            </button>
+                            
+                            <div 
+                                id="location-filter-dropdown" 
+                                class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg hidden"
+                            >
+                                <div class="max-h-40 overflow-y-auto">
+                                    {% for location in filter_options.locations %}
+                                    <label class="flex items-center px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            value="{{ location }}" 
+                                            class="location-checkbox mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            onchange="updateLocationFilter()"
+                                        />
+                                        <span class="text-sm text-gray-900 dark:text-white">{{ location }}</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                <div class="border-t border-gray-200 dark:border-gray-600 px-3 py-2">
+                                    <button 
+                                        type="button" 
+                                        onclick="clearLocationFilter()" 
+                                        class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                                    >
+                                        Clear all
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 h-8 leading-4">
+                            Show items with stock in selected locations
+                        </p>
+                    </div>
                 </div>
             </div>
             
@@ -840,6 +876,48 @@
                     <option value="{{ category }}">{{ category }}</option>
                     {% endfor %}
                 </select>
+                
+                <div class="relative">
+                    <button 
+                        type="button"
+                        id="mobile-location-filter-button"
+                        class="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-base focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white bg-white text-left flex items-center justify-between"
+                        onclick="toggleMobileLocationDropdown()"
+                    >
+                        <span id="mobile-location-filter-text" class="text-gray-500 dark:text-gray-400">Filter by locations...</span>
+                        <svg class="h-5 w-5 text-gray-400 transform transition-transform" id="mobile-location-dropdown-arrow">
+                            <path fill="currentColor" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                        </svg>
+                    </button>
+                    
+                    <div 
+                        id="mobile-location-filter-dropdown" 
+                        class="absolute z-20 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg hidden"
+                    >
+                        <div class="max-h-48 overflow-y-auto">
+                            {% for location in filter_options.locations %}
+                            <label class="flex items-center px-3 py-3 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer border-b border-gray-100 dark:border-gray-600 last:border-b-0">
+                                <input 
+                                    type="checkbox" 
+                                    value="{{ location }}" 
+                                    class="mobile-location-checkbox mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                    onchange="updateMobileLocationFilter()"
+                                />
+                                <span class="text-base text-gray-900 dark:text-white">{{ location }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <div class="border-t border-gray-200 dark:border-gray-600 px-3 py-2">
+                            <button 
+                                type="button" 
+                                onclick="clearMobileLocationFilter()" 
+                                class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                            >
+                                Clear all
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- Table info row -->
@@ -1474,8 +1552,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateTableWithMobileFilters() {
         const searchTerm = mobileGlobalSearchInput ? mobileGlobalSearchInput.value.trim() : "";
         const category = mobileCategoryFilter ? mobileCategoryFilter.value : "";
+        const checkboxes = document.querySelectorAll('.mobile-location-checkbox:checked');
+        const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
         
-        console.log("Mobile filters - Search:", searchTerm, "Category:", category);
+        console.log("Mobile filters - Search:", searchTerm, "Category:", category, "Locations:", selectedLocations);
         
         // Build new URL with parameters for remote filtering
         let newUrl = "/items/data";
@@ -1486,6 +1566,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (category) {
             params.push("category=" + encodeURIComponent(category));
+        }
+        if (selectedLocations.length > 0) {
+            params.push("locations=" + encodeURIComponent(selectedLocations.join(',')));
         }
         
         if (params.length > 0) {
@@ -1637,16 +1720,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Debounce the search to avoid too many requests
             globalSearchTimeout = setTimeout(function() {
-                const searchTerm = globalSearchInput.value.trim();
-                
-                // Update the AJAX URL with the search parameter
-                let newUrl = "/items/data";
-                if (searchTerm) {
-                    newUrl += "?global_search=" + encodeURIComponent(searchTerm);
-                }
-                
-                // Update table's AJAX URL and refresh data
-                table.setData(newUrl);
+                updateTableWithDesktopFilters();
             }, 300); // 300ms delay
         });
         
@@ -1654,11 +1728,13 @@ document.addEventListener('DOMContentLoaded', function() {
         globalSearchInput.addEventListener("keydown", function(event) {
             if (event.key === "Escape") {
                 globalSearchInput.value = "";
+                // Also clear location filter
+                clearLocationFilter();
                 table.setData("/items/data");
             }
         });
     }
-
+    
     // Initialize header collapse state
     initializeHeaderState();
     
@@ -2158,6 +2234,132 @@ window.addEventListener('resize', function() {
 // Reinitialize icons when content updates
 document.addEventListener('htmx:afterSwap', function() {
     lucide.createIcons();
+});
+
+// Location Filter Dropdown Functions
+function toggleLocationDropdown() {
+    const dropdown = document.getElementById('location-filter-dropdown');
+    const arrow = document.getElementById('location-dropdown-arrow');
+    
+    if (dropdown.classList.contains('hidden')) {
+        dropdown.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+    } else {
+        dropdown.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+    }
+}
+
+function updateLocationFilter() {
+    const checkboxes = document.querySelectorAll('.location-checkbox:checked');
+    const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
+    const filterText = document.getElementById('location-filter-text');
+    
+    if (selectedLocations.length === 0) {
+        filterText.textContent = 'Select locations...';
+        filterText.className = 'text-gray-500 dark:text-gray-400';
+    } else if (selectedLocations.length === 1) {
+        filterText.textContent = selectedLocations[0];
+        filterText.className = 'text-gray-900 dark:text-white';
+    } else {
+        filterText.textContent = `${selectedLocations.length} locations selected`;
+        filterText.className = 'text-gray-900 dark:text-white';
+    }
+    
+    // Update table with new filter
+    updateTableWithDesktopFilters();
+}
+
+function clearLocationFilter() {
+    const checkboxes = document.querySelectorAll('.location-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateLocationFilter();
+}
+
+function toggleMobileLocationDropdown() {
+    const dropdown = document.getElementById('mobile-location-filter-dropdown');
+    const arrow = document.getElementById('mobile-location-dropdown-arrow');
+    
+    if (dropdown.classList.contains('hidden')) {
+        dropdown.classList.remove('hidden');
+        arrow.style.transform = 'rotate(180deg)';
+    } else {
+        dropdown.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+    }
+}
+
+function updateMobileLocationFilter() {
+    const checkboxes = document.querySelectorAll('.mobile-location-checkbox:checked');
+    const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
+    const filterText = document.getElementById('mobile-location-filter-text');
+    
+    if (selectedLocations.length === 0) {
+        filterText.textContent = 'Filter by locations...';
+        filterText.className = 'text-gray-500 dark:text-gray-400';
+    } else if (selectedLocations.length === 1) {
+        filterText.textContent = selectedLocations[0];
+        filterText.className = 'text-gray-900 dark:text-white';
+    } else {
+        filterText.textContent = `${selectedLocations.length} locations`;
+        filterText.className = 'text-gray-900 dark:text-white';
+    }
+    
+    // Update table with new filter
+    updateTableWithMobileFilters();
+}
+
+function clearMobileLocationFilter() {
+    const checkboxes = document.querySelectorAll('.mobile-location-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateMobileLocationFilter();
+}
+
+function updateTableWithDesktopFilters() {
+    const searchTerm = document.getElementById("global-search")?.value.trim() || "";
+    const checkboxes = document.querySelectorAll('.location-checkbox:checked');
+    const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
+    
+    // Build new URL with both search and location parameters
+    let newUrl = "/items/data";
+    const params = [];
+    
+    if (searchTerm) {
+        params.push("global_search=" + encodeURIComponent(searchTerm));
+    }
+    if (selectedLocations.length > 0) {
+        params.push("locations=" + encodeURIComponent(selectedLocations.join(',')));
+    }
+    
+    if (params.length > 0) {
+        newUrl += "?" + params.join("&");
+    }
+    
+    console.log("Desktop filters - Search:", searchTerm, "Locations:", selectedLocations);
+    console.log("Updating table with URL:", newUrl);
+    
+    // Update table's AJAX URL and refresh data
+    table.setData(newUrl);
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', function(event) {
+    const desktopDropdown = document.getElementById('location-filter-dropdown');
+    const desktopButton = document.getElementById('location-filter-button');
+    const mobileDropdown = document.getElementById('mobile-location-filter-dropdown');
+    const mobileButton = document.getElementById('mobile-location-filter-button');
+    
+    // Close desktop dropdown if clicking outside
+    if (desktopDropdown && !desktopDropdown.contains(event.target) && !desktopButton.contains(event.target)) {
+        desktopDropdown.classList.add('hidden');
+        document.getElementById('location-dropdown-arrow').style.transform = 'rotate(0deg)';
+    }
+    
+    // Close mobile dropdown if clicking outside
+    if (mobileDropdown && !mobileDropdown.contains(event.target) && !mobileButton.contains(event.target)) {
+        mobileDropdown.classList.add('hidden');
+        document.getElementById('mobile-location-dropdown-arrow').style.transform = 'rotate(0deg)';
+    }
 });
 </script>
 {% endblock %} 
