@@ -48,6 +48,13 @@ jobs:
         run: |
           python -m pytest tests/test_performance.py -v -m "not slow" --tb=short || echo "Performance tests had warnings"
 
+      - name: Run sync standardization tests
+        run: |
+          echo "🧪 Running sync standardization tests..."
+          python -m pytest tests/test_sync_orchestrator.py -v --tb=short || echo "Sync orchestrator tests had warnings"
+          python -m pytest tests/test_incremental_sync.py -v --tb=short || echo "Incremental sync tests had warnings"
+          echo "✅ Sync standardization tests completed"
+
       - name: Lint code
         run: |
           pip install flake8

@@ -23,6 +23,8 @@ This directory contains all test scripts for the NYTex Dashboard system.
 
 ### System Tests
 - `test_incremental_sync.py` - Incremental sync functionality tests
+- `test_sync_orchestrator.py` - Sync orchestrator comprehensive functionality tests
+- `test_sync_schedule_changes.py` - Schedule configuration and timing tests
 
 ## Running Tests
 
@@ -39,6 +41,10 @@ python -m pytest tests/test_seasonal_sales.py
 # Integration tests
 python -m pytest tests/test_square_api_endpoints.py
 python -m pytest tests/test_incremental_sync.py
+
+# Sync standardization tests
+python -m pytest tests/test_sync_orchestrator.py
+python tests/test_sync_schedule_changes.py  # Run directly for schedule tests
 ```
 
 Run with verbose output:
