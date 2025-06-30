@@ -2838,3 +2838,125 @@ async def debug_email_config():
             'error': str(e),
             'timestamp': datetime.now(timezone.utc).isoformat()
         }, status_code=500)
+
+@router.post("/orchestrator-sync")
+async def orchestrator_sync_api(request: Request):
+    """API endpoint for comprehensive sync using sync_orchestrator.py functionality"""
+    try:
+        logger.info("🚀 Starting comprehensive orchestrator sync via API")
+        
+        # Import the SyncEngine (this is our sync_orchestrator.py functionality)
+        from app.services.sync_engine import SyncEngine
+        
+        # Parse request body to check for sync options
+        request_body = {}
+        try:
+            request_body = await request.json()
+        except:
+            pass  # No JSON body is fine, use defaults
+        
+        # Get data types to sync (default to all comprehensive types)
+        data_types = request_body.get('data_types', ['locations', 'catalog_categories', 'catalog_items', 'orders', 'inventory'])
+        
+        sync_engine = SyncEngine()
+        
+        # Run comprehensive sync using the sync_orchestrator functionality
+        results = await sync_engine.sync_all(data_types=data_types)
+        
+        # Calculate totals from all sync results
+        total_processed = sum(result.records_processed for result in results.values())
+        total_added = sum(result.records_added for result in results.values())
+        total_updated = sum(result.records_updated for result in results.values())
+        total_duration = sum(result.duration_seconds for result in results.values())
+        
+        # Check if all syncs were successful
+        all_successful = all(result.success for result in results.values())
+        failed_syncs = [data_type for data_type, result in results.items() if not result.success]
+        
+        # Send notification based on results
+        try:
+            from app.services.notifications import send_sync_success_report, send_sync_failure_alert
+            
+            if all_successful:
+                # Send success notification
+                send_sync_success_report(results, "production")
+                logger.info("✅ Success notification sent")
+            else:
+                # Send failure notification
+                send_sync_failure_alert(results, "production")
+                logger.info("📧 Failure notification sent")
+        except Exception as e:
+            logger.warning(f"Failed to send notification: {e}")
+        
+        if all_successful:
+            logger.info(f"✅ Orchestrator sync completed: {total_processed} total records processed")
+            return JSONResponse({
+                "success": True,
+                "message": f"Orchestrator sync completed successfully - {total_processed} records processed",
+                "total_records_processed": total_processed,
+                "total_records_added": total_added,
+                "total_records_updated": total_updated,
+                "total_duration_seconds": total_duration,
+                "data_types_synced": list(results.keys()),
+                "results": {
+                    data_type: {
+                        "records_processed": result.records_processed,
+                        "records_added": result.records_added,
+                        "records_updated": result.records_updated,
+                        "duration_seconds": result.duration_seconds,
+                        "success": result.success
+                    }
+                    for data_type, result in results.items()
+                },
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            })
+        else:
+            error_details = []
+            for data_type, result in results.items():
+                if not result.success:
+                    error_details.extend([f"{data_type}: {error}" for error in result.errors])
+            
+            logger.error(f"❌ Orchestrator sync failed for: {failed_syncs}")
+            return JSONResponse({
+                "success": False,
+                "error": f"Orchestrator sync failed for: {', '.join(failed_syncs)}",
+                "failed_data_types": failed_syncs,
+                "error_details": error_details,
+                "partial_results": {
+                    data_type: {
+                        "records_processed": result.records_processed,
+                        "records_added": result.records_added,
+                        "records_updated": result.records_updated,
+                        "duration_seconds": result.duration_seconds,
+                        "success": result.success,
+                        "errors": result.errors if not result.success else []
+                    }
+                    for data_type, result in results.items()
+                },
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }, status_code=500)
+        
+    except Exception as e:
+        logger.error(f"❌ Error during orchestrator sync API: {str(e)}", exc_info=True)
+        
+        # Send failure notification for unexpected errors
+        try:
+            from app.services.notifications import send_sync_failure_alert
+            from app.services.sync_engine import SyncResult
+            
+            failure_result = SyncResult(
+                success=False,
+                data_type='orchestrator_sync',
+                errors=[str(e)]
+            )
+            failure_results = {'orchestrator_sync': failure_result}
+            send_sync_failure_alert(failure_results, "production")
+            logger.info("📧 Failure notification sent for unexpected error")
+        except Exception as notify_error:
+            logger.warning(f"Failed to send failure notification: {notify_error}")
+        
+        return JSONResponse({
+            "success": False,
+            "error": f"Orchestrator sync API error: {str(e)}",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }, status_code=500)
