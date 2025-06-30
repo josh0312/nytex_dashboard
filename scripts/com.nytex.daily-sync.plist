@@ -26,11 +26,11 @@
         <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/.venv</string>
     </dict>
     
-    <!-- Schedule: Daily at 1:00 AM Central (6:00 AM UTC) -->
+    <!-- Schedule: Daily at 2:00 AM Central (7:00 AM UTC) -->
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>1</integer>
+        <integer>2</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>
