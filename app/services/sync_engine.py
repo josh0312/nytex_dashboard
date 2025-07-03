@@ -286,10 +286,12 @@ class SyncEngine:
                             # Convert order_entries to order IDs and fetch full orders
                             order_ids = [entry['order_id'] for entry in order_entries]
                             
-                            # Fetch full orders by IDs
+                            # Fetch full orders by IDs with line_items and tenders
                             full_orders = []
                             for order_id in order_ids:
-                                async with session.get(f"{self.square_base_url}/v2/orders/{order_id}") as order_response:
+                                # Request line_items and tenders explicitly
+                                order_url = f"{self.square_base_url}/v2/orders/{order_id}?fields=line_items,tenders"
+                                async with session.get(order_url) as order_response:
                                     if order_response.status == 200:
                                         order_data = await order_response.json()
                                         if 'order' in order_data:
@@ -441,6 +443,7 @@ class SyncEngine:
         """
         Process orders and insert/update them in the database.
         Now includes order_line_items and tenders for comprehensive sync.
+        Uses separate transactions to prevent abort cascades.
         """
         logger.info(f"   💾 Processing {len(orders)} orders with line items and tenders...")
         
@@ -451,6 +454,7 @@ class SyncEngine:
         line_items_added = 0
         tenders_added = 0
         
+        # Step 1: Process Orders (separate transaction)
         try:
             with engine.connect() as conn:
                 trans = conn.begin()
@@ -460,14 +464,14 @@ class SyncEngine:
                         if i % 100 == 0:
                             logger.info(f"   Processing order {i}/{len(orders)}...")
                         
-                        # Parse order data (same as emergency script)
+                        # Parse order data
                         order_data = self._parse_order_data(order)
                         
                         if not order_data:
                             records_skipped += 1
                             continue
                         
-                        # Step 1: Insert/Update Order
+                        # Insert/Update Order
                         try:
                             result = conn.execute(text("""
                                 INSERT INTO orders (
@@ -506,8 +510,31 @@ class SyncEngine:
                             logger.error(f"   ⚠️ Error processing order {order_data.get('id', 'unknown')}: {str(e)}")
                             records_skipped += 1
                             continue
-                        
-                        # Step 2: Insert/Update Order Line Items
+                    
+                    # Commit orders transaction
+                    trans.commit()
+                    logger.info(f"   ✅ Orders processed: {records_added} added, {records_updated} updated, {records_skipped} skipped")
+                    
+                except Exception as e:
+                    trans.rollback()
+                    logger.error(f"   ❌ Orders transaction failed: {str(e)}")
+                    raise e
+                
+        except Exception as e:
+            logger.error(f"   ❌ Orders processing error: {str(e)}")
+            # Continue to line items processing even if some orders failed
+        
+        # Step 2: Process Line Items (separate transaction)
+        try:
+            with engine.connect() as conn:
+                trans = conn.begin()
+                
+                try:
+                    for order in orders:
+                        order_data = self._parse_order_data(order)
+                        if not order_data:
+                            continue
+                            
                         line_items = order.get('line_items', [])
                         for line_item in line_items:
                             try:
@@ -571,8 +598,31 @@ class SyncEngine:
                             except Exception as e:
                                 logger.error(f"   ⚠️ Error processing line item {line_item.get('uid', 'unknown')} for order {order_data.get('id')}: {str(e)}")
                                 continue
-                        
-                        # Step 3: Insert/Update Tenders (Payment Methods)
+                    
+                    # Commit line items transaction
+                    trans.commit()
+                    logger.info(f"   ✅ Line items processed: {line_items_added} added")
+                    
+                except Exception as e:
+                    trans.rollback()
+                    logger.error(f"   ❌ Line items transaction failed: {str(e)}")
+                    raise e
+                
+        except Exception as e:
+            logger.error(f"   ❌ Line items processing error: {str(e)}")
+            # Continue to tenders processing even if line items failed
+        
+        # Step 3: Process Tenders (separate transaction)
+        try:
+            with engine.connect() as conn:
+                trans = conn.begin()
+                
+                try:
+                    for order in orders:
+                        order_data = self._parse_order_data(order)
+                        if not order_data:
+                            continue
+                            
                         tenders = order.get('tenders', [])
                         for tender in tenders:
                             try:
@@ -626,18 +676,21 @@ class SyncEngine:
                                 logger.error(f"   ⚠️ Error processing tender {tender.get('id', 'unknown')} for order {order_data.get('id')}: {str(e)}")
                                 continue
                     
-                    # Commit transaction
+                    # Commit tenders transaction
                     trans.commit()
-                    logger.info(f"   ✅ Processed {len(orders)} orders: {records_added} added, {records_updated} updated, {records_skipped} skipped")
-                    logger.info(f"   ✅ Processed {line_items_added} line items and {tenders_added} tenders")
+                    logger.info(f"   ✅ Tenders processed: {tenders_added} added")
                     
                 except Exception as e:
                     trans.rollback()
+                    logger.error(f"   ❌ Tenders transaction failed: {str(e)}")
                     raise e
                 
         except Exception as e:
-            logger.error(f"   ❌ Database error: {str(e)}")
-            raise e
+            logger.error(f"   ❌ Tenders processing error: {str(e)}")
+        
+        # Final summary
+        logger.info(f"   ✅ TOTAL: {records_added} orders added, {records_updated} updated, {records_skipped} skipped")
+        logger.info(f"   ✅ TOTAL: {line_items_added} line items, {tenders_added} tenders")
         
         return SyncResult(
             success=True,

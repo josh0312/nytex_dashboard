@@ -215,15 +215,16 @@ class DailySalesService:
             items_query = text(f"""
                 SELECT 
                     oli.name,
-                    oli.sku,
+                    COALESCE(cv.sku, 'N/A') as sku,
                     SUM(oli.quantity::numeric) as total_quantity,
                     SUM((oli.total_money->>'amount')::numeric / 100) as total_revenue
                 FROM orders o
                 JOIN order_line_items oli ON o.id = oli.order_id
+                LEFT JOIN catalog_variations cv ON oli.catalog_object_id = cv.id
                 WHERE DATE(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') = :report_date
                 AND o.state = 'COMPLETED'
                 {location_filter}
-                GROUP BY oli.name, oli.sku
+                GROUP BY oli.name, cv.sku
                 ORDER BY total_quantity DESC
                 LIMIT 5
             """)
@@ -316,7 +317,8 @@ class DailySalesService:
                     SELECT 1 
                     FROM orders o
                     JOIN order_line_items oli ON o.id = oli.order_id
-                    WHERE oli.sku = iv.sku
+                    JOIN catalog_variations cv ON oli.catalog_object_id = cv.id
+                    WHERE cv.sku = iv.sku
                     AND DATE(o.created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Chicago') 
                         BETWEEN :season_start AND :season_end
                     AND o.state = 'COMPLETED'
