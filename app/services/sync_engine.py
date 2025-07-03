@@ -440,14 +440,16 @@ class SyncEngine:
     async def _process_orders(self, orders: List[Dict[str, Any]]) -> SyncResult:
         """
         Process orders and insert/update them in the database.
-        Uses the same proven approach as the emergency script.
+        Now includes order_line_items and tenders for comprehensive sync.
         """
-        logger.info(f"   💾 Processing {len(orders)} orders...")
+        logger.info(f"   💾 Processing {len(orders)} orders with line items and tenders...")
         
         engine = create_engine(self.database_url)
         records_added = 0
         records_updated = 0
         records_skipped = 0
+        line_items_added = 0
+        tenders_added = 0
         
         try:
             with engine.connect() as conn:
@@ -465,7 +467,7 @@ class SyncEngine:
                             records_skipped += 1
                             continue
                         
-                        # Use upsert approach (same as emergency script)
+                        # Step 1: Insert/Update Order
                         try:
                             result = conn.execute(text("""
                                 INSERT INTO orders (
@@ -499,15 +501,135 @@ class SyncEngine:
                                 records_added += 1
                             else:
                                 records_updated += 1
-                                
+                        
                         except Exception as e:
                             logger.error(f"   ⚠️ Error processing order {order_data.get('id', 'unknown')}: {str(e)}")
                             records_skipped += 1
                             continue
+                        
+                        # Step 2: Insert/Update Order Line Items
+                        line_items = order.get('line_items', [])
+                        for line_item in line_items:
+                            try:
+                                conn.execute(text("""
+                                    INSERT INTO order_line_items (
+                                        uid, order_id, catalog_object_id, catalog_version, name, 
+                                        quantity, item_type, base_price_money, variation_total_price_money,
+                                        gross_sales_money, total_discount_money, total_tax_money, total_money,
+                                        variation_name, item_variation_metadata, note, applied_taxes, 
+                                        applied_discounts, modifiers, pricing_blocklists
+                                    ) VALUES (
+                                        :uid, :order_id, :catalog_object_id, :catalog_version, :name,
+                                        :quantity, :item_type, :base_price_money, :variation_total_price_money,
+                                        :gross_sales_money, :total_discount_money, :total_tax_money, :total_money,
+                                        :variation_name, :item_variation_metadata, :note, :applied_taxes,
+                                        :applied_discounts, :modifiers, :pricing_blocklists
+                                    )
+                                    ON CONFLICT (order_id, uid) DO UPDATE SET
+                                        catalog_object_id = EXCLUDED.catalog_object_id,
+                                        catalog_version = EXCLUDED.catalog_version,
+                                        name = EXCLUDED.name,
+                                        quantity = EXCLUDED.quantity,
+                                        item_type = EXCLUDED.item_type,
+                                        base_price_money = EXCLUDED.base_price_money,
+                                        variation_total_price_money = EXCLUDED.variation_total_price_money,
+                                        gross_sales_money = EXCLUDED.gross_sales_money,
+                                        total_discount_money = EXCLUDED.total_discount_money,
+                                        total_tax_money = EXCLUDED.total_tax_money,
+                                        total_money = EXCLUDED.total_money,
+                                        variation_name = EXCLUDED.variation_name,
+                                        item_variation_metadata = EXCLUDED.item_variation_metadata,
+                                        note = EXCLUDED.note,
+                                        applied_taxes = EXCLUDED.applied_taxes,
+                                        applied_discounts = EXCLUDED.applied_discounts,
+                                        modifiers = EXCLUDED.modifiers,
+                                        pricing_blocklists = EXCLUDED.pricing_blocklists
+                                """), {
+                                    'uid': line_item['uid'],
+                                    'order_id': order_data['id'],
+                                    'catalog_object_id': line_item.get('catalog_object_id'),
+                                    'catalog_version': line_item.get('catalog_version'),
+                                    'name': line_item.get('name'),
+                                    'quantity': line_item.get('quantity'),
+                                    'item_type': line_item.get('item_type'),
+                                    'base_price_money': json.dumps(line_item.get('base_price_money', {})),
+                                    'variation_total_price_money': json.dumps(line_item.get('variation_total_price_money', {})),
+                                    'gross_sales_money': json.dumps(line_item.get('gross_sales_money', {})),
+                                    'total_discount_money': json.dumps(line_item.get('total_discount_money', {})),
+                                    'total_tax_money': json.dumps(line_item.get('total_tax_money', {})),
+                                    'total_money': json.dumps(line_item.get('total_money', {})),
+                                    'variation_name': line_item.get('variation_name'),
+                                    'item_variation_metadata': json.dumps(line_item.get('metadata', {})),
+                                    'note': line_item.get('note'),
+                                    'applied_taxes': json.dumps(line_item.get('applied_taxes', [])),
+                                    'applied_discounts': json.dumps(line_item.get('applied_discounts', [])),
+                                    'modifiers': json.dumps(line_item.get('modifiers', [])),
+                                    'pricing_blocklists': json.dumps(line_item.get('pricing_blocklists', {}))
+                                })
+                                line_items_added += 1
+                                
+                            except Exception as e:
+                                logger.error(f"   ⚠️ Error processing line item {line_item.get('uid', 'unknown')} for order {order_data.get('id')}: {str(e)}")
+                                continue
+                        
+                        # Step 3: Insert/Update Tenders (Payment Methods)
+                        tenders = order.get('tenders', [])
+                        for tender in tenders:
+                            try:
+                                # Parse timestamp for tender
+                                created_at = None
+                                if tender.get('created_at'):
+                                    try:
+                                        created_at = datetime.fromisoformat(tender['created_at'].replace('Z', '+00:00')).astimezone(timezone.utc).replace(tzinfo=None)
+                                    except:
+                                        pass
+                                
+                                conn.execute(text("""
+                                    INSERT INTO tenders (
+                                        id, order_id, location_id, type, amount_money, 
+                                        tip_money, processing_fee_money, customer_id, 
+                                        card_details, cash_details, created_at, tender_metadata
+                                    ) VALUES (
+                                        :id, :order_id, :location_id, :type, :amount_money,
+                                        :tip_money, :processing_fee_money, :customer_id,
+                                        :card_details, :cash_details, :created_at, :tender_metadata
+                                    )
+                                    ON CONFLICT (id) DO UPDATE SET
+                                        order_id = EXCLUDED.order_id,
+                                        location_id = EXCLUDED.location_id,
+                                        type = EXCLUDED.type,
+                                        amount_money = EXCLUDED.amount_money,
+                                        tip_money = EXCLUDED.tip_money,
+                                        processing_fee_money = EXCLUDED.processing_fee_money,
+                                        customer_id = EXCLUDED.customer_id,
+                                        card_details = EXCLUDED.card_details,
+                                        cash_details = EXCLUDED.cash_details,
+                                        created_at = EXCLUDED.created_at,
+                                        tender_metadata = EXCLUDED.tender_metadata
+                                """), {
+                                    'id': tender['id'],
+                                    'order_id': order_data['id'],
+                                    'location_id': tender.get('location_id'),
+                                    'type': tender.get('type'),
+                                    'amount_money': json.dumps(tender.get('amount_money', {})),
+                                    'tip_money': json.dumps(tender.get('tip_money', {})),
+                                    'processing_fee_money': json.dumps(tender.get('processing_fee_money', {})),
+                                    'customer_id': tender.get('customer_id'),
+                                    'card_details': json.dumps(tender.get('card_details', {})),
+                                    'cash_details': json.dumps(tender.get('cash_details', {})),
+                                    'created_at': created_at,
+                                    'tender_metadata': json.dumps(tender.get('additional_recipients', []))
+                                })
+                                tenders_added += 1
+                                
+                            except Exception as e:
+                                logger.error(f"   ⚠️ Error processing tender {tender.get('id', 'unknown')} for order {order_data.get('id')}: {str(e)}")
+                                continue
                     
                     # Commit transaction
                     trans.commit()
                     logger.info(f"   ✅ Processed {len(orders)} orders: {records_added} added, {records_updated} updated, {records_skipped} skipped")
+                    logger.info(f"   ✅ Processed {line_items_added} line items and {tenders_added} tenders")
                     
                 except Exception as e:
                     trans.rollback()
