@@ -452,13 +452,30 @@ async def daily_sales_report(
             from app.utils.timezone import get_central_now
             parsed_date = get_central_now().date()
         
-        # Get the report data
-        async with get_session() as session:
-            daily_sales_service = DailySalesService(session)
-            
-            # Get the report data and available locations
-            report_data = await daily_sales_service.get_daily_sales_report(parsed_date, location_id)
-            available_locations = await daily_sales_service.get_available_locations()
+        # Get the report data with separate sessions to isolate failures
+        report_data = None
+        available_locations = []
+        
+        try:
+            # Try getting the main report data
+            async with get_session() as session:
+                daily_sales_service = DailySalesService(session)
+                report_data = await daily_sales_service.get_daily_sales_report(parsed_date, location_id)
+        except Exception as e:
+            logger.error(f"Error getting daily sales report data: {str(e)}")
+            # Use empty report data if main query fails
+            async with get_session() as session:
+                daily_sales_service = DailySalesService(session)
+                report_data = daily_sales_service._get_empty_report_data(parsed_date)
+        
+        try:
+            # Try getting available locations separately
+            async with get_session() as session:
+                daily_sales_service = DailySalesService(session)
+                available_locations = await daily_sales_service.get_available_locations()
+        except Exception as e:
+            logger.error(f"Error getting available locations: {str(e)}")
+            available_locations = []
         
         # Add location name for display
         selected_location_name = "All Locations"
