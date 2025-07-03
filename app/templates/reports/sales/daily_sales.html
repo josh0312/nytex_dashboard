@@ -1,0 +1,103 @@
+{% extends "reports/base_report.html" %}
+
+{% block title %}{{ report_title }} - NyTex Fireworks{% endblock %}
+
+{% block report_header %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ report_title }}</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {{ selected_location_name }}
+            {% if report_data.current_season %}
+                • {{ report_data.current_season.name }} - Day {{ report_data.current_season.days_into_season }} of {{ report_data.current_season.total_season_days }}
+            {% endif %}
+        </p>
+    </div>
+    
+    <!-- Location and Date Filters -->
+    <div class="flex gap-4">
+        <!-- Location Filter -->
+        <select id="location-filter" 
+                hx-get="/reports/sales/daily" 
+                hx-target="#daily-sales-content"
+                hx-include="#date-filter"
+                class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            <option value="">All Locations</option>
+            {% for location in available_locations %}
+                <option value="{{ location.id }}" {% if location.id == selected_location_id %}selected{% endif %}>
+                    {{ location.name }}
+                </option>
+            {% endfor %}
+        </select>
+        
+        <!-- Date Filter -->
+        <input type="date" 
+               id="date-filter"
+               name="report_date"
+               value="{{ report_date.strftime('%Y-%m-%d') }}"
+               hx-get="/reports/sales/daily" 
+               hx-target="#daily-sales-content"
+               hx-include="#location-filter"
+               class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+    </div>
+</div>
+{% endblock %}
+
+{% block report_content %}
+<div id="daily-sales-content">
+    {% include "reports/sales/daily_sales_content.html" %}
+</div>
+{% endblock %}
+
+{% block report_scripts %}
+<script>
+    // Initialize any charts or interactive elements
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize hourly chart if data exists
+        {% if report_data.today_performance.hourly_data %}
+            initializeHourlyChart({{ report_data.today_performance.hourly_data|tojson }});
+        {% endif %}
+    });
+    
+    function initializeHourlyChart(hourlyData) {
+        const ctx = document.getElementById('hourlyChart');
+        if (!ctx || !hourlyData.length) return;
+        
+        const hours = hourlyData.map(d => `${d.hour}:00`);
+        const revenues = hourlyData.map(d => d.revenue);
+        
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: hours,
+                datasets: [{
+                    label: 'Hourly Revenue',
+                    data: revenues,
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Revenue by Hour'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %} 

@@ -2,12 +2,15 @@ from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import FileResponse, HTMLResponse
 import os
 from app.services.reports.query_executor import QueryExecutor
+from app.services.reports.daily_sales_service import DailySalesService
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import text
 from pathlib import Path
 from app.templates_config import templates
 from app.logger import logger
+from app.database import get_session
+from datetime import datetime, date
 import logging
 
 router = APIRouter(tags=["reports"])
@@ -429,4 +432,66 @@ async def low_stock_report(
             
     except Exception as e:
         logger.error(f"Error in low_stock_report: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to load Low Item Stock Report: {str(e)}") 
+        raise HTTPException(status_code=500, detail=f"Failed to load Low Item Stock Report: {str(e)}")
+
+@router.get("/sales/daily", response_class=HTMLResponse)
+async def daily_sales_report(
+    request: Request,
+    report_date: str = Query(None, description="Report date in YYYY-MM-DD format"),
+    location_id: str = Query(None, description="Location ID or None for all locations")
+):
+    """Render the Daily Sales Report page."""
+    try:
+        # Parse report date or use today
+        if report_date:
+            try:
+                parsed_date = datetime.strptime(report_date, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+        else:
+            from app.utils.timezone import get_central_now
+            parsed_date = get_central_now().date()
+        
+        # Get the report data
+        async with get_session() as session:
+            daily_sales_service = DailySalesService(session)
+            
+            # Get the report data and available locations
+            report_data = await daily_sales_service.get_daily_sales_report(parsed_date, location_id)
+            available_locations = await daily_sales_service.get_available_locations()
+        
+        # Add location name for display
+        selected_location_name = "All Locations"
+        if location_id:
+            for loc in available_locations:
+                if loc['id'] == location_id:
+                    selected_location_name = loc['name']
+                    break
+        
+        # Common template variables
+        template_vars = {
+            "request": request,
+            "report_data": report_data,
+            "available_locations": available_locations,
+            "selected_location_id": location_id,
+            "selected_location_name": selected_location_name,
+            "report_date": parsed_date,
+            "report_title": f"Daily Sales Report - {parsed_date.strftime('%B %d, %Y')}",
+        }
+        
+        # If this is an HTMX request, return only the content
+        if request.headers.get("HX-Request"):
+            return templates.TemplateResponse(
+                "reports/sales/daily_sales_content.html",
+                template_vars
+            )
+        
+        # Otherwise return the full page
+        return templates.TemplateResponse(
+            "reports/sales/daily_sales.html",
+            template_vars
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in daily_sales_report: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to load Daily Sales Report: {str(e)}") 

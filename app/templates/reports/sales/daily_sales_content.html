@@ -1,0 +1,298 @@
+<!-- Today's Performance Section -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="bg-green-100 dark:bg-green-800 rounded-lg p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-green-200 dark:bg-green-700 rounded-full">
+                <i data-lucide="dollar-sign" class="w-6 h-6 text-green-600 dark:text-green-300"></i>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Total Revenue</h3>
+                <p class="text-2xl font-bold text-green-600 dark:text-green-300">
+                    ${{ "{:,.2f}".format(report_data.today_performance.total_revenue) }}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-blue-100 dark:bg-blue-800 rounded-lg p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-blue-200 dark:bg-blue-700 rounded-full">
+                <i data-lucide="shopping-cart" class="w-6 h-6 text-blue-600 dark:text-blue-300"></i>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Transactions</h3>
+                <p class="text-2xl font-bold text-blue-600 dark:text-blue-300">
+                    {{ report_data.today_performance.completed_transactions }}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-purple-100 dark:bg-purple-800 rounded-lg p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-purple-200 dark:bg-purple-700 rounded-full">
+                <i data-lucide="trending-up" class="w-6 h-6 text-purple-600 dark:text-purple-300"></i>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Avg Order Value</h3>
+                <p class="text-2xl font-bold text-purple-600 dark:text-purple-300">
+                    ${{ "{:,.2f}".format(report_data.today_performance.avg_order_value) }}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-orange-100 dark:bg-orange-800 rounded-lg p-6">
+        <div class="flex items-center">
+            <div class="p-3 bg-orange-200 dark:bg-orange-700 rounded-full">
+                <i data-lucide="package" class="w-6 h-6 text-orange-600 dark:text-orange-300"></i>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Units Sold</h3>
+                <p class="text-2xl font-bold text-orange-600 dark:text-orange-300">
+                    {{ "{:,}".format(report_data.today_performance.total_units) }}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Comparison Metrics Section -->
+{% if report_data.comparison_metrics %}
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-8">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+        <i data-lucide="calendar" class="w-5 h-5 inline-block mr-2"></i>
+        Performance Comparisons
+    </h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- vs Yesterday -->
+        <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">vs Yesterday</h3>
+            <div class="space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600 dark:text-gray-400">Revenue:</span>
+                    <div class="flex items-center">
+                        <span class="text-gray-900 dark:text-white font-medium">
+                            ${{ "{:,.2f}".format(report_data.comparison_metrics.yesterday.revenue) }}
+                        </span>
+                        <span class="ml-2 text-sm {% if report_data.comparison_metrics.vs_yesterday.revenue_change >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            {% if report_data.comparison_metrics.vs_yesterday.revenue_change >= 0 %}+{% endif %}{{ report_data.comparison_metrics.vs_yesterday.revenue_change }}%
+                        </span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600 dark:text-gray-400">Transactions:</span>
+                    <div class="flex items-center">
+                        <span class="text-gray-900 dark:text-white font-medium">
+                            {{ report_data.comparison_metrics.yesterday.transactions }}
+                        </span>
+                        <span class="ml-2 text-sm {% if report_data.comparison_metrics.vs_yesterday.transactions_change >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            {% if report_data.comparison_metrics.vs_yesterday.transactions_change >= 0 %}+{% endif %}{{ report_data.comparison_metrics.vs_yesterday.transactions_change }}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- vs Same Day Last Year -->
+        <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">vs Same Day Last Year</h3>
+            <div class="space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600 dark:text-gray-400">Revenue:</span>
+                    <div class="flex items-center">
+                        <span class="text-gray-900 dark:text-white font-medium">
+                            ${{ "{:,.2f}".format(report_data.comparison_metrics.same_day_last_year.revenue) }}
+                        </span>
+                        <span class="ml-2 text-sm {% if report_data.comparison_metrics.vs_last_year.revenue_change >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            {% if report_data.comparison_metrics.vs_last_year.revenue_change >= 0 %}+{% endif %}{{ report_data.comparison_metrics.vs_last_year.revenue_change }}%
+                        </span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600 dark:text-gray-400">Transactions:</span>
+                    <div class="flex items-center">
+                        <span class="text-gray-900 dark:text-white font-medium">
+                            {{ report_data.comparison_metrics.same_day_last_year.transactions }}
+                        </span>
+                        <span class="ml-2 text-sm {% if report_data.comparison_metrics.vs_last_year.transactions_change >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                            {% if report_data.comparison_metrics.vs_last_year.transactions_change >= 0 %}+{% endif %}{{ report_data.comparison_metrics.vs_last_year.transactions_change }}%
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Best/Worst Performers Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <!-- Top Selling Items Today -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            <i data-lucide="star" class="w-5 h-5 inline-block mr-2"></i>
+            Top Selling Items Today
+        </h2>
+        
+        {% if report_data.best_worst_performers.top_selling_items %}
+            <div class="space-y-3">
+                {% for item in report_data.best_worst_performers.top_selling_items %}
+                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-white">{{ item.item_name }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ item.vendor_name }}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-green-600 dark:text-green-400">${{ "{:,.2f}".format(item.revenue) }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ item.quantity_sold }} units</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-gray-500 dark:text-gray-400 text-center py-4">No sales recorded today</p>
+        {% endif %}
+    </div>
+    
+    <!-- Items Not Sold This Season -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            <i data-lucide="alert-triangle" class="w-5 h-5 inline-block mr-2"></i>
+            Items Not Sold This Season
+        </h2>
+        
+        {% if report_data.current_season and report_data.best_worst_performers.unsold_season_items %}
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+                {% for item in report_data.best_worst_performers.unsold_season_items[:10] %}
+                <div class="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-white">{{ item.item_name }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ item.vendor_name }}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-red-600 dark:text-red-400">${{ "{:,.2f}".format(item.price) }}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">{{ item.total_quantity }} in stock</div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if report_data.best_worst_performers.unsold_season_items|length > 10 %}
+                <p class="text-sm text-gray-500 dark:text-gray-400 text-center">
+                    ... and {{ report_data.best_worst_performers.unsold_season_items|length - 10 }} more items
+                </p>
+                {% endif %}
+            </div>
+        {% elif not report_data.current_season %}
+            <p class="text-gray-500 dark:text-gray-400 text-center py-4">Not currently in a selling season</p>
+        {% else %}
+            <p class="text-gray-500 dark:text-gray-400 text-center py-4">All inventory items have been sold this season!</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Location Performance (if showing all locations) -->
+{% if not selected_location_id and report_data.best_worst_performers.location_performance %}
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-8">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+        <i data-lucide="map-pin" class="w-5 h-5 inline-block mr-2"></i>
+        Location Performance Today
+    </h2>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for location in report_data.best_worst_performers.location_performance %}
+        <div class="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+            <h3 class="font-semibold text-gray-900 dark:text-white">{{ location.location_name }}</h3>
+            <div class="mt-2">
+                <div class="text-lg font-bold text-green-600 dark:text-green-400">
+                    ${{ "{:,.2f}".format(location.revenue) }}
+                </div>
+                <div class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ location.transactions }} transactions
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Operational Insights Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+    <!-- Payment Methods -->
+    {% if report_data.operational_insights.payment_methods %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            <i data-lucide="credit-card" class="w-5 h-5 inline-block mr-2"></i>
+            Payment Methods
+        </h2>
+        
+        <div class="space-y-3">
+            {% for payment in report_data.operational_insights.payment_methods %}
+            <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                    <div class="font-medium text-gray-900 dark:text-white">{{ payment.payment_type.title() }}</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ payment.transaction_count }} transactions</div>
+                </div>
+                <div class="font-bold text-gray-900 dark:text-white">
+                    ${{ "{:,.2f}".format(payment.total_amount) }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Peak Hour -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+            <i data-lucide="clock" class="w-5 h-5 inline-block mr-2"></i>
+            Peak Performance
+        </h2>
+        
+        {% if report_data.operational_insights.peak_hour %}
+        <div class="text-center">
+            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                {{ report_data.operational_insights.peak_hour.hour_display }}
+            </div>
+            <div class="text-lg text-gray-900 dark:text-white">
+                ${{ "{:,.2f}".format(report_data.operational_insights.peak_hour.revenue) }}
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                {{ report_data.operational_insights.peak_hour.transactions }} transactions
+            </div>
+        </div>
+        {% else %}
+        <p class="text-gray-500 dark:text-gray-400 text-center py-4">No transactions recorded today</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Hourly Revenue Chart -->
+{% if report_data.today_performance.hourly_data %}
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+        <i data-lucide="bar-chart-3" class="w-5 h-5 inline-block mr-2"></i>
+        Hourly Revenue Breakdown
+    </h2>
+    
+    <div class="h-64">
+        <canvas id="hourlyChart"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    // Re-initialize icons after HTMX update
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+    
+    // Re-initialize chart after HTMX update
+    {% if report_data.today_performance.hourly_data %}
+        setTimeout(() => {
+            initializeHourlyChart({{ report_data.today_performance.hourly_data|tojson }});
+        }, 100);
+    {% endif %}
+</script> 
