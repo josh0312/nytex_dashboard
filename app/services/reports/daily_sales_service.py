@@ -49,9 +49,12 @@ class DailySalesService:
                 "report_date": report_date,
                 "current_season": current_season,
                 "today_performance": today_performance,
-                "comparisons": comparisons,
-                "best_performers": best_performers,
-                "worst_performers": worst_performers,
+                "comparison_metrics": self._format_comparison_metrics(comparisons, today_performance),
+                "best_worst_performers": {
+                    "top_selling_items": best_performers.get("top_items", []),
+                    "location_performance": best_performers.get("top_locations", []),
+                    "unsold_season_items": worst_performers
+                },
                 "operational_insights": operational_insights,
                 "hourly_breakdown": hourly_breakdown
             }
@@ -122,9 +125,11 @@ class DailySalesService:
                 
                 return {
                     "total_revenue": total_revenue,
+                    "completed_transactions": transaction_count,
                     "transaction_count": transaction_count,
                     "avg_order_value": avg_order_value,
-                    "units_sold": units_sold
+                    "units_sold": units_sold,
+                    "total_units": units_sold
                 }
             
             return {"total_revenue": 0, "transaction_count": 0, "avg_order_value": 0, "units_sold": 0}
@@ -231,10 +236,11 @@ class DailySalesService:
             top_items = []
             for row in result.fetchall():
                 top_items.append({
-                    "name": row[0],
+                    "item_name": row[0],
                     "sku": row[1],
                     "quantity_sold": float(row[2] or 0),
-                    "revenue": float(row[3] or 0)
+                    "revenue": float(row[3] or 0),
+                    "vendor_name": "N/A"  # We'll need to enhance this query later
                 })
             
             # Top performing locations (only if viewing all locations)
@@ -331,11 +337,12 @@ class DailySalesService:
             unsold_items = []
             for row in result.fetchall():
                 unsold_items.append({
-                    "name": row[0],
+                    "item_name": row[0],
                     "sku": row[1],
                     "category": row[2],
                     "vendor_name": row[3],
-                    "current_inventory": row[4] or 0
+                    "total_quantity": row[4] or 0,
+                    "price": 0.00  # We'll need to enhance this query to get price
                 })
             
             return unsold_items
@@ -457,15 +464,66 @@ class DailySalesService:
             logger.error(f"Error getting hourly breakdown: {str(e)}")
             return []
 
+    def _format_comparison_metrics(self, comparisons: Dict[str, Any], today_performance: Dict[str, Any]) -> Dict[str, Any]:
+        """Format comparison metrics to match template expectations"""
+        def calc_change(current, previous):
+            if previous == 0:
+                return 100.0 if current > 0 else 0.0
+            return round(((current - previous) / previous) * 100, 1)
+        
+        today_revenue = today_performance.get("total_revenue", 0)
+        today_transactions = today_performance.get("completed_transactions", 0)
+        
+        yesterday_revenue = comparisons.get("yesterday_revenue", 0)
+        yesterday_transactions = comparisons.get("yesterday_transactions", 0)
+        
+        last_year_revenue = comparisons.get("last_year_revenue", 0)
+        last_year_transactions = comparisons.get("last_year_transactions", 0)
+        
+        return {
+            "yesterday": {
+                "revenue": yesterday_revenue,
+                "transactions": yesterday_transactions,
+                "avg_order_value": yesterday_revenue / yesterday_transactions if yesterday_transactions > 0 else 0
+            },
+            "same_day_last_year": {
+                "revenue": last_year_revenue,
+                "transactions": last_year_transactions,
+                "avg_order_value": last_year_revenue / last_year_transactions if last_year_transactions > 0 else 0
+            },
+            "vs_yesterday": {
+                "revenue_change": calc_change(today_revenue, yesterday_revenue),
+                "transactions_change": calc_change(today_transactions, yesterday_transactions),
+                "aov_change": calc_change(
+                    today_performance.get("avg_order_value", 0),
+                    yesterday_revenue / yesterday_transactions if yesterday_transactions > 0 else 0
+                )
+            },
+            "vs_last_year": {
+                "revenue_change": calc_change(today_revenue, last_year_revenue),
+                "transactions_change": calc_change(today_transactions, last_year_transactions),
+                "aov_change": calc_change(
+                    today_performance.get("avg_order_value", 0),
+                    last_year_revenue / last_year_transactions if last_year_transactions > 0 else 0
+                )
+            }
+        }
+
     def _get_empty_report_data(self, report_date: date) -> Dict[str, Any]:
         """Return empty report structure when there's an error"""
+        empty_performance = {"total_revenue": 0, "completed_transactions": 0, "transaction_count": 0, "avg_order_value": 0, "units_sold": 0, "total_units": 0}
+        empty_comparisons = {"yesterday_revenue": 0, "yesterday_transactions": 0, "last_year_revenue": 0, "last_year_transactions": 0}
+        
         return {
             "report_date": report_date,
             "current_season": None,
-            "today_performance": {"total_revenue": 0, "transaction_count": 0, "avg_order_value": 0, "units_sold": 0},
-            "comparisons": {"yesterday_revenue": 0, "yesterday_transactions": 0, "last_year_revenue": 0, "last_year_transactions": 0},
-            "best_performers": {"top_items": [], "top_locations": []},
-            "worst_performers": [],
+            "today_performance": empty_performance,
+            "comparison_metrics": self._format_comparison_metrics(empty_comparisons, empty_performance),
+            "best_worst_performers": {
+                "top_selling_items": [],
+                "location_performance": [],
+                "unsold_season_items": []
+            },
             "operational_insights": {"payment_methods": [], "peak_hour": None},
             "hourly_breakdown": []
         }
