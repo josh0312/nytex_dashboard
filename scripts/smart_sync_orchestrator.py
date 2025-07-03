@@ -39,7 +39,7 @@ class SmartSyncOrchestrator:
         self.config = OrchestratorConfig()
         self.orchestrator = SyncOrchestrator(self.config)
         self.last_sync_file = Path('logs/last_sync_check.txt')
-        self.scheduled_hour = 1  # 1 AM Central
+        self.scheduled_hour = 2  # 2 AM Central (development runs 1 hour after production)
         
     def get_last_successful_sync(self) -> datetime:
         """Get the timestamp of the last successful sync"""
@@ -71,12 +71,12 @@ class SmartSyncOrchestrator:
         # Check if we're past the scheduled time for today
         today_scheduled = now.replace(hour=self.scheduled_hour, minute=0, second=0, microsecond=0)
         
-        # If it's past 1 AM today and we haven't synced since yesterday
+        # If it's past 2 AM today and we haven't synced since yesterday
         if now > today_scheduled and last_sync < today_scheduled:
             hours_overdue = (now - today_scheduled).total_seconds() / 3600
             return True, f"Sync overdue by {hours_overdue:.1f} hours (last sync: {last_sync.strftime('%Y-%m-%d %H:%M')})"
         
-        # If we're in the scheduled hour (1-2 AM) and haven't synced today
+        # If we're in the scheduled hour (2-3 AM) and haven't synced today
         if now.hour == self.scheduled_hour and last_sync.date() < now.date():
             return True, f"In scheduled hour and no sync today (last sync: {last_sync.strftime('%Y-%m-%d %H:%M')})"
         

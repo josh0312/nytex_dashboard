@@ -10,7 +10,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/.venv/bin/python</string>
-        <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/scripts/sync_orchestrator.py</string>
+        <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/scripts/smart_sync_orchestrator.py</string>
     </array>
     
     <!-- Working directory -->
@@ -26,14 +26,42 @@
         <string>/Users/joshgoble/code/nytexfireworks/nytex_dashboard/.venv</string>
     </dict>
     
-    <!-- Schedule: Daily at 2:00 AM Central (7:00 AM UTC) -->
+    <!-- Schedule: Multiple times daily to catch missed syncs -->
     <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>2</integer>
-        <key>Minute</key>
-        <integer>0</integer>
-    </dict>
+    <array>
+        <!-- Primary sync time: 2:00 AM Central -->
+        <dict>
+            <key>Hour</key>
+            <integer>2</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <!-- Catch-up checks throughout the day -->
+        <dict>
+            <key>Hour</key>
+            <integer>8</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>12</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>16</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>20</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
     
     <!-- Key feature: Run missed jobs when system wakes up -->
     <key>RunAtLoad</key>
